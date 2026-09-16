@@ -1,0 +1,30 @@
+import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { AppLayout } from './AppLayout'
+import { ProtectedRoute } from './ProtectedRoute'
+import { LoginPage } from '../features/auth/LoginPage'
+import { AccountsScreen } from '../features/accounts/AccountsScreen'
+import { AccountSettingsPage } from '../features/accounts/AccountSettingsPage'
+import { ImportWizardPage } from '../features/import/ImportWizardPage'
+import { ChartsPage } from '../features/charts/ChartsPage'
+import { SettingsPage } from '../features/settings/SettingsPage'
+
+export const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    path: '/',
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { index: true, element: <Navigate to="/accounts" replace /> },
+          { path: 'accounts', element: <AccountsScreen /> },
+          { path: 'accounts/:id/import', element: <ImportWizardPage /> },
+          { path: 'accounts/:id/settings', element: <AccountSettingsPage /> },
+          { path: 'insights', element: <ChartsPage /> },
+          { path: 'settings', element: <SettingsPage /> },
+        ],
+      },
+    ],
+  },
+])

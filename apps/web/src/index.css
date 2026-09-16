@@ -1,0 +1,195 @@
+:root {
+  /* "Night Ledger" palette — a warm violet-black, not pure gray, with a
+     signature acid-lime accent reserved for primary actions, selection, and
+     money coming in. Expense amounts get a soft coral tint (not alarm-red) —
+     red is reserved for --danger (destructive actions) alone, so it stays
+     meaningful instead of doing double duty as "you spent money". */
+  --text: #f3f1fa;
+  --text-muted: #9c97b5;
+  --bg: #12111a;
+  --surface: #1c1b26;
+  --surface-raised: #242332;
+  --border: #322f42;
+  --accent: #c6ff3d;
+  --accent-contrast: #12111a;
+  --danger: #ff3b5c;
+  --outflow: #ff7a85;
+
+  /* Spacing scale used by shared components (Button/Card/Badge/Table/etc) —
+     not a mandate to retrofit every existing ad hoc inline-style literal. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 3px rgba(198, 255, 61, 0.25);
+
+  --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* Categorical series palette (dataviz skill, validated against this surface:
+     `node scripts/validate_palette.js "..." --mode light --surface "#ffffff"`).
+     Fixed hue order is the CVD-safety mechanism — assign in sequence, never cycle
+     within a single chart's first 8 series. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  font: 16px/1.5 var(--font-body);
+  color-scheme: dark light;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --text: #1a1826;
+    --text-muted: #6b6680;
+    --bg: #f7f5fb;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --border: #e4e0f0;
+    --accent: #6e9c00;
+    --accent-contrast: #ffffff;
+    --danger: #d6234a;
+    --outflow: #c7404e;
+
+    --shadow-sm: 0 1px 2px rgba(26, 24, 38, 0.08);
+    --shadow-md: 0 8px 24px rgba(26, 24, 38, 0.12);
+    --shadow-glow: 0 0 0 3px rgba(110, 156, 0, 0.2);
+
+    /* Same 8 hues, stepped for the light surface — validated separately
+       against `--surface "#ffffff"`, not an automatic dark-mode flip. */
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
+    --series-6: #008300;
+    --series-7: #4a3aa7;
+    --series-8: #e34948;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--accent);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Form controls ─────────────────────────────────────────────────────── */
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-glow);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

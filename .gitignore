@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.npm-cache/
+.pnpm-store/
+*.log
+.DS_Store
+apps/web/dist/
+apps/api/dist/
+supabase/.branches/
+supabase/.temp/

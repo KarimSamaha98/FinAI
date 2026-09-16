@@ -1,0 +1,20 @@
+{
+  "name": "finai",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter shared-types run build && pnpm --parallel --filter shared-types --filter web --filter api run dev",
+    "dev:web": "pnpm --filter web run dev",
+    "dev:api": "pnpm --filter api run dev",
+    "build": "pnpm --filter shared-types run build && pnpm --filter web run build && pnpm --filter api run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test"
+  },
+  "devDependencies": {
+    "supabase": "2.116.0"
+  }
+}
