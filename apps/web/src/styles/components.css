@@ -77,6 +77,17 @@
   color: var(--text);
 }
 
+.text-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Marks the category already chosen for a row (e.g. after going Back). */
+.btn.chip-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ── Card ──────────────────────────────────────────────────────────────── */
 
 .card {
