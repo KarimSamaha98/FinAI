@@ -26,6 +26,8 @@ export const profiles = pgTable('profiles', {
   homeCurrencyCode: text('home_currency_code')
     .notNull()
     .references(() => currencies.code),
+  countryCode: text('country_code'),
+  avatarPath: text('avatar_path'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

@@ -378,16 +378,267 @@ dialog::backdrop {
 }
 
 /* ── Auth ──────────────────────────────────────────────────────────────── */
+/* Login / sign-up follow the "Licence Plates" Figma frames (Signup Screen
+   124:16, Login Screen 124:189): Roboto, a pale blue-grey page, a white
+   panel, pill fields and a slate submit button. Light values are the Figma
+   ones; dark mode keeps the same shapes on the app's Night Ledger surfaces. */
 
 .auth-shell {
+  --auth-page: #f1f5fb;
+  --auth-panel: #ffffff;
+  --auth-field: #f1f5fb;
+  --auth-text: #000000;
+  --auth-muted: #818080;
+  --auth-button: #9299a6;
+  --auth-button-hover: #7f8796;
+  --auth-button-text: #ffffff;
+  --auth-focus: #5f6b80;
+
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
+  background: var(--auth-page);
+  font-family: 'Roboto', system-ui, sans-serif;
 }
 
-.auth-card {
+@media (prefers-color-scheme: dark) {
+  .auth-shell {
+    --auth-page: var(--bg);
+    --auth-panel: var(--surface);
+    --auth-field: var(--surface-raised);
+    --auth-text: var(--text);
+    --auth-muted: var(--text-muted);
+    --auth-button: #6b7385;
+    --auth-button-hover: #7c8497;
+    --auth-focus: var(--text-muted);
+  }
+}
+
+.auth-panel {
   width: 100%;
-  max-width: 24rem;
+  max-width: 428px; /* 388px column + 20px padding each side */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--auth-panel);
+  color: var(--auth-text);
+}
+
+.auth-panel-wide {
+  max-width: 507px;
+}
+
+.auth-title,
+.auth-subtitle {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  font-family: inherit;
+  font-size: clamp(1.75rem, 7vw, 2.25rem);
+  line-height: 1.22;
+  letter-spacing: 0;
+  color: var(--auth-text);
+}
+
+.auth-title {
+  font-weight: 700;
+}
+
+.auth-subtitle {
+  font-weight: 500;
+}
+
+.auth-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.auth-fields {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-input,
+.auth-select select {
+  width: 100%;
+  height: 46px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--auth-field);
+  color: var(--auth-text);
+  font-family: inherit;
+  font-size: clamp(1.125rem, 4.5vw, 1.375rem);
+  line-height: 28px;
+}
+
+.auth-input::placeholder {
+  color: var(--auth-muted);
+  opacity: 1;
+}
+
+.auth-input:focus-visible,
+.auth-select select:focus-visible,
+.auth-photo-picker:focus-within,
+.auth-submit:focus-visible,
+.auth-switch:focus-visible {
+  outline: 2px solid var(--auth-focus);
+  outline-offset: 2px;
+}
+
+.auth-select {
+  position: relative;
+}
+
+.auth-select select {
+  appearance: none;
+  padding-right: 56px;
+  cursor: pointer;
+}
+
+.auth-select select.is-empty {
+  color: var(--auth-muted);
+}
+
+.auth-select select option {
+  color: initial;
+}
+
+.auth-select-arrow {
+  position: absolute;
+  top: 50%;
+  right: 5.8%;
+  width: 26px;
+  height: 19px;
+  transform: translateY(-50%) rotate(180deg);
+  pointer-events: none;
+}
+
+.auth-photo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.auth-photo-picker {
+  position: relative;
+  width: 100%;
+  height: 231px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24px;
+  background: var(--auth-field);
+  cursor: pointer;
+}
+
+.auth-photo-label {
+  position: absolute;
+  top: 9px;
+  left: 24px;
+  color: var(--auth-muted);
+  font-size: clamp(1.125rem, 4.5vw, 1.375rem);
+  line-height: 28px;
+}
+
+.auth-photo-hint {
+  margin-top: 28px;
+  color: var(--auth-muted);
+  font-size: 0.95rem;
+}
+
+.auth-photo-preview {
+  width: 150px;
+  height: 150px;
+  margin-top: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.auth-photo-remove,
+.auth-switch {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  color: var(--auth-muted);
+  cursor: pointer;
+}
+
+.auth-photo-remove {
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+
+.auth-switch {
+  font-size: clamp(1.75rem, 7vw, 2.25rem);
+  line-height: 1.22;
+}
+
+.auth-switch:hover {
+  color: var(--auth-text);
+}
+
+.auth-submit {
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--auth-button);
+  color: var(--auth-button-text);
+  font-family: inherit;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 32px;
+  filter: drop-shadow(0 2px 9px rgba(0, 0, 0, 0.25));
+  cursor: pointer;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: var(--auth-button-hover);
+}
+
+.auth-submit:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Avatar ────────────────────────────────────────────────────────────── */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 600;
 }

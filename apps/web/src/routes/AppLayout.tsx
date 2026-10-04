@@ -1,6 +1,8 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { Button } from '../components/Button'
+import { Avatar } from '../components/Avatar'
+import { useProfile } from '../hooks/useProfile'
 
 const NAV_LINKS = [
   { to: '/accounts', label: 'Accounts' },
@@ -10,6 +12,7 @@ const NAV_LINKS = [
 
 export function AppLayout() {
   const navigate = useNavigate()
+  const { profile } = useProfile()
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -29,9 +32,14 @@ export function AppLayout() {
             ))}
           </nav>
         </div>
-        <Button variant="secondary" onClick={handleLogout}>
-          Log out
-        </Button>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+          <Link to="/settings" aria-label="Profile settings">
+            <Avatar url={profile?.avatarUrl ?? null} name={profile?.displayName ?? null} size={36} />
+          </Link>
+          <Button variant="secondary" onClick={handleLogout}>
+            Log out
+          </Button>
+        </div>
       </header>
       <Outlet />
     </>

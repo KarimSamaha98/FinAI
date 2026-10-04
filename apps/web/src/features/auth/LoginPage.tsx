@@ -1,24 +1,117 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
+import { apiClient } from '../../lib/apiClient'
+import { CURRENCY_CODES } from '../../lib/currencies'
+import { defaultCurrencyFor, listCountries } from '../../lib/countries'
 import { useAuth } from './useAuth'
-import { Card } from '../../components/Card'
-import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 
 type Mode = 'login' | 'signup'
 
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const PHOTO_TYPES = 'image/png,image/jpeg,image/webp,image/gif'
+
+interface AuthSelectProps {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string }[]
+}
+
+/** Pill dropdown from the Figma reference: the label doubles as the placeholder option. */
+function AuthSelect({ label, value, onChange, options }: AuthSelectProps) {
+  return (
+    <div className="auth-select">
+      <select aria-label={label} required value={value} onChange={(e) => onChange(e.target.value)} className={value ? '' : 'is-empty'}>
+        <option value="" disabled>
+          {label}
+        </option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <img src="/dropdown-arrow.svg" alt="" aria-hidden="true" className="auth-select-arrow" />
+    </div>
+  )
+}
+
+function ProfilePhotoField({ file, onChange }: { file: File | null; onChange: (file: File | null) => void }) {
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+  }, [previewUrl])
+
+  return (
+    <div className="auth-photo">
+      <label className="auth-photo-picker">
+        <span className="auth-photo-label">Profile Picture</span>
+        {previewUrl ? (
+          <img src={previewUrl} alt="Your profile photo" className="auth-photo-preview" />
+        ) : (
+          <span className="auth-photo-hint">Tap to add a photo (optional)</span>
+        )}
+        <input
+          type="file"
+          accept={PHOTO_TYPES}
+          className="visually-hidden"
+          onChange={(e) => {
+            onChange(e.target.files?.[0] ?? null)
+            e.target.value = ''
+          }}
+        />
+      </label>
+      {file && (
+        <button type="button" className="auth-photo-remove" onClick={() => onChange(null)}>
+          Remove photo
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function LoginPage() {
   const { session, loading } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [countryCode, setCountryCode] = useState('')
+  const [currencyCode, setCurrencyCode] = useState('')
+  const [photo, setPhoto] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmationSent, setConfirmationSent] = useState(false)
 
-  if (!loading && session) {
+  const countryOptions = useMemo(() => listCountries().map((c) => ({ value: c.code, label: c.name })), [])
+  const currencyOptions = CURRENCY_CODES.map((code) => ({ value: code, label: code }))
+
+  // Sign-up gets a session immediately when email confirmation is off; hold the
+  // redirect until the profile photo has finished uploading with it.
+  if (!loading && session && !submitting) {
     return <Navigate to="/accounts" replace />
+  }
+
+  function switchMode(next: Mode) {
+    setMode(next)
+    setError(null)
+    setConfirmationSent(false)
+  }
+
+  function handleCountryChange(code: string) {
+    setCountryCode(code)
+    if (!currencyCode) setCurrencyCode(defaultCurrencyFor(code) ?? '')
+  }
+
+  function handlePhotoChange(file: File | null) {
+    if (file && file.size > MAX_PHOTO_BYTES) {
+      setError('Profile photo must be 5 MB or smaller')
+      return
+    }
+    setError(null)
+    setPhoto(file)
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -29,10 +122,26 @@ export function LoginPage() {
       if (mode === 'login') {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
         if (signInError) throw signInError
-      } else {
-        const { error: signUpError } = await supabase.auth.signUp({ email, password })
-        if (signUpError) throw signUpError
+        return
+      }
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        // Copied into the profiles row by the handle_new_user trigger.
+        options: { data: { display_name: name.trim(), country_code: countryCode, home_currency_code: currencyCode } },
+      })
+      if (signUpError) throw signUpError
+      if (!data.session) {
         setConfirmationSent(true)
+        return
+      }
+      if (photo) {
+        try {
+          await apiClient.upload('/users/me/avatar', photo)
+        } catch {
+          // The account exists either way — the photo can be added again from Settings.
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -41,69 +150,70 @@ export function LoginPage() {
     }
   }
 
-  async function handleOAuth(provider: 'google' | 'apple') {
-    setError(null)
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider })
-    if (oauthError) setError(oauthError.message)
-  }
+  const isSignup = mode === 'signup'
 
   return (
     <div className="auth-shell">
-      <Card className="auth-card">
-        <span className="app-logo">FinAI</span>
-        <h1 style={{ marginTop: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
-          {mode === 'login' ? 'Welcome back' : 'Create your account'}
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
-          {mode === 'login' ? 'Log in to see where your money went.' : 'Track every account in one place.'}
-        </p>
+      <div className={`auth-panel${isSignup ? ' auth-panel-wide' : ''}`}>
+        <h1 className="auth-title">{isSignup ? 'Welcome to Fin.AI' : 'Welcome Back'}</h1>
+        <h2 className="auth-subtitle">{isSignup ? 'Create your account' : 'Login'}</h2>
 
         {confirmationSent ? (
-          <Alert variant="success">Check your email to confirm your account, then log in.</Alert>
+          <Alert variant="success">
+            Check your email to confirm your account, then log in.
+            {photo && ' You can add your profile photo from Settings once you’re in.'}
+          </Alert>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <label>
-              Email
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-            </label>
-            <label>
-              Password
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="auth-fields">
+              {isSignup && <ProfilePhotoField file={photo} onChange={handlePhotoChange} />}
+              {isSignup && (
+                <input
+                  className="auth-input"
+                  aria-label="Name"
+                  placeholder="Name"
+                  required
+                  maxLength={80}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                />
+              )}
               <input
+                className="auth-input"
+                type="email"
+                aria-label="Email"
+                placeholder="Email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+              <input
+                className="auth-input"
                 type="password"
+                aria-label="Password"
+                placeholder="Password"
                 required
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
               />
-            </label>
+              {isSignup && <AuthSelect label="Country" value={countryCode} onChange={handleCountryChange} options={countryOptions} />}
+              {isSignup && <AuthSelect label="Currency" value={currencyCode} onChange={setCurrencyCode} options={currencyOptions} />}
+            </div>
             {error && <Alert variant="error">{error}</Alert>}
-            <Button type="submit" variant="primary" loading={submitting}>
-              {mode === 'login' ? 'Log in' : 'Sign up'}
-            </Button>
+            <button type="submit" className="auth-submit" disabled={submitting}>
+              {submitting ? 'Working…' : isSignup ? 'Sign Up' : 'Submit'}
+            </button>
           </form>
         )}
 
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'var(--space-4)' }}>
-          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          <button
-            type="button"
-            onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', padding: 0, font: 'inherit' }}
-          >
-            {mode === 'login' ? 'Sign up' : 'Log in'}
-          </button>
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-          <Button variant="secondary" onClick={() => handleOAuth('google')}>
-            Continue with Google
-          </Button>
-          <Button variant="secondary" onClick={() => handleOAuth('apple')}>
-            Continue with Apple
-          </Button>
-        </div>
-      </Card>
+        <button type="button" className="auth-switch" onClick={() => switchMode(isSignup ? 'login' : 'signup')}>
+          {isSignup ? 'Login' : 'Signup'}
+        </button>
+      </div>
     </div>
   )
 }
