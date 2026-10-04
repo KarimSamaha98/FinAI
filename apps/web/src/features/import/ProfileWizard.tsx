@@ -367,8 +367,8 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
                 <>
                   <p className="wizard-subquestion">How do you tell money in from money out?</p>
                   <div className="wizard-choices wizard-choices--three">
-                    {choice(signMode, 'positive_is_expense' as SignMode, setSignMode, 'Positive = expense', 'Spending shows as a positive number')}
-                    {choice(signMode, 'positive_is_income' as SignMode, setSignMode, 'Positive = income', 'Spending shows as a negative number')}
+                    {choice(signMode, 'positive_is_expense' as SignMode, setSignMode, 'Positive is expense', 'Spending shows as a positive number')}
+                    {choice(signMode, 'positive_is_income' as SignMode, setSignMode, 'Positive is income', 'Spending shows as a negative number')}
                     {choice(signMode, 'directional' as SignMode, setSignMode, 'Another column says', 'Like Wise: a column reads IN or OUT')}
                   </div>
                 </>
@@ -453,9 +453,9 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
                 : amountCol !== null
                   ? `“${columnName(amountCol)}”, ${
                       signMode === 'positive_is_expense'
-                        ? 'positive = expense'
+                        ? 'positive is expense'
                         : signMode === 'positive_is_income'
-                          ? 'positive = income'
+                          ? 'positive is income'
                           : directionCol !== null
                             ? `“${columnName(directionCol)}” says ${inValue} / ${outValue}`
                             : ''

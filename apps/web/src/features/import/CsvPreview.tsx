@@ -37,7 +37,10 @@ export function CsvPreview({ rows, hasHeader, columnCount, assignments, pickLabe
 
   return (
     <div className={`csv-preview${picking ? ' is-picking' : ''}`}>
-      {picking && <p className="csv-preview-pick-hint">Click a column to set it as {pickLabel}</p>}
+      {/* The bar stays put even with nothing to say, so the preview doesn't jump between steps. */}
+      <p className="csv-preview-pick-hint" aria-live="polite">
+        {picking && pickLabel ? `Click a column to set it as ${pickLabel}` : '\u00a0'}
+      </p>
       <div className="csv-preview-scroll">
         <table>
           <thead>
