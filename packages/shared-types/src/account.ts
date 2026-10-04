@@ -5,6 +5,18 @@ import { BucketGranularitySchema, ExcludedCurrencySchema } from "./reporting.js"
 export const AccountTypeSchema = z.enum(["checking", "credit", "investment", "cash", "other"]);
 export type AccountType = z.infer<typeof AccountTypeSchema>;
 
+/**
+ * Default card colours, assigned in order to a user's accounts (white text
+ * stays legible on every one). Keep in sync with the backfill in
+ * supabase/migrations/20261004160000_account_card_appearance.sql.
+ */
+export const CARD_COLOR_PALETTE = ["#4f46e5", "#0f766e", "#be123c", "#1d4ed8", "#b45309", "#7c3aed", "#15803d", "#334155"] as const;
+
+export const CardColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Card colour must be a hex colour like #4f46e5")
+  .transform((value) => value.toLowerCase());
+
 export const AccountSchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid(),
@@ -19,6 +31,9 @@ export const AccountSchema = z.object({
   // field edit (rename, currency change, archive) also bumps.
   balanceUpdatedAt: z.string().datetime(),
   isArchived: z.boolean(),
+  cardColor: z.string(),
+  /** Short-lived signed URL for the uploaded card photo; when set, the UI shows it instead of cardColor. */
+  cardImageUrl: z.string().url().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -31,6 +46,9 @@ export const CreateAccountInputSchema = AccountSchema.pick({
   currencyCode: true,
   startingBalance: true,
   balanceAsOf: true,
+}).extend({
+  // Optional on create: the server picks the next palette colour when omitted.
+  cardColor: CardColorSchema.optional(),
 });
 export type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 

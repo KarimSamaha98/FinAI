@@ -1,23 +1,18 @@
-import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { AccountSummary, UpdateAccountInput } from 'shared-types'
+import type { AccountSummary } from 'shared-types'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
 import { accountTypeLabel } from '../../lib/accountTypes'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
-import { UpdateBalanceModal } from './UpdateBalanceModal'
 
 interface AccountHeaderProps {
   account: AccountSummary
   hasProfile: boolean
-  onAddTransaction: () => void
-  updateAccount: (id: string, input: Omit<UpdateAccountInput, 'id'>) => Promise<void>
 }
 
-export function AccountHeader({ account, hasProfile, onAddTransaction, updateAccount }: AccountHeaderProps) {
+export function AccountHeader({ account, hasProfile }: AccountHeaderProps) {
   const navigate = useNavigate()
-  const [showUpdateBalance, setShowUpdateBalance] = useState(false)
 
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
@@ -37,32 +32,16 @@ export function AccountHeader({ account, hasProfile, onAddTransaction, updateAcc
         <span>Last balance updated: {formatDate(account.lastBalanceUpdatedAt.slice(0, 10))}</span>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-1)' }}>
-        <Button variant="primary" onClick={onAddTransaction}>
-          + Add Transaction
-        </Button>
-        <Button
-          variant="secondary"
-          title={hasProfile ? undefined : 'This account has no import profile yet — set one up first'}
-          onClick={() => navigate(`/accounts/${account.id}/import`)}
-        >
-          {hasProfile ? 'Import Transaction CSV' : 'Set up CSV import'}
-        </Button>
-        <Button variant="secondary" onClick={() => setShowUpdateBalance(true)}>
-          Update Balance
-        </Button>
+        {/* Only until the account has a profile; importing with it lives in the account's Settings. */}
+        {!hasProfile && (
+          <Button variant="primary" onClick={() => navigate(`/accounts/${account.id}/import`)}>
+            Add CSV profile
+          </Button>
+        )}
         <Link to={`/accounts/${account.id}/settings`}>
           <Button variant="secondary">Settings</Button>
         </Link>
       </div>
-
-      {showUpdateBalance && (
-        <UpdateBalanceModal
-          open={showUpdateBalance}
-          onClose={() => setShowUpdateBalance(false)}
-          account={account}
-          updateAccount={updateAccount}
-        />
-      )}
     </Card>
   )
 }

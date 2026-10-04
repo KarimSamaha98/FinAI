@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import type { DisplayRow, MonthSplit, Transaction, TransactionView } from 'shared-types'
+import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
-import { Table } from '../../components/Table'
-import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { Modal } from '../../components/Modal'
@@ -20,7 +18,9 @@ import { TransactionForm, type TransactionFormValues } from '../transactions/Tra
 import { ReconcilePicker } from '../reconciliation/ReconcilePicker'
 import { ReconciliationGroupModal } from '../reconciliation/ReconciliationGroupModal'
 import { SplitModal } from '../month-split/SplitModal'
-import { AccountCarousel, ALL_ACCOUNTS } from './AccountCarousel'
+import { AccountCarousel } from './AccountCarousel'
+import { nextAccountSelection } from '../../lib/accountSelection'
+import { SelectionSummary } from './SelectionSummary'
 import { AccountHeader } from './AccountHeader'
 import { AccountForm } from './AccountForm'
 import { TransactionRow } from './TransactionRow'
@@ -41,7 +41,11 @@ function toFormValues(transaction: Transaction): TransactionFormValues {
 
 export function AccountsScreen() {
   const [searchParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState<string>(searchParams.get('selected') ?? ALL_ACCOUNTS)
+  // Empty = every account selected (the default on arrival).
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
+    const fromUrl = searchParams.get('selected')
+    return fromUrl ? [fromUrl] : []
+  })
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [view, setView] = useState<TransactionView>('real')
@@ -54,9 +58,10 @@ export function AccountsScreen() {
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
 
   const { categories } = useCategories()
-  const { accounts, loading: accountsLoading, error: accountsError, createAccount, updateAccount, refresh: refreshAccounts } = useAccounts()
-  const accountIds = selectedId === ALL_ACCOUNTS ? [] : [selectedId]
-  const { profiles: accountProfiles } = useImportProfiles(selectedId === ALL_ACCOUNTS ? undefined : selectedId)
+  const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
+  const accountIds = selectedIds
+  const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
+  const { profiles: accountProfiles } = useImportProfiles(singleSelectedId ?? undefined)
   // Deliberately NOT scoped to accountIds — this is the candidate pool for
   // reconcile/split pickers and group-member lookups, which must be able to
   // find a transaction in a *different* account than the one currently
@@ -75,7 +80,18 @@ export function AccountsScreen() {
   const { groups, createGroup, addMember, removeMember, deleteGroup } = useReconciliationGroups()
   const { splits, createSplit, updateSplit } = useMonthSplits()
 
-  const selectedAccount = accounts.find((a) => a.id === selectedId)
+  const selectedAccount = singleSelectedId ? accounts.find((a) => a.id === singleSelectedId) : undefined
+  const summarizedAccounts = selectedIds.length === 0 ? accounts : accounts.filter((a) => selectedIds.includes(a.id))
+
+  function handleToggleAccount(id: string) {
+    setSelectedIds((current) =>
+      nextAccountSelection(
+        current,
+        id,
+        accounts.map((a) => a.id),
+      ),
+    )
+  }
 
   function findTransaction(id: string): Transaction | undefined {
     return transactions.find((t) => t.id === id)
@@ -151,14 +167,18 @@ export function AccountsScreen() {
 
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
-      <h1>Transaction</h1>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Transaction</h1>
+        <Button variant="primary" onClick={() => setShowAddForm(true)}>
+          + Add Transaction
+        </Button>
+      </div>
       {accountsError && <Alert variant="error">{accountsError}</Alert>}
       {!accountsLoading && (
         <AccountCarousel
           accounts={accounts}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onAddClick={() => setShowAccountForm(true)}
+          selectedIds={selectedIds}
+          onToggle={handleToggleAccount}
         />
       )}
 
@@ -166,19 +186,13 @@ export function AccountsScreen() {
         <AccountHeader
           account={selectedAccount}
           hasProfile={accountProfiles.length > 0}
-          onAddTransaction={() => setShowAddForm(true)}
-          updateAccount={updateAccount}
         />
       ) : (
-        <Card style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center', margin: 'var(--space-4) 0' }}>
-          <div>
-            <h2 style={{ margin: 0 }}>All accounts</h2>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Every transaction, across every account.</p>
-          </div>
-          <Button variant="primary" onClick={() => setShowAddForm(true)}>
-            + Add Transaction
-          </Button>
-        </Card>
+        <SelectionSummary
+          accounts={summarizedAccounts}
+          allSelected={selectedIds.length === 0}
+          onAddAccount={() => setShowAccountForm(true)}
+        />
       )}
 
       <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end', margin: 'var(--space-4) 0' }}>
@@ -201,29 +215,26 @@ export function AccountsScreen() {
         </p>
       )}
 
-      <Card style={{ padding: 0, overflow: 'hidden' }}>
-        <Table>
-          <tbody>
-            {rows.map((row, index) => (
-              <TransactionRow
-                key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
-                row={row}
-                categories={categories}
-                accounts={accounts}
-                showAccountTag={selectedId === ALL_ACCOUNTS}
-                onClick={() => setActionRow(row)}
-              />
-            ))}
-          </tbody>
-        </Table>
-      </Card>
+      <ul className="txn-list">
+        {rows.map((row, index) => (
+          <TransactionRow
+            key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
+            row={row}
+            categories={categories}
+            accounts={accounts}
+            onClick={() => setActionRow(row)}
+          />
+        ))}
+      </ul>
 
       {showAccountForm && (
         <AccountForm
           open={showAccountForm}
           onClose={() => setShowAccountForm(false)}
           createAccount={createAccount}
-          onCreated={(id) => setSelectedId(id)}
+          uploadCardImage={uploadCardImage}
+          defaultCardColor={CARD_COLOR_PALETTE[accounts.length % CARD_COLOR_PALETTE.length]}
+          onCreated={(id) => setSelectedIds([id])}
         />
       )}
 
@@ -232,7 +243,7 @@ export function AccountsScreen() {
           <TransactionForm
             categories={categories}
             accounts={accounts}
-            fixedAccountId={selectedId === ALL_ACCOUNTS ? null : selectedId}
+            fixedAccountId={singleSelectedId}
             onSubmit={async (input) => {
               await createTransaction(input)
               await refreshRows()

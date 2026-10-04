@@ -39,5 +39,15 @@ export function useAccounts() {
     await refresh()
   }
 
-  return { accounts, loading, error, refresh, createAccount, updateAccount, deleteAccount }
+  async function uploadCardImage(id: string, file: File) {
+    await apiClient.upload<AccountSummary>(`/accounts/${id}/card-image`, file)
+    await refresh()
+  }
+
+  async function removeCardImage(id: string) {
+    await apiClient.delete(`/accounts/${id}/card-image`)
+    await refresh()
+  }
+
+  return { accounts, loading, error, refresh, createAccount, updateAccount, deleteAccount, uploadCardImage, removeCardImage }
 }

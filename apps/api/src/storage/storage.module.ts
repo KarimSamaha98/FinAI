@@ -6,7 +6,8 @@ import type { Env } from '../config/env.js'
 export const SUPABASE_ADMIN_CLIENT = Symbol('SUPABASE_ADMIN_CLIENT')
 export const IMPORTS_BUCKET = 'imports'
 export const AVATARS_BUCKET = 'avatars'
-const AVATAR_URL_TTL_SECONDS = 60 * 60
+export const ACCOUNT_CARDS_BUCKET = 'account-cards'
+const IMAGE_URL_TTL_SECONDS = 60 * 60
 
 @Injectable()
 export class StorageService {
@@ -24,17 +25,29 @@ export class StorageService {
   }
 
   async uploadAvatar(path: string, buffer: Buffer, contentType: string): Promise<void> {
-    const { error } = await this.client.storage.from(AVATARS_BUCKET).upload(path, buffer, { contentType })
-    if (error) throw error
+    await this.uploadImage(AVATARS_BUCKET, path, buffer, contentType)
   }
 
   async removeAvatar(path: string): Promise<void> {
-    const { error } = await this.client.storage.from(AVATARS_BUCKET).remove([path])
-    if (error) throw error
+    await this.removeImage(AVATARS_BUCKET, path)
   }
 
   async avatarUrl(path: string): Promise<string | null> {
-    const { data, error } = await this.client.storage.from(AVATARS_BUCKET).createSignedUrl(path, AVATAR_URL_TTL_SECONDS)
+    return this.signedImageUrl(AVATARS_BUCKET, path)
+  }
+
+  async uploadImage(bucket: string, path: string, buffer: Buffer, contentType: string): Promise<void> {
+    const { error } = await this.client.storage.from(bucket).upload(path, buffer, { contentType })
+    if (error) throw error
+  }
+
+  async removeImage(bucket: string, path: string): Promise<void> {
+    const { error } = await this.client.storage.from(bucket).remove([path])
+    if (error) throw error
+  }
+
+  async signedImageUrl(bucket: string, path: string): Promise<string | null> {
+    const { data, error } = await this.client.storage.from(bucket).createSignedUrl(path, IMAGE_URL_TTL_SECONDS)
     return error ? null : data.signedUrl
   }
 }
