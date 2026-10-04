@@ -12,6 +12,8 @@ interface CsvPreviewProps {
   /** What clicking a column would assign right now (e.g. "Date"), or null when nothing is being asked. */
   pickLabel: string | null
   onPickColumn?: (column: number) => void
+  /** Columns already assigned to another field can't be picked again. */
+  canPickColumn?: (column: number) => boolean
 }
 
 /**
@@ -20,14 +22,18 @@ interface CsvPreviewProps {
  * cell picks that column (the question below always offers a dropdown too, for
  * keyboard and screen-reader users).
  */
-export function CsvPreview({ rows, hasHeader, columnCount, assignments, pickLabel, onPickColumn }: CsvPreviewProps) {
+export function CsvPreview({ rows, hasHeader, columnCount, assignments, pickLabel, onPickColumn, canPickColumn }: CsvPreviewProps) {
   const columns = Array.from({ length: columnCount }, (_, index) => index)
   const labelsFor = (column: number) => assignments.filter((a) => a.column === column).map((a) => a.label)
   const headerRow = hasHeader ? rows[0] : null
   const bodyRows = hasHeader ? rows.slice(1) : rows
   const picking = !!onPickColumn
-  const pick = (column: number) => onPickColumn?.(column)
-  const cellClass = (column: number) => (labelsFor(column).length ? 'is-assigned' : undefined)
+  const pickable = (column: number) => picking && (canPickColumn?.(column) ?? true)
+  const pick = (column: number) => {
+    if (pickable(column)) onPickColumn?.(column)
+  }
+  const cellClass = (column: number) =>
+    [labelsFor(column).length ? 'is-assigned' : '', pickable(column) ? 'is-pickable' : ''].filter(Boolean).join(' ') || undefined
 
   return (
     <div className={`csv-preview${picking ? ' is-picking' : ''}`}>

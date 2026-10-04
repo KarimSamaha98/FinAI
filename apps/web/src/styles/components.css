@@ -1410,13 +1410,11 @@ dialog::backdrop {
   background: color-mix(in srgb, var(--accent) 22%, var(--surface-raised));
 }
 
-.csv-preview.is-picking td,
-.csv-preview.is-picking th {
+.csv-preview .is-pickable {
   cursor: pointer;
 }
 
-.csv-preview.is-picking td:hover,
-.csv-preview.is-picking th:hover {
+.csv-preview .is-pickable:hover {
   outline: 1px solid var(--accent);
   outline-offset: -1px;
 }

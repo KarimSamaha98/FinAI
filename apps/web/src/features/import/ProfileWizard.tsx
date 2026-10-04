@@ -11,12 +11,8 @@ import { CsvPreview, type ColumnAssignment } from './CsvPreview'
 /** The preview shows at most this many lines of the file, header row included. */
 const PREVIEW_ROW_COUNT = 6
 const CUSTOM_DATE_FORMAT = 'custom'
-const DELIMITERS = [
-  { value: ',', label: 'Comma ( , )' },
-  { value: ';', label: 'Semicolon ( ; )' },
-  { value: '\t', label: 'Tab' },
-  { value: '|', label: 'Pipe ( | )' },
-]
+/** Profiles read comma-separated files. */
+const DELIMITER = ','
 
 const STEPS = ['header', 'currency', 'date', 'description', 'amounts', 'save'] as const
 type StepKey = (typeof STEPS)[number]
@@ -61,7 +57,6 @@ function guessDirectionValues(values: string[]): { inValue: string; outValue: st
  */
 export function ProfileWizard({ accountId, accountCurrency, defaultName, uploadedFileId, onCreated, onCancel }: ProfileWizardProps) {
   const [stepIndex, setStepIndex] = useState(0)
-  const [delimiter, setDelimiter] = useState(',')
   const [rawRows, setRawRows] = useState<string[][] | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
 
@@ -82,14 +77,13 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
   const [outValue, setOutValue] = useState('')
   const [expenseCol, setExpenseCol] = useState<number | null>(null)
   const [incomeCol, setIncomeCol] = useState<number | null>(null)
-  const [name, setName] = useState(defaultName)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     apiClient
-      .post<PreviewRawRowsResult>('/import-profiles/preview-raw-rows', { uploadedFileId, delimiter, hasHeader: false, rowLimit: PREVIEW_ROW_COUNT })
+      .post<PreviewRawRowsResult>('/import-profiles/preview-raw-rows', { uploadedFileId, delimiter: DELIMITER, hasHeader: false, rowLimit: PREVIEW_ROW_COUNT })
       .then((result) => {
         if (cancelled) return
         setRawRows(result.sampleRows)
@@ -101,7 +95,7 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
     return () => {
       cancelled = true
     }
-  }, [uploadedFileId, delimiter])
+  }, [uploadedFileId])
 
   const headerRow = hasHeader && rawRows ? (rawRows[0] ?? []) : null
   const dataRows = useMemo(() => (rawRows ? (hasHeader ? rawRows.slice(1) : rawRows) : []), [rawRows, hasHeader])
@@ -190,19 +184,7 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
     date: dateCol !== null && !!parsedDateSample,
     description: descriptionCol !== null,
     amounts: amountPreviewReady && (signMode !== 'directional' || inValue.trim() !== outValue.trim()),
-    save: name.trim().length > 0,
-  }
-
-  function changeDelimiter(value: string) {
-    setDelimiter(value)
-    // Columns shift with a different separator, so earlier picks no longer apply.
-    setCurrencyCol(null)
-    setDateCol(null)
-    setDescriptionCol(null)
-    setAmountCol(null)
-    setDirectionCol(null)
-    setExpenseCol(null)
-    setIncomeCol(null)
+    save: true,
   }
 
   function toRef(index: number): ColumnRef {
@@ -232,9 +214,10 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
       setSubmitting(true)
       await onCreated({
         accountId,
-        name: name.trim(),
+        // One profile per account, so a generated name is enough to tell them apart.
+        name: defaultName,
         hasHeader,
-        delimiter,
+        delimiter: DELIMITER,
         dateFormat,
         columnMapping: { date: toRef(dateCol), description: toRef(descriptionCol), amount, currency },
       })
@@ -245,13 +228,16 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
     }
   }
 
-  function columnSelect(value: number | null, onChange: (index: number) => void, placeholder = 'Choose a column') {
+  /** A column assigned to one field isn't offered (or clickable) for any other. */
+  const isTakenByOther = (column: number, field: string) => assignments.some((a) => a.column === column && a.label !== field)
+
+  function columnSelect(field: string, value: number | null, onChange: (index: number) => void) {
     return (
       <select value={value ?? ''} onChange={(e) => e.target.value !== '' && onChange(Number(e.target.value))}>
         <option value="" disabled>
-          {placeholder}
+          Choose a column
         </option>
-        {columnOptions.map((option) => (
+        {columnOptions.filter((option) => !isTakenByOther(option.value, field)).map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
@@ -279,16 +265,6 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
             {choice(hasHeader, true, setHasHeader, 'Yes', 'The first row is a header')}
             {choice(hasHeader, false, setHasHeader, 'No', 'The first row is already a transaction')}
           </div>
-          <label className="wizard-inline-field">
-            Columns look wrong? Separator
-            <select value={delimiter} onChange={(e) => changeDelimiter(e.target.value)}>
-              {DELIMITERS.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-          </label>
         </>
       ),
     },
@@ -315,7 +291,7 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
           {currencyMode === 'column' && (
             <label className="wizard-inline-field">
               Which column has the currency?
-              {columnSelect(currencyCol, setCurrencyCol)}
+              {columnSelect('Currency', currencyCol, setCurrencyCol)}
             </label>
           )}
         </>
@@ -328,7 +304,7 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
         <>
           <label className="wizard-inline-field">
             Date column
-            {columnSelect(dateCol, setDateCol)}
+            {columnSelect('Date', dateCol, setDateCol)}
           </label>
           {dateSample && (
             <>
@@ -368,7 +344,7 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
       body: (
         <label className="wizard-inline-field">
           Description column
-          {columnSelect(descriptionCol, setDescriptionCol)}
+          {columnSelect('Description', descriptionCol, setDescriptionCol)}
         </label>
       ),
     },
@@ -385,7 +361,7 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
             <>
               <label className="wizard-inline-field">
                 Which column has the amounts?
-                {columnSelect(amountCol, setAmountCol)}
+                {columnSelect('Amount', amountCol, setAmountCol)}
               </label>
               {amountCol !== null && (
                 <>
@@ -401,7 +377,7 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
                 <div className="wizard-fields">
                   <label className="wizard-inline-field">
                     Which column says in or out?
-                    {columnSelect(directionCol, setDirectionCol)}
+                    {columnSelect('Direction', directionCol, setDirectionCol)}
                   </label>
                   {directionCol !== null && (
                     <div className="wizard-field-row">
@@ -429,11 +405,11 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
             <div className="wizard-field-row">
               <label className="wizard-inline-field">
                 Money out (expenses) column
-                {columnSelect(expenseCol, setExpenseCol)}
+                {columnSelect('Money out', expenseCol, setExpenseCol)}
               </label>
               <label className="wizard-inline-field">
                 Money in (income) column
-                {columnSelect(incomeCol, setIncomeCol)}
+                {columnSelect('Money in', incomeCol, setIncomeCol)}
               </label>
             </div>
           )}
@@ -457,14 +433,10 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
       ),
     },
     save: {
-      title: 'Name this profile',
-      hint: 'You’ll reuse it every time you import a file from this account.',
+      title: 'Does this look right?',
+      hint: 'These settings are reused every time you import a file into this account.',
       body: (
         <>
-          <label className="wizard-inline-field">
-            Profile name
-            <input type="text" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
-          </label>
           <dl className="wizard-summary">
             <dt>Header row</dt>
             <dd>{hasHeader ? 'Yes' : 'No'}</dd>
@@ -519,6 +491,7 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
           assignments={assignments}
           pickLabel={pickTarget?.label ?? null}
           onPickColumn={pickTarget ? pickTarget.pick : undefined}
+          canPickColumn={(column) => !pickTarget || !isTakenByOther(column, pickTarget.label)}
         />
       ) : (
         !previewError && <p className="wizard-hint">Reading your file…</p>
