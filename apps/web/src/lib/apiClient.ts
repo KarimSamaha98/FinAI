@@ -10,7 +10,10 @@ async function authHeader(): Promise<Record<string, string>> {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = {
-    'Content-Type': 'application/json',
+    // Only label requests that carry a JSON body: Fastify rejects a body-less
+    // request (e.g. a DELETE, which browsers send with Content-Length: 0)
+    // that claims to be application/json.
+    ...(init?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     ...(await authHeader()),
     ...(init?.headers ?? {}),
   }
@@ -19,8 +22,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const body = await response.text()
     throw new Error(`API ${response.status} ${path}: ${body}`)
   }
-  if (response.status === 204) return undefined as T
-  return response.json() as Promise<T>
+  // Endpoints returning void (e.g. DELETE) answer 200 with an empty body.
+  const text = await response.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 export const apiClient = {

@@ -60,6 +60,8 @@ export const accounts = pgTable(
     // plain rename/currency-change also bumps.
     balanceUpdatedAt: timestamp('balance_updated_at', { withTimezone: true }).notNull().defaultNow(),
     isArchived: boolean('is_archived').notNull().default(false),
+    cardColor: text('card_color').notNull().default('#4f46e5'),
+    cardImagePath: text('card_image_path'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

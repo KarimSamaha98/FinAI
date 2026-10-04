@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common'
+import type { FastifyRequest } from 'fastify'
 import { CreateAccountInputSchema, UpdateAccountInputSchema } from 'shared-types'
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard.js'
 import { CurrentUserId } from '../auth/current-user-id.decorator.js'
@@ -47,6 +48,21 @@ export class AccountsController {
   update(@CurrentUserId() userId: string, @Param('id') id: string, @Body() body: unknown) {
     const { id: _id, ...input } = UpdateAccountInputSchema.parse({ ...(body as object), id })
     return this.accountsService.update(userId, id, input)
+  }
+
+  @Post(':id/card-image')
+  async uploadCardImage(@CurrentUserId() userId: string, @Param('id') id: string, @Req() req: FastifyRequest) {
+    const file = await req.file()
+    if (!file) {
+      throw new BadRequestException('No file was uploaded')
+    }
+    const buffer = await file.toBuffer()
+    return this.accountsService.uploadCardImage(userId, id, { buffer, mimetype: file.mimetype })
+  }
+
+  @Delete(':id/card-image')
+  removeCardImage(@CurrentUserId() userId: string, @Param('id') id: string) {
+    return this.accountsService.removeCardImage(userId, id)
   }
 
   @Delete(':id')

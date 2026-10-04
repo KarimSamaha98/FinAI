@@ -51,9 +51,11 @@ export function AccountCarousel({ accounts, selectedId, onSelect, onAddClick }: 
         <button
           key={account.id}
           type="button"
-          className={`account-card${selectedId === account.id ? ' account-card--selected' : ''}`}
+          className={`account-card account-card--branded${account.cardImageUrl ? ' has-photo' : ''}${selectedId === account.id ? ' account-card--selected' : ''}`}
+          style={{ background: account.cardColor }}
           onClick={() => onSelect(account.id)}
         >
+          {account.cardImageUrl && <img src={account.cardImageUrl} alt="" className="account-card-photo" />}
           <span className="account-card-type">{accountTypeLabel(account.type)}</span>
           <span className="account-card-name">{account.name}</span>
           <span className="account-card-balance">{formatCurrency(account.balance, account.currencyCode)}</span>

@@ -1,6 +1,8 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common'
-import { eq, inArray } from 'drizzle-orm'
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { randomUUID } from 'node:crypto'
+import { count, eq, inArray } from 'drizzle-orm'
 import { format } from 'date-fns'
+import { CARD_COLOR_PALETTE } from 'shared-types'
 import type {
   Account,
   AccountSummary,
@@ -16,6 +18,7 @@ import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
 import { accounts, importProfiles, profiles, transactions } from '../../db/schema.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
+import { ACCOUNT_CARDS_BUCKET, StorageService } from '../../storage/storage.module.js'
 import { convertToTargetCurrency } from '../reporting/fx-conversion.js'
 import { buildBuckets, resolveGranularity } from '../reporting/buckets.js'
 
@@ -32,7 +35,18 @@ interface AccountBalanceData {
   excludedCurrencies: ExcludedCurrency[]
 }
 
-function toAccount(row: AccountRow): Account {
+const CARD_IMAGE_EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+}
+
+export interface UploadCardImageInput {
+  buffer: Buffer
+  mimetype: string
+}
+
+function toAccount(row: AccountRow, cardImageUrl: string | null): Account {
   return {
     id: row.id,
     userId: row.userId,
@@ -44,6 +58,8 @@ function toAccount(row: AccountRow): Account {
     balanceAsOf: row.balanceAsOf,
     balanceUpdatedAt: row.balanceUpdatedAt.toISOString(),
     isArchived: row.isArchived,
+    cardColor: row.cardColor,
+    cardImageUrl,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -78,7 +94,12 @@ function balanceAt(account: AccountRow, contributions: BalanceContribution[], cu
 
 @Injectable()
 export class AccountsService {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  private readonly logger = new Logger(AccountsService.name)
+
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(StorageService) private readonly storage: StorageService,
+  ) {}
 
   async list(userId: string, filter?: { includeArchived?: boolean }): Promise<AccountSummary[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
@@ -102,9 +123,15 @@ export class AccountsService {
   async create(userId: string, input: CreateAccountInput): Promise<AccountSummary> {
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
+        // No colour chosen: continue round the palette so each new card looks different.
+        let cardColor = input.cardColor
+        if (!cardColor) {
+          const [{ total }] = await tx.select({ total: count() }).from(accounts)
+          cardColor = CARD_COLOR_PALETTE[total % CARD_COLOR_PALETTE.length]
+        }
         const [row] = await tx
           .insert(accounts)
-          .values({ ...input, startingBalance: String(input.startingBalance), userId })
+          .values({ ...input, cardColor, startingBalance: String(input.startingBalance), userId })
           .returning()
         return this.toSummary(tx, row)
       } catch (error) {
@@ -154,6 +181,48 @@ export class AccountsService {
 
       const [row] = await tx.delete(accounts).where(eq(accounts.id, id)).returning()
       if (!row) throw new NotFoundException('Account not found')
+      if (row.cardImagePath) await this.removeCardImageFile(row.cardImagePath)
+    })
+  }
+
+  /**
+   * Each upload gets a fresh object path (no stale browser cache), and the
+   * previous photo is deleted once the account points at the new one.
+   */
+  async uploadCardImage(userId: string, id: string, input: UploadCardImageInput): Promise<AccountSummary> {
+    const extension = CARD_IMAGE_EXTENSIONS[input.mimetype]
+    if (!extension) {
+      throw new BadRequestException('Card photo must be a PNG, JPEG or WebP image')
+    }
+    const path = `${userId}/${randomUUID()}.${extension}`
+    // Check ownership before storing anything (RLS hides other users' accounts).
+    await this.getById(userId, id)
+    await this.storage.uploadImage(ACCOUNT_CARDS_BUCKET, path, input.buffer, input.mimetype)
+    return this.setCardImagePath(userId, id, path)
+  }
+
+  async removeCardImage(userId: string, id: string): Promise<AccountSummary> {
+    return this.setCardImagePath(userId, id, null)
+  }
+
+  private async setCardImagePath(userId: string, id: string, path: string | null): Promise<AccountSummary> {
+    const { previousPath, summary } = await runInTenantContext(this.db, userId, async (tx) => {
+      const [current] = await tx.select({ cardImagePath: accounts.cardImagePath }).from(accounts).where(eq(accounts.id, id))
+      if (!current) throw new NotFoundException('Account not found')
+      const [row] = await tx
+        .update(accounts)
+        .set({ cardImagePath: path, updatedAt: new Date() })
+        .where(eq(accounts.id, id))
+        .returning()
+      return { previousPath: current.cardImagePath, summary: await this.toSummary(tx, row) }
+    })
+    if (previousPath && previousPath !== path) await this.removeCardImageFile(previousPath)
+    return summary
+  }
+
+  private async removeCardImageFile(path: string): Promise<void> {
+    await this.storage.removeImage(ACCOUNT_CARDS_BUCKET, path).catch((error: unknown) => {
+      this.logger.warn(`Could not remove card image ${path}: ${String(error)}`)
     })
   }
 
@@ -373,8 +442,10 @@ export class AccountsService {
       ? txRows.reduce((max, t) => (t.updatedAt > max ? t.updatedAt : max), txRows[0].updatedAt).toISOString()
       : null
 
+    const cardImageUrl = row.cardImagePath ? await this.storage.signedImageUrl(ACCOUNT_CARDS_BUCKET, row.cardImagePath) : null
+
     return {
-      ...toAccount(row),
+      ...toAccount(row, cardImageUrl),
       balance,
       lastTransactionDate,
       lastTransactionUpdatedAt,

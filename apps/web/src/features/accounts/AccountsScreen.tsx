@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import type { DisplayRow, MonthSplit, Transaction, TransactionView } from 'shared-types'
+import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Table } from '../../components/Table'
@@ -54,7 +54,7 @@ export function AccountsScreen() {
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
 
   const { categories } = useCategories()
-  const { accounts, loading: accountsLoading, error: accountsError, createAccount, updateAccount, refresh: refreshAccounts } = useAccounts()
+  const { accounts, loading: accountsLoading, error: accountsError, createAccount, updateAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
   const accountIds = selectedId === ALL_ACCOUNTS ? [] : [selectedId]
   const { profiles: accountProfiles } = useImportProfiles(selectedId === ALL_ACCOUNTS ? undefined : selectedId)
   // Deliberately NOT scoped to accountIds — this is the candidate pool for
@@ -223,6 +223,8 @@ export function AccountsScreen() {
           open={showAccountForm}
           onClose={() => setShowAccountForm(false)}
           createAccount={createAccount}
+          uploadCardImage={uploadCardImage}
+          defaultCardColor={CARD_COLOR_PALETTE[accounts.length % CARD_COLOR_PALETTE.length]}
           onCreated={(id) => setSelectedId(id)}
         />
       )}

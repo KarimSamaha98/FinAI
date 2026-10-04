@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
@@ -7,15 +7,26 @@ import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
 import { CURRENCY_CODES } from '../../lib/currencies'
+import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
 
 export function AccountSettingsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { accounts, updateAccount, deleteAccount } = useAccounts()
+  const { accounts, updateAccount, deleteAccount, uploadCardImage, removeCardImage } = useAccounts()
   const { profiles, deleteProfile } = useImportProfiles(id)
   const account = accounts.find((a) => a.id === id)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Shown immediately; saved after a short pause so dragging the custom colour picker doesn't fire a request per step.
+  const [pendingColor, setPendingColor] = useState<string | null>(null)
+  const colorSave = useRef<{ timer: ReturnType<typeof setTimeout>; save: () => void } | null>(null)
+  // Leaving the page mid-pause saves right away rather than dropping the change.
+  useEffect(() => () => {
+    if (colorSave.current) {
+      clearTimeout(colorSave.current.timer)
+      colorSave.current.save()
+    }
+  }, [])
 
   if (!account) return <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading…</p>
 
@@ -33,6 +44,54 @@ export function AccountSettingsPage() {
       await updateAccount(account.id, { [field]: parsed } as never)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleColorChange(color: string) {
+    if (!account) return
+    const accountId = account.id
+    setPendingColor(color)
+    if (colorSave.current) clearTimeout(colorSave.current.timer)
+    const save = async () => {
+      colorSave.current = null
+      try {
+        await updateAccount(accountId, { cardColor: color })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save card colour')
+      } finally {
+        setPendingColor(null)
+      }
+    }
+    colorSave.current = { timer: setTimeout(save, 400), save }
+  }
+
+  async function handleCardPhoto(file: File) {
+    if (!account) return
+    setError(null)
+    if (file.size > MAX_CARD_PHOTO_BYTES) {
+      setError('Card photo must be 5 MB or smaller')
+      return
+    }
+    setSaving(true)
+    try {
+      await uploadCardImage(account.id, file)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload card photo')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleRemoveCardPhoto() {
+    if (!account) return
+    setSaving(true)
+    setError(null)
+    try {
+      await removeCardImage(account.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove card photo')
     } finally {
       setSaving(false)
     }
@@ -132,6 +191,19 @@ export function AccountSettingsPage() {
             />
           </label>
         </div>
+      </Card>
+
+      <Card style={{ marginTop: 'var(--space-4)' }}>
+        <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Card</h2>
+        <CardAppearanceEditor
+          name={account.name}
+          color={pendingColor ?? account.cardColor}
+          photoUrl={account.cardImageUrl}
+          busy={saving}
+          onColorChange={handleColorChange}
+          onPhotoSelected={handleCardPhoto}
+          onRemovePhoto={handleRemoveCardPhoto}
+        />
       </Card>
 
       <Card style={{ marginTop: 'var(--space-4)' }}>

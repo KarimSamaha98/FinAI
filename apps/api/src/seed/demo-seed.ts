@@ -14,6 +14,7 @@
  * Refuses non-local backends unless ALLOW_NON_LOCAL_SEED=true.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { CARD_COLOR_PALETTE } from 'shared-types'
 import { eq, isNull } from 'drizzle-orm'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -139,7 +140,7 @@ async function main(): Promise<void> {
       for (const row of customRows) categoryIdByName.set(row.name, row.id)
 
       await tx.insert(accounts).values(
-        dataset.accounts.map((a) => ({
+        dataset.accounts.map((a, index) => ({
           id: a.id,
           userId,
           name: a.name,
@@ -148,6 +149,8 @@ async function main(): Promise<void> {
           currencyCode: a.currencyCode,
           startingBalance: a.startingBalance.toFixed(2),
           balanceAsOf: a.balanceAsOf,
+          // Same round-robin the API uses for new accounts, so every demo card gets its own colour.
+          cardColor: CARD_COLOR_PALETTE[index % CARD_COLOR_PALETTE.length],
         })),
       )
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { AccountSummary, AccountType, CreateAccountInput } from 'shared-types'
 import { Modal } from '../../components/Modal'
@@ -6,15 +6,19 @@ import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
 import { CURRENCY_CODES } from '../../lib/currencies'
+import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
 
 interface AccountFormProps {
   open: boolean
   onClose: () => void
   createAccount: (input: CreateAccountInput) => Promise<AccountSummary>
+  uploadCardImage: (accountId: string, file: File) => Promise<void>
+  /** Pre-selected card colour — the next one in the palette. */
+  defaultCardColor: string
   onCreated: (accountId: string) => void
 }
 
-export function AccountForm({ open, onClose, createAccount, onCreated }: AccountFormProps) {
+export function AccountForm({ open, onClose, createAccount, uploadCardImage, defaultCardColor, onCreated }: AccountFormProps) {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [type, setType] = useState<AccountType>('checking')
@@ -22,9 +26,25 @@ export function AccountForm({ open, onClose, createAccount, onCreated }: Account
   const [currencyCode, setCurrencyCode] = useState('USD')
   const [startingBalance, setStartingBalance] = useState('0')
   const [balanceAsOf, setBalanceAsOf] = useState(new Date().toISOString().slice(0, 10))
+  const [cardColor, setCardColor] = useState(defaultCardColor)
+  const [cardPhoto, setCardPhoto] = useState<File | null>(null)
   const [setUpImport, setSetUpImport] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const cardPhotoUrl = useMemo(() => (cardPhoto ? URL.createObjectURL(cardPhoto) : null), [cardPhoto])
+  useEffect(() => () => {
+    if (cardPhotoUrl) URL.revokeObjectURL(cardPhotoUrl)
+  }, [cardPhotoUrl])
+
+  function handlePhotoSelected(file: File) {
+    if (file.size > MAX_CARD_PHOTO_BYTES) {
+      setError('Card photo must be 5 MB or smaller')
+      return
+    }
+    setError(null)
+    setCardPhoto(file)
+  }
 
   async function handleSubmit() {
     setError(null)
@@ -39,8 +59,15 @@ export function AccountForm({ open, onClose, createAccount, onCreated }: Account
     }
     setSubmitting(true)
     try {
-      const input: CreateAccountInput = { name, type, institution: institution || null, currencyCode, startingBalance: balance, balanceAsOf }
+      const input: CreateAccountInput = { name, type, institution: institution || null, currencyCode, startingBalance: balance, balanceAsOf, cardColor }
       const account = await createAccount(input)
+      if (cardPhoto) {
+        try {
+          await uploadCardImage(account.id, cardPhoto)
+        } catch {
+          // The account exists either way — the photo can be added again from its settings.
+        }
+      }
       onCreated(account.id)
       onClose()
       if (setUpImport) navigate(`/accounts/${account.id}/import`)
@@ -94,6 +121,15 @@ export function AccountForm({ open, onClose, createAccount, onCreated }: Account
             <input type="date" value={balanceAsOf} onChange={(e) => setBalanceAsOf(e.target.value)} />
           </label>
         </div>
+        <CardAppearanceEditor
+          name={name}
+          color={cardColor}
+          photoUrl={cardPhotoUrl}
+          busy={submitting}
+          onColorChange={setCardColor}
+          onPhotoSelected={handlePhotoSelected}
+          onRemovePhoto={() => setCardPhoto(null)}
+        />
         <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
           <label style={{ flexDirection: 'row', alignItems: 'center', gap: '0.4rem' }}>
             <input type="radio" checked={setUpImport} onChange={() => setSetUpImport(true)} /> Set up CSV import now
