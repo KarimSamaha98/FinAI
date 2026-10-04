@@ -99,6 +99,7 @@ export function ImportWizardPage() {
       {step.name === 'build-profile' && (
         <ProfileWizard
           accountId={accountId}
+          account={account ?? null}
           accountCurrency={account?.currencyCode ?? 'USD'}
           defaultName={account ? `${account.name} CSV` : 'Bank CSV'}
           uploadedFileId={step.uploadedFileId}

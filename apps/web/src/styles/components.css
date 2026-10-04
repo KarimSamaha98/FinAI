@@ -1123,6 +1123,14 @@ dialog::backdrop {
   background: var(--txn-bg-hover);
 }
 
+.txn-row.is-static {
+  cursor: default;
+}
+
+.txn-row.is-static:hover {
+  background: var(--txn-bg);
+}
+
 .txn-row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -1513,42 +1521,10 @@ dialog::backdrop {
   color: var(--danger);
 }
 
-.wizard-amount-preview {
-  list-style: none;
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--surface-raised);
-  font-size: 0.85rem;
-}
-
-.wizard-amount-preview li {
+.wizard-txn-preview {
   display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: 4px 0;
-}
-
-.wizard-amount-preview li span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wizard-amount-preview .is-out {
-  color: var(--outflow);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.wizard-amount-preview .is-in {
-  color: var(--accent);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.wizard-amount-preview .is-muted {
-  color: var(--text-muted);
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .wizard-summary {

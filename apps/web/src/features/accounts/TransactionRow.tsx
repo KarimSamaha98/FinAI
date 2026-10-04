@@ -6,7 +6,8 @@ interface TransactionRowProps {
   row: DisplayRow
   categories: Category[]
   accounts: Account[]
-  onClick: () => void
+  /** Omit for a display-only row (e.g. the CSV wizard's preview). */
+  onClick?: () => void
 }
 
 function categoryName(categories: Category[], categoryId: string | null): string {
@@ -26,26 +27,36 @@ export function TransactionRow({ row, categories, accounts, onClick }: Transacti
   const account = rowAccounts[0]
   const accountNames = rowAccounts.map((a) => a.name).join(', ')
 
+  const content = (
+    <>
+      <span
+        className="txn-row-card"
+        style={account ? { background: account.cardColor } : undefined}
+        title={accountNames || undefined}
+      >
+        {account?.cardImageUrl && <img src={account.cardImageUrl} alt="" />}
+        {accountNames && <span className="visually-hidden">{accountNames}</span>}
+      </span>
+      <span className="txn-row-date">{formatDate(row.date)}</span>
+      <span className="txn-row-description">{row.description || 'Untitled'}</span>
+      <span className="txn-row-chips">
+        {row.monthSplitId && <span className="txn-chip txn-chip--special">Split</span>}
+        {row.reconciliationGroupId && <span className="txn-chip txn-chip--special">Group</span>}
+        <span className={`txn-chip txn-chip--category${row.categoryId ? '' : ' is-empty'}`}>{category}</span>
+      </span>
+      <span className={`txn-row-amount${isIncome ? ' is-income' : ''}`}>{formatCurrency(row.amount, row.currencyCode)}</span>
+    </>
+  )
+
   return (
     <li>
-      <button type="button" className="txn-row" onClick={onClick}>
-        <span
-          className="txn-row-card"
-          style={account ? { background: account.cardColor } : undefined}
-          title={accountNames || undefined}
-        >
-          {account?.cardImageUrl && <img src={account.cardImageUrl} alt="" />}
-          {accountNames && <span className="visually-hidden">{accountNames}</span>}
-        </span>
-        <span className="txn-row-date">{formatDate(row.date)}</span>
-        <span className="txn-row-description">{row.description || 'Untitled'}</span>
-        <span className="txn-row-chips">
-          {row.monthSplitId && <span className="txn-chip txn-chip--special">Split</span>}
-          {row.reconciliationGroupId && <span className="txn-chip txn-chip--special">Group</span>}
-          <span className={`txn-chip txn-chip--category${row.categoryId ? '' : ' is-empty'}`}>{category}</span>
-        </span>
-        <span className={`txn-row-amount${isIncome ? ' is-income' : ''}`}>{formatCurrency(row.amount, row.currencyCode)}</span>
-      </button>
+      {onClick ? (
+        <button type="button" className="txn-row" onClick={onClick}>
+          {content}
+        </button>
+      ) : (
+        <div className="txn-row is-static">{content}</div>
+      )}
     </li>
   )
 }

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { AmountMapping, ColumnRef, CreateImportProfileInput, CurrencyMapping, PreviewRawRowsResult, SignConvention } from 'shared-types'
+import type { Account, AmountMapping, ColumnRef, CreateImportProfileInput, CurrencyMapping, DisplayRow, PreviewRawRowsResult, SignConvention } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
 import { CURRENCY_CODES } from '../../lib/currencies'
-import { formatCurrency } from '../../lib/formatCurrency'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { DATE_FORMAT_PRESETS, detectDateFormat, previewParsedDate } from './date-format-presets'
 import { CsvPreview, type ColumnAssignment } from './CsvPreview'
+import { TransactionRow } from '../accounts/TransactionRow'
 
 /** The preview shows at most this many lines of the file, header row included. */
 const PREVIEW_ROW_COUNT = 6
@@ -23,6 +23,8 @@ type SignMode = SignConvention | 'directional'
 
 interface ProfileWizardProps {
   accountId: string
+  /** The account being set up — its card shows on the preview rows. */
+  account: Account | null
   accountCurrency: string
   defaultName: string
   uploadedFileId: string
@@ -55,7 +57,7 @@ function guessDirectionValues(values: string[]): { inValue: string; outValue: st
  * question sits underneath, and column questions can also be answered by
  * clicking a column in the preview.
  */
-export function ProfileWizard({ accountId, accountCurrency, defaultName, uploadedFileId, onCreated, onCancel }: ProfileWizardProps) {
+export function ProfileWizard({ accountId, account, accountCurrency, defaultName, uploadedFileId, onCreated, onCancel }: ProfileWizardProps) {
   const [stepIndex, setStepIndex] = useState(0)
   const [rawRows, setRawRows] = useState<string[][] | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
@@ -177,6 +179,31 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
     (amountColumns === 2 && expenseCol !== null && incomeCol !== null)
   const previewCurrency = (row: string[]) =>
     currencyMode === 'column' && currencyCol !== null ? (row[currencyCol]?.trim().toUpperCase() || fixedCurrency) : fixedCurrency
+
+  // The first rows rendered exactly as they'll appear on the Transaction page.
+  // Category is chosen after import, so they read "Uncategorized" for now.
+  const previewTransactions: DisplayRow[] = []
+  let skippedPreviewRows = 0
+  for (const row of dataRows.slice(0, 3)) {
+    const amount = signedAmount(row)
+    const date = dateCol !== null && row[dateCol] ? previewParsedDate(row[dateCol], dateFormat) : null
+    if (amount === null || !date) {
+      skippedPreviewRows += 1
+      continue
+    }
+    previewTransactions.push({
+      kind: 'plain',
+      date,
+      amount,
+      currencyCode: previewCurrency(row),
+      description: (descriptionCol !== null && row[descriptionCol]?.trim()) || '',
+      categoryId: null,
+      accountIds: [accountId],
+      sourceTransactionIds: [],
+      reconciliationGroupId: null,
+      monthSplitId: null,
+    })
+  }
 
   const canContinue: Record<StepKey, boolean> = {
     header: hasHeader !== null && !!rawRows,
@@ -415,19 +442,19 @@ export function ProfileWizard({ accountId, accountCurrency, defaultName, uploade
           )}
 
           {amountPreviewReady && (
-            <ul className="wizard-amount-preview" aria-label="How the first rows will import">
-              {dataRows.slice(0, 3).map((row, index) => {
-                const value = signedAmount(row)
-                return (
-                  <li key={index}>
-                    <span>{(descriptionCol !== null && row[descriptionCol]) || `Row ${index + 1}`}</span>
-                    <span className={value === null ? 'is-muted' : value < 0 ? 'is-out' : 'is-in'}>
-                      {value === null ? 'skipped (no amount)' : `${formatCurrency(value, previewCurrency(row))} · ${value < 0 ? 'money out' : 'money in'}`}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
+            <div className="wizard-txn-preview">
+              <p className="wizard-subquestion">How your transactions will look</p>
+              <ul className="txn-list" aria-label="Preview of the first transactions">
+                {previewTransactions.map((row, index) => (
+                  <TransactionRow key={index} row={row} categories={[]} accounts={account ? [account] : []} />
+                ))}
+              </ul>
+              {skippedPreviewRows > 0 && (
+                <p className="wizard-hint">
+                  {skippedPreviewRows} of the first rows {skippedPreviewRows === 1 ? 'has' : 'have'} no amount and will be skipped.
+                </p>
+              )}
+            </div>
           )}
         </>
       ),
