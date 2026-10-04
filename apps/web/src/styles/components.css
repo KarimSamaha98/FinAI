@@ -418,11 +418,11 @@ dialog::backdrop {
 
 .auth-panel {
   width: 100%;
-  max-width: 428px; /* 388px column + 20px padding each side */
+  max-width: 388px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 30px;
+  gap: 16px;
   padding: 20px;
   border-radius: 12px;
   background: var(--auth-panel);
@@ -430,7 +430,7 @@ dialog::backdrop {
 }
 
 .auth-panel-wide {
-  max-width: 507px;
+  max-width: 440px;
 }
 
 .auth-title,
@@ -439,8 +439,8 @@ dialog::backdrop {
   width: 100%;
   text-align: center;
   font-family: inherit;
-  font-size: clamp(1.75rem, 7vw, 2.25rem);
-  line-height: 1.22;
+  font-size: clamp(1.5rem, 6vw, 1.75rem);
+  line-height: 1.2;
   letter-spacing: 0;
   color: var(--auth-text);
 }
@@ -452,13 +452,13 @@ dialog::backdrop {
 }
 
 .auth-subtitle {
-  font-size: clamp(1rem, 4.5vw, 1.375rem);
+  font-size: 0.95rem;
   font-weight: 500;
   color: var(--auth-muted);
 }
 
 .auth-panel .app-logo {
-  margin-bottom: -18px; /* sits closer to the title than the panel's 30px rhythm */
+  margin-bottom: -10px; /* sits closer to the title than the panel's 16px rhythm */
 }
 
 .auth-form {
@@ -466,28 +466,28 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 30px;
+  gap: 16px;
 }
 
 .auth-fields {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .auth-input,
 .auth-select select {
   width: 100%;
-  height: 46px;
-  padding: 0 24px;
+  height: 40px;
+  padding: 0 20px;
   border: 0;
-  border-radius: 24px;
+  border-radius: 20px;
   background: var(--auth-field);
   color: var(--auth-text);
   font-family: inherit;
-  font-size: clamp(1.125rem, 4.5vw, 1.375rem);
-  line-height: 28px;
+  font-size: 1rem; /* 16px keeps iOS from zooming into the field */
+  line-height: 24px;
 }
 
 .auth-input::placeholder {
@@ -510,7 +510,7 @@ dialog::backdrop {
 
 .auth-select select {
   appearance: none;
-  padding-right: 56px;
+  padding-right: 48px;
   cursor: pointer;
 }
 
@@ -526,50 +526,47 @@ dialog::backdrop {
   position: absolute;
   top: 50%;
   right: 5.8%;
-  width: 26px;
-  height: 19px;
+  width: 18px;
+  height: 13px;
   transform: translateY(-50%) rotate(180deg);
   pointer-events: none;
 }
 
 .auth-photo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
+  position: relative;
 }
 
 .auth-photo-picker {
   position: relative;
   width: 100%;
-  height: 231px;
+  height: 104px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 24px;
+  border-radius: 20px;
   background: var(--auth-field);
   cursor: pointer;
 }
 
 .auth-photo-label {
   position: absolute;
-  top: 9px;
-  left: 24px;
+  top: 8px;
+  left: 20px;
   color: var(--auth-muted);
-  font-size: clamp(1.125rem, 4.5vw, 1.375rem);
-  line-height: 28px;
+  font-size: 1rem;
+  line-height: 24px;
 }
 
 .auth-photo-hint {
-  margin-top: 28px;
+  margin-top: 20px;
   color: var(--auth-muted);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 .auth-photo-preview {
-  width: 150px;
-  height: 150px;
-  margin-top: 28px;
+  width: 64px;
+  height: 64px;
+  margin-top: 20px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -585,14 +582,17 @@ dialog::backdrop {
 }
 
 .auth-photo-remove {
-  font-size: 0.9rem;
+  position: absolute;
+  right: 16px;
+  bottom: 8px;
+  font-size: 0.8rem;
   text-decoration: underline;
 }
 
 .auth-switch-line {
   margin: 0;
   color: var(--auth-muted);
-  font-size: clamp(1rem, 4.5vw, 1.25rem);
+  font-size: 0.95rem;
 }
 
 .auth-switch {
@@ -603,15 +603,15 @@ dialog::backdrop {
 }
 
 .auth-submit {
-  padding: 10px 20px;
+  padding: 8px 24px;
   border: 0;
   border-radius: 12px;
   background: var(--auth-button);
   color: var(--auth-button-text);
   font-family: inherit;
-  font-size: 1.5rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  line-height: 32px;
+  line-height: 26px;
   filter: drop-shadow(0 2px 9px rgba(0, 0, 0, 0.25));
   cursor: pointer;
 }
