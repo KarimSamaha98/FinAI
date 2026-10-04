@@ -26,6 +26,8 @@ export const profiles = pgTable('profiles', {
   homeCurrencyCode: text('home_currency_code')
     .notNull()
     .references(() => currencies.code),
+  countryCode: text('country_code'),
+  avatarPath: text('avatar_path'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -46,7 +48,7 @@ export const accounts = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id').notNull(),
     name: text('name').notNull(),
-    type: text('type', { enum: ['checking', 'credit', 'e_banking', 'investment', 'cash', 'other'] }).notNull(),
+    type: text('type', { enum: ['checking', 'credit', 'investment', 'cash', 'other'] }).notNull(),
     institution: text('institution'),
     currencyCode: text('currency_code')
       .notNull()

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CurrencyCodeSchema } from "./currency.js";
 import { BucketGranularitySchema, ExcludedCurrencySchema } from "./reporting.js";
 
-export const AccountTypeSchema = z.enum(["checking", "credit", "e_banking", "investment", "cash", "other"]);
+export const AccountTypeSchema = z.enum(["checking", "credit", "investment", "cash", "other"]);
 export type AccountType = z.infer<typeof AccountTypeSchema>;
 
 export const AccountSchema = z.object({

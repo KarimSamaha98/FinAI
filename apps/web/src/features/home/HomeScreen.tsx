@@ -13,20 +13,14 @@ import { useNetWorth } from '../../hooks/useNetWorth'
 import { useNetWorthSeries } from '../../hooks/useNetWorthSeries'
 import { NetWorthChart } from './NetWorthChart'
 
-/** Home display buckets: e_banking folds under Checking (an online checking account). Buckets are pure groupings — no subtotals. */
-type HomeBucket = 'checking' | 'credit' | 'investment' | 'cash' | 'other'
-
-const HOME_BUCKETS: { bucket: HomeBucket; label: string }[] = [
-  { bucket: 'checking', label: 'Checking' },
-  { bucket: 'credit', label: 'Credit' },
-  { bucket: 'investment', label: 'Investment' },
-  { bucket: 'cash', label: 'Cash' },
-  { bucket: 'other', label: 'Other' },
+/** Home buckets: one per account type, fixed display order. Pure groupings — no subtotals. */
+const HOME_BUCKETS: { type: AccountType; label: string }[] = [
+  { type: 'checking', label: 'Checking' },
+  { type: 'credit', label: 'Credit' },
+  { type: 'investment', label: 'Investment' },
+  { type: 'cash', label: 'Cash' },
+  { type: 'other', label: 'Other' },
 ]
-
-function homeBucketFor(type: AccountType): HomeBucket {
-  return type === 'e_banking' ? 'checking' : type
-}
 
 /** Negative balances read red (danger), positive green (success); zero stays neutral. */
 function signedColor(amount: number): string | undefined {
@@ -102,11 +96,11 @@ export function HomeScreen() {
           {netWorth.accounts.length > 0 ? (
             <div className="home-grid">
               <div className="home-buckets">
-                {HOME_BUCKETS.map(({ bucket, label }) => {
-                  const bucketAccounts = netWorth.accounts.filter((a) => homeBucketFor(a.type) === bucket)
+                {HOME_BUCKETS.map(({ type, label }) => {
+                  const bucketAccounts = netWorth.accounts.filter((a) => a.type === type)
                   if (bucketAccounts.length === 0) return null
                   return (
-                    <Card key={bucket} className="home-bucket">
+                    <Card key={type} className="home-bucket">
                       <h2>{label}</h2>
                       {bucketAccounts.map((account) => (
                         <AccountRow key={account.id} account={account} />

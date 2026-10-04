@@ -96,7 +96,7 @@ erDiagram
         uuid id PK
         uuid user_id
         text name
-        text type "checking | credit | e_banking | investment | other"
+        text type "checking | credit | investment | cash | other"
         text institution
         text currency_code FK
         numeric starting_balance
