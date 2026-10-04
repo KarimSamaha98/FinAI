@@ -393,6 +393,7 @@ dialog::backdrop {
   --auth-button-hover: #7f8796;
   --auth-button-text: #ffffff;
   --auth-focus: #5f6b80;
+  --auth-panel-shadow: 0 2px 6px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08);
 
   flex: 1;
   display: flex;
@@ -413,6 +414,7 @@ dialog::backdrop {
     --auth-button: #6b7385;
     --auth-button-hover: #7c8497;
     --auth-focus: var(--text-muted);
+    --auth-panel-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -426,6 +428,7 @@ dialog::backdrop {
   padding: 20px;
   border-radius: 12px;
   background: var(--auth-panel);
+  box-shadow: var(--auth-panel-shadow);
   color: var(--auth-text);
 }
 
