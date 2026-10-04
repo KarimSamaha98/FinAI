@@ -4,9 +4,10 @@ import type { CreateImportProfileInput, ParseWithProfileResult } from 'shared-ty
 import { apiClient } from '../../lib/apiClient'
 import { useCategories } from '../../hooks/useCategories'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
-import { ProfileBuilderForm } from './ProfileBuilderForm'
+import { ProfileWizard } from './ProfileWizard'
+import { UploadDropzone } from './UploadDropzone'
+import { useAccounts } from '../../hooks/useAccounts'
 import { CategorizationDeck, type CategorizedRow } from './CategorizationDeck'
-import { Card } from '../../components/Card'
 import { Alert } from '../../components/Alert'
 
 type Step =
@@ -20,6 +21,8 @@ export function ImportWizardPage() {
   const { categories } = useCategories()
   const { profiles, loading: profilesLoading, createProfile } = useImportProfiles(accountId)
   const existingProfile = profiles[0] ?? null
+  const { accounts } = useAccounts()
+  const account = accounts.find((a) => a.id === accountId)
   const [step, setStep] = useState<Step>({ name: 'upload' })
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -76,41 +79,32 @@ export function ImportWizardPage() {
   }
 
   return (
-    <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 640, margin: '0 auto', width: '100%' }}>
-      <h1>Import transactions</h1>
+    <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: step.name === 'build-profile' ? 880 : 640, margin: '0 auto', width: '100%' }}>
+      <h1>{step.name === 'build-profile' ? 'Set up CSV profile' : 'Import transactions'}</h1>
       {error && <Alert variant="error">{error}</Alert>}
 
       {step.name === 'upload' && profilesLoading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
 
       {step.name === 'upload' && !profilesLoading && (
-        <Card>
-          {!existingProfile && (
-            <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
-              This account has no import profile yet — after you upload a file, you'll set up how to read it.
-            </p>
-          )}
-          <input
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            disabled={uploading}
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) handleFileSelected(file)
-            }}
-          />
-          {uploading && <p style={{ color: 'var(--text-muted)' }}>Uploading…</p>}
-        </Card>
+        <>
+          <p className="wizard-hint" style={{ marginTop: 0, marginBottom: 'var(--space-3)' }}>
+            {existingProfile
+              ? `Using your “${existingProfile.name}” profile to read the file.`
+              : 'Step 1 of 7 — this account has no import profile yet. After you upload a file, a few quick questions set up how to read it.'}
+          </p>
+          <UploadDropzone uploading={uploading} onFile={handleFileSelected} />
+        </>
       )}
 
       {step.name === 'build-profile' && (
-        <Card>
-          <ProfileBuilderForm
-            accountId={accountId}
-            uploadedFileId={step.uploadedFileId}
-            onCreated={(input) => handleCreateProfile(step.uploadedFileId, input)}
-            onCancel={() => setStep({ name: 'upload' })}
-          />
-        </Card>
+        <ProfileWizard
+          accountId={accountId}
+          accountCurrency={account?.currencyCode ?? 'USD'}
+          defaultName={account ? `${account.name} CSV` : 'Bank CSV'}
+          uploadedFileId={step.uploadedFileId}
+          onCreated={(input) => handleCreateProfile(step.uploadedFileId, input)}
+          onCancel={() => setStep({ name: 'upload' })}
+        />
       )}
 
       {step.name === 'categorize' && (
