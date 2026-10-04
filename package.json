@@ -12,7 +12,11 @@
     "build": "pnpm --filter shared-types run build && pnpm --filter web run build && pnpm --filter api run build",
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "seed:demo": "pnpm --filter api run seed:demo",
+    "seed:demo:reset": "pnpm --filter api run seed:demo:reset",
+    "reset:demo": "pnpm exec supabase db reset && pnpm seed:demo:reset",
+    "setup:dev": "bash scripts/dev-setup.sh"
   },
   "devDependencies": {
     "supabase": "2.116.0"
