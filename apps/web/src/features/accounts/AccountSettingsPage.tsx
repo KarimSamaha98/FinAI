@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
 import { Card } from '../../components/Card'
@@ -227,18 +227,13 @@ export function AccountSettingsPage() {
         {profile ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{profile.name}</span>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-              <Button variant="primary" onClick={() => navigate(`/accounts/${account.id}/import`)}>
-                Import CSV
-              </Button>
-              <Button variant="danger" onClick={() => deleteProfile(profile.id)}>
-                Delete profile
-              </Button>
-            </div>
+            <Button variant="danger" onClick={() => deleteProfile(profile.id)}>
+              Delete profile
+            </Button>
           </div>
         ) : (
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-            No import profile yet. <Link to={`/accounts/${account.id}/import`}>Set one up</Link>
+            No import profile yet — one is set up the first time you import a CSV for this account from + Add Transaction.
           </p>
         )}
       </Card>

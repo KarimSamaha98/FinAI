@@ -9,7 +9,6 @@ import { Modal } from '../../components/Modal'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
-import { useImportProfiles } from '../../hooks/useImportProfiles'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useDisplayRows } from '../../hooks/useDisplayRows'
 import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
@@ -62,7 +61,6 @@ export function AccountsScreen() {
   const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
-  const { profiles: accountProfiles } = useImportProfiles(singleSelectedId ?? undefined)
   // Deliberately NOT scoped to accountIds — this is the candidate pool for
   // reconcile/split pickers and group-member lookups, which must be able to
   // find a transaction in a *different* account than the one currently
@@ -186,7 +184,6 @@ export function AccountsScreen() {
       {selectedAccount ? (
         <AccountHeader
           account={selectedAccount}
-          hasProfile={accountProfiles.length > 0}
         />
       ) : (
         <SelectionSummary

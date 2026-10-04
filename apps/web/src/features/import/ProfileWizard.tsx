@@ -16,8 +16,9 @@ const DELIMITER = ','
 
 const STEPS = ['header', 'currency', 'date', 'description', 'amounts', 'save'] as const
 type StepKey = (typeof STEPS)[number]
-/** Upload happens before the wizard, so it counts as step 1 of the whole flow. */
-const TOTAL_STEPS = STEPS.length + 1
+/** Uploading the file and choosing its account come first, as steps 1 and 2 of the whole flow. */
+const STEPS_BEFORE_WIZARD = 2
+const TOTAL_STEPS = STEPS.length + STEPS_BEFORE_WIZARD
 
 type SignMode = SignConvention | 'directional'
 
@@ -502,10 +503,10 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
     <div className="profile-wizard">
       <div className="wizard-progress">
         <span>
-          Step {stepIndex + 2} of {TOTAL_STEPS}
+          Step {stepIndex + STEPS_BEFORE_WIZARD + 1} of {TOTAL_STEPS}
         </span>
         <div className="wizard-progress-bar" aria-hidden="true">
-          <span style={{ width: `${((stepIndex + 2) / TOTAL_STEPS) * 100}%` }} />
+          <span style={{ width: `${((stepIndex + STEPS_BEFORE_WIZARD + 1) / TOTAL_STEPS) * 100}%` }} />
         </div>
       </div>
 

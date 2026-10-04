@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { CreateImportProfileInput, ParseWithProfileResult } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
 import { useCategories } from '../../hooks/useCategories'
@@ -41,22 +41,18 @@ const TITLES: Record<Step['name'], string> = {
 }
 
 /**
- * Two entry points:
- * - /accounts/:id/import — the account is known up front (account header /
- *   settings), so an upload goes straight to its profile or to profile setup.
- * - /import — from the Add transaction dialog: the file comes first, then
- *   "which account is this for?", then profile setup if that account has none.
- * Either way it ends in the categorization deck.
+ * Reached from the Add transactions dialog (which uploads the file first), or
+ * directly at /import with an upload step. Then: "which account is this for?",
+ * profile setup if that account has none, and the categorization deck.
  */
 export function ImportWizardPage() {
-  const { id: routeAccountId } = useParams<{ id: string }>()
   const handoff = (useLocation().state as ImportLocationState | null) ?? null
   const navigate = useNavigate()
   const { categories } = useCategories()
   const { profiles, loading: profilesLoading, createProfile } = useImportProfiles()
   const { accounts } = useAccounts()
   const [step, setStep] = useState<Step>(() =>
-    !routeAccountId && handoff ? { name: 'choose-account', uploadedFileId: handoff.uploadedFileId, fileName: handoff.fileName } : { name: 'upload' },
+    handoff ? { name: 'choose-account', uploadedFileId: handoff.uploadedFileId, fileName: handoff.fileName } : { name: 'upload' },
   )
   const [chosenAccountId, setChosenAccountId] = useState<string | null>(handoff?.accountId ?? null)
   const [error, setError] = useState<string | null>(null)
@@ -64,7 +60,6 @@ export function ImportWizardPage() {
   const [skippedNote, setSkippedNote] = useState<string | null>(null)
 
   const profileFor = (accountId: string) => profiles.find((p) => p.accountId === accountId) ?? null
-  const routeProfile = routeAccountId ? profileFor(routeAccountId) : null
   const accountOf = (accountId: string) => accounts.find((a) => a.id === accountId) ?? null
 
   async function parseWithProfile(accountId: string, uploadedFileId: string, importProfileId: string) {
@@ -79,13 +74,10 @@ export function ImportWizardPage() {
   }
 
   /** Reads the file with the account's profile, or asks to set one up. */
-  async function continueWithAccount(accountId: string, file: UploadedFile, noProfileStep: 'needs-profile' | 'build-profile') {
+  async function continueWithAccount(accountId: string, file: UploadedFile) {
     const profile = profileFor(accountId)
     if (profile) await parseWithProfile(accountId, file.uploadedFileId, profile.id)
-    else {
-      const next = { accountId, uploadedFileId: file.uploadedFileId, fileName: file.fileName }
-      setStep(noProfileStep === 'needs-profile' ? { name: 'needs-profile', ...next } : { name: 'build-profile', ...next })
-    }
+    else setStep({ name: 'needs-profile', accountId, uploadedFileId: file.uploadedFileId, fileName: file.fileName })
   }
 
   async function handleFileSelected(file: File) {
@@ -93,10 +85,7 @@ export function ImportWizardPage() {
     setUploading(true)
     try {
       const uploaded = await apiClient.upload<{ id: string }>('/import-runs/upload', file)
-      const uploadedFile = { uploadedFileId: uploaded.id, fileName: file.name }
-      // Coming from an account's own page means "set this account up", so skip straight to the wizard.
-      if (routeAccountId) await continueWithAccount(routeAccountId, uploadedFile, 'build-profile')
-      else setStep({ name: 'choose-account', ...uploadedFile })
+      setStep({ name: 'choose-account', uploadedFileId: uploaded.id, fileName: file.name })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload file')
     } finally {
@@ -119,12 +108,6 @@ export function ImportWizardPage() {
     }
   }
 
-  const uploadHint = routeAccountId
-    ? routeProfile
-      ? `Using your “${routeProfile.name}” profile to read the file.`
-      : 'Step 1 of 7 — this account has no import profile yet. After you upload a file, a few quick questions set up how to read it.'
-    : 'Upload a bank export, then choose which account it belongs to.'
-
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: step.name === 'build-profile' ? 880 : 640, margin: '0 auto', width: '100%' }}>
       <h1>{TITLES[step.name]}</h1>
@@ -135,7 +118,7 @@ export function ImportWizardPage() {
       {step.name === 'upload' && !profilesLoading && (
         <>
           <p className="wizard-hint" style={{ marginTop: 0, marginBottom: 'var(--space-3)' }}>
-            {uploadHint}
+            Upload a bank export, then choose which account it belongs to.
           </p>
           <UploadDropzone uploading={uploading} onFile={handleFileSelected} />
         </>
@@ -149,7 +132,7 @@ export function ImportWizardPage() {
           selectedId={chosenAccountId}
           onSelect={setChosenAccountId}
           onBack={() => setStep({ name: 'upload' })}
-          onContinue={(accountId) => continueWithAccount(accountId, step, 'needs-profile')}
+          onContinue={(accountId) => continueWithAccount(accountId, step)}
         />
       )}
 
@@ -179,9 +162,7 @@ export function ImportWizardPage() {
           defaultName={`${accountOf(step.accountId)?.name ?? 'Bank'} CSV`}
           uploadedFileId={step.uploadedFileId}
           onCreated={(input) => handleCreateProfile(step.accountId, step.uploadedFileId, input)}
-          onCancel={() =>
-            routeAccountId ? setStep({ name: 'upload' }) : setStep({ name: 'choose-account', uploadedFileId: step.uploadedFileId, fileName: step.fileName })
-          }
+          onCancel={() => setStep({ name: 'choose-account', uploadedFileId: step.uploadedFileId, fileName: step.fileName })}
         />
       )}
 

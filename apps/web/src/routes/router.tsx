@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from './AppLayout'
 import { ProtectedRoute } from './ProtectedRoute'
 import { LoginPage } from '../features/auth/LoginPage'
@@ -21,7 +21,8 @@ export const router = createBrowserRouter([
           { index: true, element: <HomeScreen /> },
           { path: 'accounts', element: <AccountsScreen /> },
           { path: 'import', element: <ImportWizardPage /> },
-          { path: 'accounts/:id/import', element: <ImportWizardPage /> },
+          // Imports used to start per account; old links land on the shared import flow.
+          { path: 'accounts/:id/import', element: <Navigate to="/import" replace /> },
           { path: 'accounts/:id/settings', element: <AccountSettingsPage /> },
           { path: 'insights', element: <ChartsPage /> },
           { path: 'settings', element: <SettingsPage /> },
