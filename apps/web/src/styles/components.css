@@ -59,6 +59,24 @@
   color: #fff;
 }
 
+/* Understated inline action (e.g. "skip the rest" in the import deck). */
+.text-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--transition);
+}
+
+.text-button:hover {
+  color: var(--text);
+}
+
 /* ── Card ──────────────────────────────────────────────────────────────── */
 
 .card {

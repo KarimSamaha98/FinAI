@@ -11,7 +11,8 @@ const TOP_CATEGORY_COUNT = 6
 
 export interface CategorizedRow {
   rowIndex: number
-  categoryId: string
+  /** null = import as Uncategorized (categorization skipped). */
+  categoryId: string | null
 }
 
 interface CategorizationDeckProps {
@@ -28,7 +29,7 @@ export function CategorizationDeck({ rows, categories, onDone }: CategorizationD
 
   const currentRow = rows[cursor]
 
-  function choose(categoryId: string) {
+  function choose(categoryId: string | null) {
     const next = [...categorized, { rowIndex: currentRow.rowIndex, categoryId }]
     if (cursor + 1 >= rows.length) {
       onDone(next)
@@ -39,11 +40,17 @@ export function CategorizationDeck({ rows, categories, onDone }: CategorizationD
     setShowMore(false)
   }
 
+  /** Import this row and every remaining one as Uncategorized, keeping any categories already chosen. */
+  function skipRemaining() {
+    onDone([...categorized, ...rows.slice(cursor).map((row) => ({ rowIndex: row.rowIndex, categoryId: null }))])
+  }
+
   if (rows.length === 0) {
     return <p style={{ color: 'var(--text-muted)' }}>Nothing to categorize — every row in this file was already in your transactions.</p>
   }
 
   const isIncome = currentRow.amount >= 0
+  const remaining = rows.length - cursor
 
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -67,9 +74,20 @@ export function CategorizationDeck({ rows, categories, onDone }: CategorizationD
         <Button variant="secondary" onClick={() => setShowMore(true)}>
           More…
         </Button>
+        <Button variant="secondary" onClick={() => choose(null)}>
+          Skip
+        </Button>
       </div>
 
       {showMore && <CategorySelect categories={categories} value={null} onChange={(id) => id && choose(id)} />}
+
+      <div style={{ textAlign: 'center' }}>
+        <button type="button" className="text-button" onClick={skipRemaining}>
+          {remaining === 1
+            ? 'Skip categorization — import this transaction as Uncategorized'
+            : `Skip categorization — import all ${remaining} remaining as Uncategorized`}
+        </button>
+      </div>
     </div>
   )
 }

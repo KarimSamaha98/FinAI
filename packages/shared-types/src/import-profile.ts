@@ -161,17 +161,20 @@ export const ParseWithProfileResultSchema = z.object({
 export type ParseWithProfileResult = z.infer<typeof ParseWithProfileResultSchema>;
 
 /**
- * Every remaining (non-duplicate, already-parsed) row must be assigned a
- * category — the categorization deck has no skip action. The backend
- * re-parses the source file by rowIndex rather than trusting client-supplied
- * date/amount/description, since candidate rows are never persisted.
+ * Every remaining (non-duplicate, already-parsed) row is listed here, but
+ * assigning a category is optional: `categoryId` may be null, which imports
+ * the row as Uncategorized (the app's existing null-category concept) so a
+ * user importing years of history can skip the categorization deck instead
+ * of categorizing every row. The backend re-parses the source file by
+ * rowIndex rather than trusting client-supplied date/amount/description,
+ * since candidate rows are never persisted.
  */
 export const CommitImportRunInputSchema = z.object({
   importRunId: z.string().uuid(),
   rows: z.array(
     z.object({
       rowIndex: z.number().int().nonnegative(),
-      categoryId: z.string().uuid(),
+      categoryId: z.string().uuid().nullable(),
     }),
   ),
 });
