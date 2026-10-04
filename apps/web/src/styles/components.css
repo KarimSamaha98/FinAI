@@ -450,7 +450,13 @@ dialog::backdrop {
 }
 
 .auth-subtitle {
+  font-size: clamp(1rem, 4.5vw, 1.375rem);
   font-weight: 500;
+  color: var(--auth-muted);
+}
+
+.auth-panel .app-logo {
+  margin-bottom: -18px; /* sits closer to the title than the panel's 30px rhythm */
 }
 
 .auth-form {
@@ -581,13 +587,17 @@ dialog::backdrop {
   text-decoration: underline;
 }
 
-.auth-switch {
-  font-size: clamp(1.75rem, 7vw, 2.25rem);
-  line-height: 1.22;
+.auth-switch-line {
+  margin: 0;
+  color: var(--auth-muted);
+  font-size: clamp(1rem, 4.5vw, 1.25rem);
 }
 
-.auth-switch:hover {
+.auth-switch {
+  font-size: inherit;
+  font-weight: 700;
   color: var(--auth-text);
+  text-decoration: underline;
 }
 
 .auth-submit {

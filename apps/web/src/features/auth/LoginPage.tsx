@@ -155,8 +155,9 @@ export function LoginPage() {
   return (
     <div className="auth-shell">
       <div className={`auth-panel${isSignup ? ' auth-panel-wide' : ''}`}>
-        <h1 className="auth-title">{isSignup ? 'Welcome to Fin.AI' : 'Welcome Back'}</h1>
-        <h2 className="auth-subtitle">{isSignup ? 'Create your account' : 'Login'}</h2>
+        <span className="app-logo">FinAI</span>
+        <h1 className="auth-title">{isSignup ? 'Create your account' : 'Welcome back'}</h1>
+        <p className="auth-subtitle">{isSignup ? 'Track every account in one place.' : 'Log in to see where your money went.'}</p>
 
         {confirmationSent ? (
           <Alert variant="success">
@@ -205,14 +206,17 @@ export function LoginPage() {
             </div>
             {error && <Alert variant="error">{error}</Alert>}
             <button type="submit" className="auth-submit" disabled={submitting}>
-              {submitting ? 'Working…' : isSignup ? 'Sign Up' : 'Submit'}
+              {submitting ? 'Working…' : isSignup ? 'Sign up' : 'Log in'}
             </button>
           </form>
         )}
 
-        <button type="button" className="auth-switch" onClick={() => switchMode(isSignup ? 'login' : 'signup')}>
-          {isSignup ? 'Login' : 'Signup'}
-        </button>
+        <p className="auth-switch-line">
+          {isSignup ? 'Already have an account? ' : "Don't have an account? "}
+          <button type="button" className="auth-switch" onClick={() => switchMode(isSignup ? 'login' : 'signup')}>
+            {isSignup ? 'Log in' : 'Sign up'}
+          </button>
+        </p>
       </div>
     </div>
   )
