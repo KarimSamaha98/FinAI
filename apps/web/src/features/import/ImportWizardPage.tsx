@@ -11,6 +11,7 @@ import { ChooseAccountStep } from './ChooseAccountStep'
 import { CategorizationDeck, type CategorizedRow } from './CategorizationDeck'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
+import { PageHeader } from '../../components/BackButton'
 
 /**
  * How the page was opened:
@@ -123,7 +124,10 @@ export function ImportWizardPage() {
 
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: step.name === 'build-profile' ? 880 : 640, margin: '0 auto', width: '100%' }}>
-      <h1>{step.name === 'upload' && setupAccountId ? 'Set up CSV profile' : TITLES[step.name]}</h1>
+      <PageHeader
+        title={step.name === 'upload' && setupAccountId ? 'Set up CSV profile' : TITLES[step.name]}
+        backTo={setupAccountId ? `/accounts?selected=${setupAccountId}` : '/accounts'}
+      />
       {error && <Alert variant="error">{error}</Alert>}
 
       {step.name === 'upload' && profilesLoading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}

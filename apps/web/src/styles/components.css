@@ -272,45 +272,151 @@
   min-width: 0;
 }
 
-/* Icon-only mini rail on phone-width screens — labels are display:none'd,
-   so every rail link/button carries an aria-label for its accessible name. */
+/* The phone top bar and the drawer's own header only appear at phone widths. */
+.app-topbar,
+.app-rail-head .app-menu-close {
+  display: none;
+}
+
+.app-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-menu-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Phone widths: the rail becomes a slide-in drawer opened from the top bar's
+   menu button. Closed, it's visibility:hidden so it's out of the tab order
+   and the accessibility tree. */
 @media (max-width: 767px) {
-  .app-rail {
-    width: 4.25rem;
-    padding: var(--space-3) var(--space-2);
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .app-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-4);
+    padding-top: max(var(--space-2), env(safe-area-inset-top));
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
 
-  .app-logo {
+  .app-topbar .app-logo {
     padding-left: 0;
-    font-size: 0.95rem;
   }
 
-  .app-rail-label {
-    display: none;
+  .app-rail-head .app-menu-close {
+    display: inline-flex;
   }
 
-  .app-rail-nav {
-    width: 100%;
+  .app-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(17rem, 85vw);
+    height: 100svh;
+    padding-top: max(var(--space-4), env(safe-area-inset-top));
+    background: var(--bg);
+    box-shadow: var(--shadow-md);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 200ms ease, visibility 0s linear 200ms;
+  }
+
+  .is-menu-open .app-rail {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 200ms ease, visibility 0s;
+  }
+
+  .app-rail-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(0, 0, 0, 0.4);
   }
 
   .app-rail-link {
-    justify-content: center;
-    padding: 0.6rem 0;
+    padding: 0.75rem;
+    font-size: 1rem;
   }
+}
 
-  .app-rail-user {
-    align-items: center;
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  .app-rail,
+  .is-menu-open .app-rail {
+    transition: none;
   }
+}
 
-  .app-rail-avatar {
-    padding-left: 0;
-  }
+/* ── Back button (sub-pages) ──────────────────────────────────────────── */
 
-  .app-rail-logout {
-    justify-content: center;
-    width: 100%;
-  }
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.page-header h1 {
+  min-width: 0;
+}
+
+.back-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.08));
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.back-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.back-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ── Dropdown / multi-select ───────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
@@ -41,12 +41,23 @@ function toFormValues(transaction: Transaction): TransactionFormValues {
 }
 
 export function AccountsScreen() {
-  const [searchParams] = useSearchParams()
-  // Empty = every account selected (the default on arrival).
-  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
-    const fromUrl = searchParams.get('selected')
-    return fromUrl ? [fromUrl] : []
-  })
+  const [searchParams, setSearchParams] = useSearchParams()
+  // The card selection lives in the URL (?selected=id1,id2) so Back and reload
+  // restore it. Empty = every account selected (the default on arrival).
+  const selectedParam = searchParams.get('selected') ?? ''
+  const selectedIds = useMemo(() => selectedParam.split(',').filter(Boolean), [selectedParam])
+  function setSelectedIds(ids: string[]) {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (ids.length) next.set('selected', ids.join(','))
+        else next.delete('selected')
+        return next
+      },
+      // Toggling cards shouldn't add history entries — Back leaves the page.
+      { replace: true },
+    )
+  }
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [view, setView] = useState<TransactionView>('real')
@@ -85,9 +96,9 @@ export function AccountsScreen() {
   const summarizedAccounts = selectedIds.length === 0 ? accounts : accounts.filter((a) => selectedIds.includes(a.id))
 
   function handleToggleAccount(id: string) {
-    setSelectedIds((current) =>
+    setSelectedIds(
       nextAccountSelection(
-        current,
+        selectedIds,
         id,
         accounts.map((a) => a.id),
       ),

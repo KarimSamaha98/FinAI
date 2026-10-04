@@ -4,6 +4,7 @@ import { useAccounts } from '../../hooks/useAccounts'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
+import { PageHeader } from '../../components/BackButton'
 import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
 import { CURRENCY_CODES } from '../../lib/currencies'
@@ -134,7 +135,7 @@ export function AccountSettingsPage() {
 
   return (
     <main style={{ padding: '1.5rem', maxWidth: 480, margin: '0 auto' }}>
-      <h1>{account.name}</h1>
+      <PageHeader title={account.name} backTo={`/accounts?selected=${account.id}`} />
       <p style={{ color: 'var(--text-muted)', marginTop: '-0.5rem' }}>Account settings</p>
       {error && <Alert variant="error">{error}</Alert>}
 
@@ -173,7 +174,7 @@ export function AccountSettingsPage() {
           </select>
         </label>
         <div key={account.balanceUpdatedAt} style={{ display: 'flex', gap: 'var(--space-3)' }}>
-          <label style={{ flex: 1 }}>
+          <label style={{ flex: 1, minWidth: 0 }}>
             Starting balance
             <input
               type="number"
@@ -183,7 +184,7 @@ export function AccountSettingsPage() {
               onBlur={(e) => handleField('startingBalance', e.target.value)}
             />
           </label>
-          <label style={{ flex: 1 }}>
+          <label style={{ flex: 1, minWidth: 0 }}>
             as of
             <input
               type="date"
