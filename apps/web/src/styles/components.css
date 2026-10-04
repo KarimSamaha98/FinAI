@@ -1143,7 +1143,10 @@ dialog::backdrop {
 .txn-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 50px auto minmax(0, 1fr) auto auto;
+  /* The amount column has a fixed minimum so the category chips (to its left)
+     stay aligned across rows regardless of how many digits each amount has —
+     with an `auto` amount column, wider amounts shift the chips leftward. */
+  grid-template-columns: 50px auto minmax(0, 1fr) auto minmax(7rem, max-content);
   grid-template-areas: 'card date description chips amount';
   align-items: center;
   column-gap: 16px;
