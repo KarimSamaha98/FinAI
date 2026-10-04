@@ -6,6 +6,7 @@ import { useProfile } from '../../hooks/useProfile'
 import { CURRENCY_CODES } from '../../lib/currencies'
 import { listCountries } from '../../lib/countries'
 import { FxRatesSection } from './FxRatesSection'
+import { CategoriesSection } from './CategoriesSection'
 
 export function SettingsPage() {
   const { profile, loading, error, updateProfile, uploadAvatar } = useProfile()
@@ -102,9 +103,7 @@ export function SettingsPage() {
 
       {profile && <FxRatesSection homeCurrencyCode={profile.homeCurrencyCode} />}
 
-      <Card style={{ marginTop: 'var(--space-4)' }}>
-        <p style={{ color: 'var(--text-muted)', margin: 0 }}>Custom category management is coming soon.</p>
-      </Card>
+      <CategoriesSection />
     </main>
   )
 }

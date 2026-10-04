@@ -20,7 +20,7 @@ export function ChartsPage() {
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('current-month'))
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [view, setView] = useState<TransactionView>('real')
-  const { categories } = useCategories()
+  const { categories, activeCategories } = useCategories()
   const { profile } = useProfile()
 
   const expenseByCategory = useCategoryBreakdown(dateRange, categoryIds, view, 'expense')
@@ -39,7 +39,7 @@ export function ChartsPage() {
 
       <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
         <DateRangePresetPicker value={dateRange} onChange={setDateRange} />
-        <CategoryMultiSelect categories={categories} selectedIds={categoryIds} onChange={setCategoryIds} />
+        <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
         <label>
           View
           <select value={view} onChange={(e) => setView(e.target.value as TransactionView)}>

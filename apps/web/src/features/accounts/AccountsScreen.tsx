@@ -57,7 +57,7 @@ export function AccountsScreen() {
   const [viewingGroupId, setViewingGroupId] = useState<string | null>(null)
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
 
-  const { categories } = useCategories()
+  const { categories, activeCategories } = useCategories()
   const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
@@ -197,7 +197,7 @@ export function AccountsScreen() {
 
       <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end', margin: 'var(--space-4) 0' }}>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
-        <CategoryMultiSelect categories={categories} selectedIds={categoryIds} onChange={setCategoryIds} />
+        <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
         <label>
           View
           <select value={view} onChange={(e) => setView(e.target.value as TransactionView)}>
@@ -241,7 +241,7 @@ export function AccountsScreen() {
       {showAddForm && (
         <Modal open={showAddForm} onClose={() => setShowAddForm(false)} title="Add transaction">
           <TransactionForm
-            categories={categories}
+            categories={activeCategories}
             accounts={accounts}
             fixedAccountId={singleSelectedId}
             onSubmit={async (input) => {
@@ -258,7 +258,7 @@ export function AccountsScreen() {
       {editingTransaction && (
         <Modal open={!!editingTransaction} onClose={() => setEditingId(null)} title="Edit transaction">
           <TransactionForm
-            categories={categories}
+            categories={activeCategories}
             accounts={accounts}
             fixedAccountId={null}
             initialValues={toFormValues(editingTransaction)}
