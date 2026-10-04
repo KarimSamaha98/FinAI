@@ -379,7 +379,7 @@ dialog::backdrop {
 
 /* ── Auth ──────────────────────────────────────────────────────────────── */
 /* Login / sign-up follow the "Licence Plates" Figma frames (Signup Screen
-   124:16, Login Screen 124:189): Roboto, a pale blue-grey page, a white
+   124:16, Login Screen 124:189) in the app's own fonts: a pale blue-grey page, a white
    panel, pill fields and a slate submit button. Light values are the Figma
    ones; dark mode keeps the same shapes on the app's Night Ledger surfaces. */
 
@@ -400,7 +400,7 @@ dialog::backdrop {
   justify-content: center;
   padding: var(--space-4);
   background: var(--auth-page);
-  font-family: 'Roboto', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -446,7 +446,9 @@ dialog::backdrop {
 }
 
 .auth-title {
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .auth-subtitle {
