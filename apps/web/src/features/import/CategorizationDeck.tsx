@@ -20,39 +20,17 @@ interface CategorizationDeckProps {
   onDone: (categorized: CategorizedRow[]) => void
 }
 
-/** Decorative disclosure chevron — flips when expanded (transform only). */
-function Chevron({ up }: { up: boolean }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      style={{ transform: up ? 'rotate(180deg)' : undefined, transition: 'transform var(--transition)' }}
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  )
-}
-
 export function CategorizationDeck({ rows, categories, onDone }: CategorizationDeckProps) {
   const [cursor, setCursor] = useState(0)
   const [choices, setChoices] = useState<Record<number, string | null>>({})
-  const [expanded, setExpanded] = useState(false)
   const topCategories = useTopCategories(categories, TOP_CATEGORY_COUNT)
 
   const currentRow = rows[cursor]
+  // Every category is always shown: the user's most-used ones first, then the
+  // rest alphabetically.
   const topIds = new Set(topCategories.map((c) => c.id))
   const restCategories = categories.filter((c) => !topIds.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
   const allCategories = [...topCategories, ...restCategories]
-  // Only offer the More/Less toggle when there's actually something hidden.
-  const hasHiddenCategories = topCategories.length > 0 && restCategories.length > 0
-  const visibleCategories = expanded || !hasHiddenCategories ? allCategories : topCategories
   const selectedCategoryId = currentRow ? choices[currentRow.rowIndex] : undefined
 
   function finish(next: Record<number, string | null>) {
@@ -119,13 +97,8 @@ export function CategorizationDeck({ rows, categories, onDone }: CategorizationD
         >
           Categorize this transaction
         </h2>
-        <div
-          id="deck-category-list"
-          role="group"
-          aria-label="Categories"
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', justifyContent: 'center' }}
-        >
-          {visibleCategories.map((category) => {
+        <div role="group" aria-label="Categories" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', justifyContent: 'center' }}>
+          {allCategories.map((category) => {
             const isSelected = category.id === selectedCategoryId
             return (
               <Button
@@ -139,11 +112,6 @@ export function CategorizationDeck({ rows, categories, onDone }: CategorizationD
               </Button>
             )
           })}
-          {hasHiddenCategories && (
-            <Button variant="secondary" aria-expanded={expanded} aria-controls="deck-category-list" onClick={() => setExpanded((v) => !v)}>
-              {expanded ? 'Less' : 'More'} <Chevron up={expanded} />
-            </Button>
-          )}
         </div>
       </div>
 
