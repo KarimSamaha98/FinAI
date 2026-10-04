@@ -144,7 +144,7 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   const savings: DemoAccount = {
     id: randomUUID(),
     name: 'Online Savings',
-    type: 'e_banking',
+    type: 'checking',
     institution: 'Ally',
     currencyCode: 'USD',
     startingBalance: 8000,
