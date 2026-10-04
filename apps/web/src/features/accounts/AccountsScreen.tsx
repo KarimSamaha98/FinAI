@@ -151,7 +151,7 @@ export function AccountsScreen() {
 
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
-      <h1>Accounts</h1>
+      <h1>Transaction</h1>
       {accountsError && <Alert variant="error">{accountsError}</Alert>}
       {!accountsLoading && (
         <AccountCarousel

@@ -146,19 +146,28 @@
   padding: var(--space-3) var(--space-2);
 }
 
-/* ── App shell / nav ───────────────────────────────────────────────────── */
+/* ── App shell / left rail nav ─────────────────────────────────────────── */
 
-.app-header {
+.app-shell {
+  display: flex;
+  flex: 1;
+  min-height: 100svh;
+  align-items: stretch;
+}
+
+.app-rail {
   position: sticky;
   top: 0;
-  z-index: 10;
+  height: 100svh;
+  flex: 0 0 auto;
+  width: 13.5rem;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-3);
+  /* Landscape notch on notch-phones (installed PWA) */
+  padding-left: max(var(--space-3), env(safe-area-inset-left));
+  border-right: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -171,34 +180,85 @@
   letter-spacing: -0.02em;
   color: var(--text);
   text-decoration: none;
+  padding-left: 0.75rem;
 }
 
-.app-nav {
+.app-rail-nav {
   display: flex;
+  flex-direction: column;
   gap: 0.25rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  padding: 0.25rem;
 }
 
-.app-nav-link {
-  padding: 0.4rem 0.9rem;
-  border-radius: var(--radius-full);
-  font-size: 0.85rem;
+.app-rail-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-muted);
   text-decoration: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--transition), color var(--transition);
 }
 
-.app-nav-link:hover {
-  color: var(--text);
+.app-rail-link svg {
+  flex: 0 0 auto;
 }
 
-.app-nav-link.active {
+.app-rail-link:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.app-rail-link.active {
   background: var(--accent);
   color: var(--accent-contrast);
+}
+
+.app-rail-logout {
+  margin-top: auto;
+  justify-content: flex-start;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Icon-only mini rail on phone-width screens — labels are display:none'd,
+   so every rail link/button carries an aria-label for its accessible name. */
+@media (max-width: 767px) {
+  .app-rail {
+    width: 4.25rem;
+    padding: var(--space-3) var(--space-2);
+    align-items: center;
+  }
+
+  .app-logo {
+    padding-left: 0;
+    font-size: 0.95rem;
+  }
+
+  .app-rail-label {
+    display: none;
+  }
+
+  .app-rail-nav {
+    width: 100%;
+  }
+
+  .app-rail-link {
+    justify-content: center;
+    padding: 0.6rem 0;
+  }
+
+  .app-rail-logout {
+    justify-content: center;
+    width: 100%;
+  }
 }
 
 /* ── Dropdown / multi-select ───────────────────────────────────────────── */
@@ -390,4 +450,164 @@ dialog::backdrop {
 .auth-card {
   width: 100%;
   max-width: 24rem;
+}
+
+/* ── Home (net worth) ─────────────────────────────────────────────────── */
+
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: var(--space-5);
+}
+
+.home-hero-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.home-hero-amount {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.home-hero-asof {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.home-buckets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.home-bucket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.home-bucket h2 {
+  font-size: 0.95rem;
+  margin: 0 0 var(--space-1);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.home-account-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0.45rem 0.25rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--transition);
+}
+
+.home-account-row:hover {
+  background: var(--surface-raised);
+}
+
+.home-account-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-account-institution {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-account-balance {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.home-bucket-empty {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  padding: 0.2rem 0.25rem 0.3rem;
+}
+
+/* Roomier tap targets on touch screens */
+@media (max-width: 767px) {
+  .home-account-row {
+    padding-block: 0.7rem;
+  }
+}
+
+.home-chart {
+  min-width: 0;
+}
+
+.home-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.home-chart-header h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-5);
+  max-width: 28rem;
+}
+
+.home-empty h2 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.home-empty p {
+  margin: 0;
+  color: var(--text-muted);
 }

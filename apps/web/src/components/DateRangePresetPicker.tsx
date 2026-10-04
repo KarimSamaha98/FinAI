@@ -5,10 +5,12 @@ import { DATE_RANGE_PRESET_LABELS, getPresetRange, type DateRangePreset } from '
 interface DateRangePresetPickerProps {
   value: DateRange
   onChange: (value: DateRange) => void
+  /** Initial selection of the preset dropdown — keep it in sync with the caller's initial range. */
+  defaultPreset?: DateRangePreset
 }
 
-export function DateRangePresetPicker({ value, onChange }: DateRangePresetPickerProps) {
-  const [preset, setPreset] = useState<DateRangePreset>('current-month')
+export function DateRangePresetPicker({ value, onChange, defaultPreset = 'current-month' }: DateRangePresetPickerProps) {
+  const [preset, setPreset] = useState<DateRangePreset>(defaultPreset)
 
   function handlePresetChange(next: DateRangePreset) {
     setPreset(next)

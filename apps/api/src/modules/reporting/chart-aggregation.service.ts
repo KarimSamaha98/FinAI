@@ -1,15 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { eq } from 'drizzle-orm'
-import {
-  addDays,
-  differenceInCalendarDays,
-  eachDayOfInterval,
-  eachMonthOfInterval,
-  endOfMonth,
-  format,
-  parseISO,
-  startOfMonth,
-} from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import type {
   AmountKind,
   BucketGranularity,
@@ -25,64 +16,12 @@ import { runInTenantContext } from '../../db/tenant-context.js'
 import { categories, profiles } from '../../db/schema.js'
 import { ReportingQueryService, type ListTransactionsFilter } from './reporting-query.service.js'
 import { convertToTargetCurrency, type ConvertedRow } from './fx-conversion.js'
+import { buildBuckets, resolveGranularity, type Bucket } from './buckets.js'
 import type { DisplayRow } from 'shared-types'
 
 interface ConversionResult {
   converted: ConvertedRow<DisplayRow>[]
   excludedCurrencies: ExcludedCurrency[]
-}
-
-interface Bucket {
-  key: string
-  start: Date
-  end: Date
-  label: string
-}
-
-function resolveGranularity(from: string, to: string): BucketGranularity {
-  const days = differenceInCalendarDays(parseISO(to), parseISO(from)) + 1
-  if (days <= 7) return 'daily'
-  if (days <= 31) return 'weekly'
-  return 'monthly'
-}
-
-function buildBuckets(from: string, to: string, granularity: BucketGranularity): Bucket[] {
-  const fromDate = parseISO(from)
-  const toDate = parseISO(to)
-
-  if (granularity === 'daily') {
-    return eachDayOfInterval({ start: fromDate, end: toDate }).map((d) => ({
-      key: format(d, 'yyyy-MM-dd'),
-      start: d,
-      end: d,
-      label: format(d, 'MMM d'),
-    }))
-  }
-
-  if (granularity === 'weekly') {
-    // Consecutive 7-day windows anchored at `from` (not ISO-week-aligned) —
-    // the simplest unambiguous definition for an arbitrary custom range; the
-    // final window is truncated at `to`.
-    const buckets: Bucket[] = []
-    for (let cursor = fromDate; cursor <= toDate; cursor = addDays(cursor, 7)) {
-      const naiveEnd = addDays(cursor, 6)
-      const end = naiveEnd < toDate ? naiveEnd : toDate
-      buckets.push({
-        key: format(cursor, 'yyyy-MM-dd'),
-        start: cursor,
-        end,
-        label: `${format(cursor, 'MMM d')} – ${format(end, 'MMM d')}`,
-      })
-    }
-    return buckets
-  }
-
-  return eachMonthOfInterval({ start: startOfMonth(fromDate), end: startOfMonth(toDate) }).map((m) => ({
-    key: format(m, 'yyyy-MM'),
-    start: startOfMonth(m),
-    end: endOfMonth(m),
-    label: format(m, 'MMM yyyy'),
-  }))
 }
 
 function bucketKeyFor(dateISO: string, granularity: BucketGranularity, buckets: Bucket[]): string | undefined {

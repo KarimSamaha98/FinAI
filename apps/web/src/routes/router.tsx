@@ -1,7 +1,8 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from './AppLayout'
 import { ProtectedRoute } from './ProtectedRoute'
 import { LoginPage } from '../features/auth/LoginPage'
+import { HomeScreen } from '../features/home/HomeScreen'
 import { AccountsScreen } from '../features/accounts/AccountsScreen'
 import { AccountSettingsPage } from '../features/accounts/AccountSettingsPage'
 import { ImportWizardPage } from '../features/import/ImportWizardPage'
@@ -17,7 +18,7 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { index: true, element: <Navigate to="/accounts" replace /> },
+          { index: true, element: <HomeScreen /> },
           { path: 'accounts', element: <AccountsScreen /> },
           { path: 'accounts/:id/import', element: <ImportWizardPage /> },
           { path: 'accounts/:id/settings', element: <AccountSettingsPage /> },

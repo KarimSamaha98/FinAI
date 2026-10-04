@@ -5,6 +5,7 @@ export const ACCOUNT_TYPE_OPTIONS: { value: AccountType; label: string }[] = [
   { value: 'credit', label: 'Credit' },
   { value: 'e_banking', label: 'E-banking' },
   { value: 'investment', label: 'Investment' },
+  { value: 'cash', label: 'Cash' },
   { value: 'other', label: 'Other' },
 ]
 

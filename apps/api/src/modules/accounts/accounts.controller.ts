@@ -1,13 +1,31 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
 import { CreateAccountInputSchema, UpdateAccountInputSchema } from 'shared-types'
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard.js'
 import { CurrentUserId } from '../auth/current-user-id.decorator.js'
 import { AccountsService } from './accounts.service.js'
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
 @Controller('accounts')
 @UseGuards(SupabaseAuthGuard)
 export class AccountsController {
   constructor(@Inject(AccountsService) private readonly accountsService: AccountsService) {}
+
+  // Both static routes must stay declared above @Get(':id') so the param
+  // route can't capture them.
+
+  @Get('net-worth')
+  netWorth(@CurrentUserId() userId: string) {
+    return this.accountsService.netWorth(userId)
+  }
+
+  @Get('net-worth-series')
+  netWorthSeries(@CurrentUserId() userId: string, @Query('from') from?: string, @Query('to') to?: string) {
+    if (!from || !to || !ISO_DATE.test(from) || !ISO_DATE.test(to) || from > to) {
+      throw new BadRequestException('from and to must be dates (yyyy-MM-dd) with from <= to')
+    }
+    return this.accountsService.netWorthSeries(userId, from, to)
+  }
 
   @Get()
   list(@CurrentUserId() userId: string, @Query('includeArchived') includeArchived?: string) {
