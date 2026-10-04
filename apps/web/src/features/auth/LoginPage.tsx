@@ -46,12 +46,16 @@ function ProfilePhotoField({ file, onChange }: { file: File | null; onChange: (f
 
   return (
     <div className="auth-photo">
-      <label className="auth-photo-picker">
-        <span className="auth-photo-label">Profile Picture</span>
+      <label className="auth-photo-picker" aria-label={file ? 'Change profile photo' : 'Add a profile photo (optional)'}>
         {previewUrl ? (
-          <img src={previewUrl} alt="Your profile photo" className="auth-photo-preview" />
+          <img src={previewUrl} alt="" className="auth-photo-preview" />
         ) : (
-          <span className="auth-photo-hint">Tap to add a photo (optional)</span>
+          <span className="auth-photo-hint">
+            Tap to add
+            <br />a photo
+            <br />
+            (optional)
+          </span>
         )}
         <input
           type="file"
@@ -64,8 +68,8 @@ function ProfilePhotoField({ file, onChange }: { file: File | null; onChange: (f
         />
       </label>
       {file && (
-        <button type="button" className="auth-photo-remove" onClick={() => onChange(null)}>
-          Remove photo
+        <button type="button" className="auth-photo-remove" aria-label="Remove photo" onClick={() => onChange(null)}>
+          ×
         </button>
       )}
     </div>

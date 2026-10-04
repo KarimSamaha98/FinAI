@@ -546,40 +546,34 @@ dialog::backdrop {
 
 .auth-photo {
   position: relative;
+  align-self: center;
+  width: 96px;
+  height: 96px;
 }
 
 .auth-photo-picker {
-  position: relative;
   width: 100%;
-  height: 96px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
+  overflow: hidden;
+  border-radius: 50%;
   background: var(--auth-field);
   cursor: pointer;
 }
 
-.auth-photo-label {
-  position: absolute;
-  top: 8px;
-  left: 20px;
-  color: var(--auth-muted);
-  font-size: 1rem;
-  line-height: 24px;
-}
-
 .auth-photo-hint {
-  margin-top: 18px;
+  max-width: 76px;
   color: var(--auth-muted);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  text-align: center;
 }
 
 .auth-photo-preview {
-  width: 60px;
-  height: 60px;
-  margin-top: 18px;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
@@ -595,10 +589,19 @@ dialog::backdrop {
 
 .auth-photo-remove {
   position: absolute;
-  right: 16px;
-  bottom: 8px;
-  font-size: 0.8rem;
-  text-decoration: underline;
+  top: 2px;
+  right: 2px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--auth-panel);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  color: var(--auth-text);
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .auth-switch-line {
