@@ -15,6 +15,7 @@
     "test": "pnpm -r run test",
     "seed:demo": "pnpm --filter api run seed:demo",
     "seed:demo:reset": "pnpm --filter api run seed:demo:reset",
+    "generate:csv": "pnpm --filter api run generate:csv --",
     "reset:demo": "pnpm exec supabase db reset && pnpm seed:demo:reset",
     "setup:dev": "bash scripts/dev-setup.sh"
   },

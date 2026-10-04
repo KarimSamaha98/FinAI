@@ -317,17 +317,24 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   }
 
   // ── One import profile, on the checking account ────────────────────────
+  // Matches a headerless CIBC credit-card export (the format
+  // scripts/generate-import-csv.ts also emits), so a sample statement can be
+  // imported with zero setup: date, "description", expense, income, card#.
   const columnMapping: ColumnMapping = {
-    date: { type: 'name', value: 'Date' },
-    description: { type: 'name', value: 'Description' },
-    amount: { mode: 'single', column: { type: 'name', value: 'Amount' }, signConvention: 'positive_is_expense' },
-    currency: { mode: 'fixed', code: 'USD' },
+    date: { type: 'index', value: 0 },
+    description: { type: 'index', value: 1 },
+    amount: {
+      mode: 'dual',
+      expenseColumn: { type: 'index', value: 2 },
+      incomeColumn: { type: 'index', value: 3 },
+    },
+    currency: { mode: 'fixed', code: 'CAD' },
   }
   const importProfile: DemoImportProfile = {
     id: randomUUID(),
     accountId: checking.id,
-    name: 'Chase checking export',
-    hasHeader: true,
+    name: 'CIBC card export',
+    hasHeader: false,
     delimiter: ',',
     dateFormat: 'yyyy-MM-dd',
     columnMapping,

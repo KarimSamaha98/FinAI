@@ -276,6 +276,20 @@ Google/Apple sign-in buttons are wired up in the UI, but need OAuth client crede
 
 The seeder (`apps/api/src/seed/`) refuses non-local backends unless `ALLOW_NON_LOCAL_SEED=true` — pointing it at a cloud project's env is how you get the same dataset on deployed previews or across devices.
 
+#### Testing CSV imports
+
+The demo user's **Everyday Checking** account ships with a ready-to-use import profile (`CIBC card export`) that parses headerless CIBC credit-card statements (`date,"description",expense,income,card#`) — so a real statement can be imported with no profile setup.
+
+To generate your own test file with N unique transactions in that same format:
+
+```
+pnpm generate:csv -- --rows 200 --out ~/Downloads/cibc-test.csv
+pnpm generate:csv -- --rows 50 --seed 42     # reproducible
+pnpm generate:csv -- --help
+```
+
+Then log in as the demo user, open **Everyday Checking → Import**, and upload the file.
+
 ## 7. Scripts
 
 - `pnpm dev` — run web + api dev servers in parallel

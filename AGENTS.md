@@ -10,7 +10,7 @@ FinAI: personal finance tracker. pnpm monorepo — `apps/web` (React 19 + Vite P
 - `pnpm typecheck` — per-package `tsc --noEmit` (web uses `tsc -b`).
 - `pnpm test` — only `apps/api` has a test script (`vitest run`). **No test files exist yet** (`apps/api/test/{e2e,fixtures}` are empty scaffolding), so this currently fails with "No test files found". Web has no test script. There is no CI.
 - Single package: `pnpm --filter api|web|shared-types run <script>`.
-- **Demo data**: `pnpm seed:demo` (no-op if the demo user exists) / `pnpm seed:demo:reset` (delete + reseed, deterministic) / `pnpm reset:demo` (db reset + reseed) / `pnpm setup:dev` (full local bring-up). Seeder lives in `apps/api/src/seed/` (tsx, excluded from the prod build; needs Supabase running + `apps/api/.env`; refuses non-local backends unless `ALLOW_NON_LOCAL_SEED=true`).
+- **Demo data**: `pnpm seed:demo` (no-op if the demo user exists) / `pnpm seed:demo:reset` (delete + reseed, deterministic) / `pnpm reset:demo` (db reset + reseed) / `pnpm setup:dev` (full local bring-up) / `pnpm generate:csv -- --rows N` (writes a CIBC-style import-test CSV; `apps/api/src/seed/generate-import-csv.ts`). Seeder lives in `apps/api/src/seed/` (tsx, excluded from the prod build; needs Supabase running + `apps/api/.env`; refuses non-local backends unless `ALLOW_NON_LOCAL_SEED=true`). The demo user's Everyday Checking account has a `CIBC card export` import profile matching `generate:csv` output and real CIBC statements.
 
 ## Setup
 
