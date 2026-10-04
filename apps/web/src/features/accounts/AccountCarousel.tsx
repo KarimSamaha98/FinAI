@@ -18,10 +18,9 @@ interface AccountCarouselProps {
   /** Empty means every account is selected. */
   selectedIds: string[]
   onToggle: (id: string) => void
-  onAddClick: () => void
 }
 
-export function AccountCarousel({ accounts, selectedIds, onToggle, onAddClick }: AccountCarouselProps) {
+export function AccountCarousel({ accounts, selectedIds, onToggle }: AccountCarouselProps) {
   const allSelected = selectedIds.length === 0
 
   return (
@@ -52,9 +51,6 @@ export function AccountCarousel({ accounts, selectedIds, onToggle, onAddClick }:
           </button>
         )
       })}
-      <button type="button" className="account-card account-card--add" onClick={onAddClick}>
-        + Add account
-      </button>
     </div>
   )
 }

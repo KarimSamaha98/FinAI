@@ -8,11 +8,11 @@ interface SelectionSummaryProps {
   /** The accounts currently selected (every account when allSelected). */
   accounts: AccountSummary[]
   allSelected: boolean
-  onAddTransaction: () => void
+  onAddAccount: () => void
 }
 
 /** Shown below the cards when more than one account is in view: their combined total in the home currency. */
-export function SelectionSummary({ accounts, allSelected, onAddTransaction }: SelectionSummaryProps) {
+export function SelectionSummary({ accounts, allSelected, onAddAccount }: SelectionSummaryProps) {
   const { total, homeCurrency, excluded } = useCombinedBalance(accounts)
 
   return (
@@ -24,9 +24,11 @@ export function SelectionSummary({ accounts, allSelected, onAddTransaction }: Se
             {allSelected ? 'Every transaction, across every account.' : accounts.map((a) => a.name).join(' · ')}
           </p>
         </div>
-        <Button variant="primary" onClick={onAddTransaction}>
-          + Add Transaction
-        </Button>
+        {allSelected && (
+          <Button variant="secondary" onClick={onAddAccount}>
+            + Add account
+          </Button>
+        )}
       </div>
       <p className="mono" style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }} aria-label={`Combined total ${formatCurrency(total, homeCurrency)}`}>
         {formatCurrency(total, homeCurrency)}

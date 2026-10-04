@@ -5,6 +5,7 @@ import { DateRangePicker, type DateRange } from '../../components/DateRangePicke
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Table } from '../../components/Table'
 import { Card } from '../../components/Card'
+import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { Modal } from '../../components/Modal'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
@@ -58,7 +59,7 @@ export function AccountsScreen() {
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
 
   const { categories } = useCategories()
-  const { accounts, loading: accountsLoading, error: accountsError, createAccount, updateAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
+  const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
   const { profiles: accountProfiles } = useImportProfiles(singleSelectedId ?? undefined)
@@ -167,14 +168,18 @@ export function AccountsScreen() {
 
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
-      <h1>Transaction</h1>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Transaction</h1>
+        <Button variant="primary" onClick={() => setShowAddForm(true)}>
+          + Add Transaction
+        </Button>
+      </div>
       {accountsError && <Alert variant="error">{accountsError}</Alert>}
       {!accountsLoading && (
         <AccountCarousel
           accounts={accounts}
           selectedIds={selectedIds}
           onToggle={handleToggleAccount}
-          onAddClick={() => setShowAccountForm(true)}
         />
       )}
 
@@ -182,14 +187,12 @@ export function AccountsScreen() {
         <AccountHeader
           account={selectedAccount}
           hasProfile={accountProfiles.length > 0}
-          onAddTransaction={() => setShowAddForm(true)}
-          updateAccount={updateAccount}
         />
       ) : (
         <SelectionSummary
           accounts={summarizedAccounts}
           allSelected={selectedIds.length === 0}
-          onAddTransaction={() => setShowAddForm(true)}
+          onAddAccount={() => setShowAccountForm(true)}
         />
       )}
 

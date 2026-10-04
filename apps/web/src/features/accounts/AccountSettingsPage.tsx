@@ -8,6 +8,7 @@ import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
 import { CURRENCY_CODES } from '../../lib/currencies'
 import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
+import { UpdateBalanceModal } from './UpdateBalanceModal'
 
 export function AccountSettingsPage() {
   const { id } = useParams<{ id: string }>()
@@ -18,6 +19,7 @@ export function AccountSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Shown immediately; saved after a short pause so dragging the custom colour picker doesn't fire a request per step.
+  const [showUpdateBalance, setShowUpdateBalance] = useState(false)
   const [pendingColor, setPendingColor] = useState<string | null>(null)
   const colorSave = useRef<{ timer: ReturnType<typeof setTimeout>; save: () => void } | null>(null)
   // Leaving the page mid-pause saves right away rather than dropping the change.
@@ -170,7 +172,7 @@ export function AccountSettingsPage() {
             ))}
           </select>
         </label>
-        <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+        <div key={account.balanceUpdatedAt} style={{ display: 'flex', gap: 'var(--space-3)' }}>
           <label style={{ flex: 1 }}>
             Starting balance
             <input
@@ -191,7 +193,21 @@ export function AccountSettingsPage() {
             />
           </label>
         </div>
+        <div>
+          <Button variant="secondary" onClick={() => setShowUpdateBalance(true)}>
+            Update balance
+          </Button>
+        </div>
       </Card>
+
+      {showUpdateBalance && (
+        <UpdateBalanceModal
+          open={showUpdateBalance}
+          onClose={() => setShowUpdateBalance(false)}
+          account={account}
+          updateAccount={updateAccount}
+        />
+      )}
 
       <Card style={{ marginTop: 'var(--space-4)' }}>
         <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Card</h2>

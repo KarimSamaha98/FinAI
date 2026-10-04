@@ -416,20 +416,6 @@
   transform: translateY(-3px);
 }
 
-.account-card--add {
-  background: transparent;
-  border-style: dashed;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.account-card--add:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
 .account-card-type {
   font-size: 0.68rem;
   text-transform: uppercase;
