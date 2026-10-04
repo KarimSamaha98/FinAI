@@ -27,7 +27,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  delete(@CurrentUserId() userId: string, @Param('id') id: string) {
-    return this.categoriesService.delete(userId, id)
+  archive(@CurrentUserId() userId: string, @Param('id') id: string) {
+    return this.categoriesService.archive(userId, id)
   }
 }

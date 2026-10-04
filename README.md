@@ -89,8 +89,9 @@ erDiagram
     }
     CATEGORIES {
         uuid id PK
-        uuid user_id "NULL = shared preset"
+        uuid user_id "NULL = default template; copied per user at signup"
         text name
+        boolean is_archived "soft delete"
     }
     ACCOUNTS {
         uuid id PK

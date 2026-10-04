@@ -18,7 +18,7 @@ type Step =
 export function ImportWizardPage() {
   const { id: accountId } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { categories } = useCategories()
+  const { activeCategories } = useCategories()
   const { profiles, loading: profilesLoading, createProfile } = useImportProfiles(accountId)
   const existingProfile = profiles[0] ?? null
   const { accounts } = useAccounts()
@@ -113,7 +113,7 @@ export function ImportWizardPage() {
           {skippedNote && <p style={{ color: 'var(--text-muted)' }}>{skippedNote}</p>}
           <CategorizationDeck
             rows={step.parseResult.rows}
-            categories={categories}
+            categories={activeCategories}
             onDone={(categorized) => handleCategorizationDone(step.parseResult.importRunId, categorized)}
           />
         </div>
