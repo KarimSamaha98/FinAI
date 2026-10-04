@@ -13,7 +13,7 @@ export function AccountCarousel({ accounts, selectedIds, onToggle }: AccountCaro
   const allSelected = selectedIds.length === 0
 
   return (
-    <div className="account-carousel" role="group" aria-label="Accounts">
+    <div className={`account-carousel${allSelected ? '' : ' is-narrowed'}`} role="group" aria-label="Accounts">
       {accounts.map((account) => {
         const selected = allSelected || selectedIds.includes(account.id)
         const label = `${account.name} (${accountTypeLabel(account.type)})`

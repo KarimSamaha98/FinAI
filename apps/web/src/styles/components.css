@@ -933,6 +933,20 @@ dialog::backdrop {
   border-color: var(--accent);
 }
 
+/* When the selection is narrowed to some cards, those grow so they read as
+   "in focus" (all cards stay the same size while everything is selected). */
+.account-carousel {
+  align-items: center;
+}
+
+.account-carousel.is-narrowed .account-card--branded.account-card--selected {
+  width: 11.5rem;
+}
+
+.account-card--branded {
+  transition: width var(--transition), transform var(--transition), box-shadow var(--transition), border-color var(--transition), opacity var(--transition);
+}
+
 /* Selected cards carry the outline; the rest step back. */
 .account-card--branded:not(.account-card--selected) {
   opacity: 0.55;
