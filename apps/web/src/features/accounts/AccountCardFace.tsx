@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { cardBackground } from '../../lib/cardBackground'
 
 interface AccountCardFaceProps {
   name: string
@@ -11,7 +12,7 @@ interface AccountCardFaceProps {
 /** The card-shaped preview of an account: just its photo when there is one, otherwise its colour with the name. */
 export function AccountCardFace({ name, color, photoUrl, className, children }: AccountCardFaceProps) {
   return (
-    <div className={['account-card-face', photoUrl ? 'has-photo' : '', className].filter(Boolean).join(' ')} style={{ background: color }}>
+    <div className={['account-card-face', photoUrl ? 'has-photo' : '', className].filter(Boolean).join(' ')} style={{ background: cardBackground(color) }}>
       {photoUrl ? (
         <img src={photoUrl} alt="" className="account-card-face-photo" />
       ) : (

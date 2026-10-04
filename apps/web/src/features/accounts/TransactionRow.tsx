@@ -1,5 +1,7 @@
 import type { Account, Category, DisplayRow } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
+import { cardBackground } from '../../lib/cardBackground'
+import { accountTypeLabel } from '../../lib/accountTypes'
 import { formatDate } from '../../lib/formatDate'
 
 interface TransactionRowProps {
@@ -31,10 +33,19 @@ export function TransactionRow({ row, categories, accounts, onClick }: Transacti
     <>
       <span
         className="txn-row-card"
-        style={account ? { background: account.cardColor } : undefined}
+        style={account ? { background: cardBackground(account.cardColor) } : undefined}
         title={accountNames || undefined}
       >
-        {account?.cardImageUrl && <img src={account.cardImageUrl} alt="" />}
+        {account?.cardImageUrl ? (
+          <img src={account.cardImageUrl} alt="" />
+        ) : (
+          // No photo: the account type's initial, e.g. C for Cash, I for Investment.
+          account && (
+            <span className="txn-row-card-initial" aria-hidden="true">
+              {accountTypeLabel(account.type).charAt(0)}
+            </span>
+          )
+        )}
         {accountNames && <span className="visually-hidden">{accountNames}</span>}
       </span>
       <span className="txn-row-date">{formatDate(row.date)}</span>

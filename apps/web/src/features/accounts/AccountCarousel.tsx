@@ -1,4 +1,5 @@
 import type { AccountSummary } from 'shared-types'
+import { cardBackground } from '../../lib/cardBackground'
 import { accountTypeLabel } from '../../lib/accountTypes'
 
 interface AccountCarouselProps {
@@ -21,7 +22,7 @@ export function AccountCarousel({ accounts, selectedIds, onToggle }: AccountCaro
             key={account.id}
             type="button"
             className={`account-card account-card--branded${account.cardImageUrl ? ' has-photo' : ''}${selected ? ' account-card--selected' : ''}`}
-            style={{ background: account.cardColor }}
+            style={{ background: cardBackground(account.cardColor) }}
             aria-pressed={selected}
             aria-label={account.cardImageUrl ? label : undefined}
             title={account.cardImageUrl ? label : undefined}

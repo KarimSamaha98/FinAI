@@ -1,4 +1,5 @@
 import { CARD_COLOR_PALETTE } from 'shared-types'
+import { cardBackground } from '../../lib/cardBackground'
 import { AccountCardFace } from './AccountCardFace'
 
 export const MAX_CARD_PHOTO_BYTES = 5 * 1024 * 1024
@@ -57,13 +58,13 @@ export function CardAppearanceEditor({ name, color, photoUrl, busy, onColorChang
               key={swatch}
               type="button"
               className={`card-swatch${swatch === color ? ' is-selected' : ''}`}
-              style={{ background: swatch }}
+              style={{ background: cardBackground(swatch) }}
               aria-label={`Colour ${swatch}`}
               aria-pressed={swatch === color}
               onClick={() => onColorChange(swatch)}
             />
           ))}
-          <label className={`card-swatch card-swatch-custom${isCustomColor ? ' is-selected' : ''}`} style={isCustomColor ? { background: color } : undefined}>
+          <label className={`card-swatch card-swatch-custom${isCustomColor ? ' is-selected' : ''}`} style={isCustomColor ? { background: cardBackground(color) } : undefined}>
             <span aria-hidden="true">{isCustomColor ? '' : '+'}</span>
             <input
               type="color"
