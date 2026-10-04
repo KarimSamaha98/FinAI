@@ -48,7 +48,7 @@ export const accounts = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id').notNull(),
     name: text('name').notNull(),
-    type: text('type', { enum: ['checking', 'credit', 'e_banking', 'investment', 'other'] }).notNull(),
+    type: text('type', { enum: ['checking', 'credit', 'investment', 'cash', 'other'] }).notNull(),
     institution: text('institution'),
     currencyCode: text('currency_code')
       .notNull()

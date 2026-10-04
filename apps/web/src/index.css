@@ -14,6 +14,10 @@
   --accent-contrast: #12111a;
   --danger: #ff3b5c;
   --outflow: #ff7a85;
+  /* Positive balances (net worth) — a calmer green than the acid-lime accent,
+     which stays reserved for primary actions and selection; red for negative
+     balances reuses --danger, where "you are below zero" *is* the alarm. */
+  --success: #3ecf8e;
 
   /* Spacing scale used by shared components (Button/Card/Badge/Table/etc) —
      not a mandate to retrofit every existing ad hoc inline-style literal. */
@@ -69,6 +73,7 @@
     --accent-contrast: #ffffff;
     --danger: #d6234a;
     --outflow: #c7404e;
+    --success: #178a4c;
 
     --shadow-sm: 0 1px 2px rgba(26, 24, 38, 0.08);
     --shadow-md: 0 8px 24px rgba(26, 24, 38, 0.12);

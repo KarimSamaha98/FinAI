@@ -4,7 +4,7 @@ import type { FxRate, UpsertFxRateInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { fxRates, profiles, transactions } from '../../db/schema.js'
+import { fxRates, profiles, transactions, accounts } from '../../db/schema.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 
 function toFxRate(row: typeof fxRates.$inferSelect): FxRate {
@@ -26,12 +26,22 @@ export class FxRatesService {
     return runInTenantContext(this.db, userId, async (tx) => (await tx.select().from(fxRates)).map(toFxRate))
   }
 
-  /** Distinct currencies used in this user's transactions, excluding their current home currency. */
+  /**
+   * Currencies held anywhere in the user's data — non-archived account
+   * currencies and transaction currencies — excluding home. Account
+   * currencies matter even with zero transactions: an account whose balance
+   * exists only as a starting snapshot still needs a rate to count in net
+   * worth, so it must show up here.
+   */
   async currenciesInUse(userId: string): Promise<string[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
       const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
-      const rows = await tx.select({ currencyCode: transactions.currencyCode }).from(transactions)
-      const codes = new Set(rows.map((r) => r.currencyCode))
+      const [txRows, accountRows] = await Promise.all([
+        tx.select({ currencyCode: transactions.currencyCode }).from(transactions),
+        tx.select({ currencyCode: accounts.currencyCode }).from(accounts).where(eq(accounts.isArchived, false)),
+      ])
+      const codes = new Set<string>()
+      for (const row of [...txRows, ...accountRows]) codes.add(row.currencyCode)
       if (profileRow) codes.delete(profileRow.homeCurrencyCode)
       return [...codes].sort()
     })
