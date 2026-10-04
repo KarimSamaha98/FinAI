@@ -20,6 +20,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <HomeScreen /> },
           { path: 'accounts', element: <AccountsScreen /> },
+          { path: 'import', element: <ImportWizardPage /> },
           { path: 'accounts/:id/import', element: <ImportWizardPage /> },
           { path: 'accounts/:id/settings', element: <AccountSettingsPage /> },
           { path: 'insights', element: <ChartsPage /> },

@@ -15,6 +15,7 @@ import { useDisplayRows } from '../../hooks/useDisplayRows'
 import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
 import { useMonthSplits } from '../../hooks/useMonthSplits'
 import { TransactionForm, type TransactionFormValues } from '../transactions/TransactionForm'
+import { AddTransactionDialog } from '../transactions/AddTransactionDialog'
 import { ReconcilePicker } from '../reconciliation/ReconcilePicker'
 import { ReconciliationGroupModal } from '../reconciliation/ReconciliationGroupModal'
 import { SplitModal } from '../month-split/SplitModal'
@@ -239,20 +240,19 @@ export function AccountsScreen() {
       )}
 
       {showAddForm && (
-        <Modal open={showAddForm} onClose={() => setShowAddForm(false)} title="Add transaction">
-          <TransactionForm
-            categories={categories}
-            accounts={accounts}
-            fixedAccountId={singleSelectedId}
-            onSubmit={async (input) => {
-              await createTransaction(input)
-              await refreshRows()
-              await refreshAccounts()
-              setShowAddForm(false)
-            }}
-            onCancel={() => setShowAddForm(false)}
-          />
-        </Modal>
+        <AddTransactionDialog
+          open={showAddForm}
+          onClose={() => setShowAddForm(false)}
+          categories={categories}
+          accounts={accounts}
+          fixedAccountId={singleSelectedId}
+          onCreate={async (input) => {
+            await createTransaction(input)
+            await refreshRows()
+            await refreshAccounts()
+            setShowAddForm(false)
+          }}
+        />
       )}
 
       {editingTransaction && (
