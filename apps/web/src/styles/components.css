@@ -1207,9 +1207,9 @@ dialog::backdrop {
 
 .txn-row-amount {
   grid-area: amount;
-  font-size: 27px;
+  font-size: 18px; /* matches the description; the weight and colour carry the emphasis */
   font-weight: 700;
-  line-height: 33px;
+  line-height: 24px;
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -1243,7 +1243,7 @@ dialog::backdrop {
   }
 
   .txn-row-amount {
-    font-size: 20px;
+    font-size: 16px;
   }
 
   .txn-row-chips {
