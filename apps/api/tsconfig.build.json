@@ -4,5 +4,5 @@
     "declaration": true
   },
   "include": ["src"],
-  "exclude": ["test", "**/*.spec.ts"]
+  "exclude": ["test", "**/*.spec.ts", "src/seed"]
 }

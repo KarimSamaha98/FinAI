@@ -9,7 +9,9 @@
     "start": "node dist/main.js",
     "lint": "oxlint",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:demo": "tsx src/seed/demo-seed.ts",
+    "seed:demo:reset": "tsx src/seed/demo-seed.ts --reset"
   },
   "dependencies": {
     "@fastify/multipart": "^8.3.1",

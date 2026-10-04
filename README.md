@@ -266,6 +266,16 @@ Copy `apps/api/.env.example` to `apps/api/.env` and `apps/web/.env.local.example
 
 Google/Apple sign-in buttons are wired up in the UI, but need OAuth client credentials configured in the Supabase dashboard (Authentication → Providers) before they'll work — no code changes required once that's done.
 
+### Demo data (local)
+
+`pnpm setup:dev` is a one-shot local bring-up (install → Supabase start → shared-types build → demo seed); it's idempotent and safe to re-run. The seeder creates a **demo user** — `demo@finai.test` / `demo-password-123` (override via `DEMO_USER_EMAIL` / `DEMO_USER_PASSWORD` in `apps/api/.env`) — with a deterministic ~12-month dataset: accounts across every type (incl. `cash`) and currency, FX rates, reconciliation groups, a month-split, and an import profile. The `Legacy GBP Account` intentionally has no FX rate so the "excluded from net worth" warnings are exercised.
+
+- `pnpm seed:demo` — create the demo user if missing; no-op if it already exists (never clobbers manual test edits)
+- `pnpm seed:demo:reset` — delete the demo user (all their data cascades) and reseed a fresh deterministic dataset
+- `pnpm reset:demo` — `supabase db reset` (wipes the whole local DB, reapplies migrations + seed.sql) then `pnpm seed:demo:reset`
+
+The seeder (`apps/api/src/seed/`) refuses non-local backends unless `ALLOW_NON_LOCAL_SEED=true` — pointing it at a cloud project's env is how you get the same dataset on deployed previews or across devices.
+
 ## 7. Scripts
 
 - `pnpm dev` — run web + api dev servers in parallel
