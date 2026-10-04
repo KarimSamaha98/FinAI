@@ -225,11 +225,16 @@ export function AccountSettingsPage() {
       <Card style={{ marginTop: 'var(--space-4)' }}>
         <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Import profile</h2>
         {profile ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{profile.name}</span>
-            <Button variant="danger" onClick={() => deleteProfile(profile.id)}>
-              Delete profile
-            </Button>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <Button variant="primary" onClick={() => navigate(`/accounts/${account.id}/import`)}>
+                Import CSV
+              </Button>
+              <Button variant="danger" onClick={() => deleteProfile(profile.id)}>
+                Delete profile
+              </Button>
+            </div>
           </div>
         ) : (
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>

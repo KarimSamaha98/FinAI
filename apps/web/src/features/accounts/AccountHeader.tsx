@@ -32,10 +32,12 @@ export function AccountHeader({ account, hasProfile }: AccountHeaderProps) {
         <span>Last balance updated: {formatDate(account.lastBalanceUpdatedAt.slice(0, 10))}</span>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-1)' }}>
-        {/* Set up CSV import until the account has a profile; after that, import with it. */}
-        <Button variant="primary" onClick={() => navigate(`/accounts/${account.id}/import`)}>
-          {hasProfile ? 'Import CSV' : 'Add CSV profile'}
-        </Button>
+        {/* Only until the account has a profile; importing with it lives in the account's Settings. */}
+        {!hasProfile && (
+          <Button variant="primary" onClick={() => navigate(`/accounts/${account.id}/import`)}>
+            Add CSV profile
+          </Button>
+        )}
         <Link to={`/accounts/${account.id}/settings`}>
           <Button variant="secondary">Settings</Button>
         </Link>
