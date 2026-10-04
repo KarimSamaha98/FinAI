@@ -388,12 +388,14 @@
 .account-card {
   scroll-snap-align: start;
   flex: 0 0 auto;
-  width: 9.5rem;
+  /* Everything is sized in em off the card's own font-size, so growing a
+     card (see .is-narrowed below) scales its text and padding with it. */
+  width: 9.5em;
   aspect-ratio: 1.55 / 1;
-  border-radius: var(--radius-md);
+  border-radius: 0.875em;
   border: 1px solid var(--border);
   background: linear-gradient(155deg, var(--surface) 0%, var(--bg) 100%);
-  padding: var(--space-3);
+  padding: 0.75em;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -401,6 +403,7 @@
   color: var(--text);
   text-align: left;
   font: inherit;
+  font-size: 1rem;
   transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition), opacity var(--transition);
   opacity: 0.75;
 }
@@ -417,7 +420,7 @@
 }
 
 .account-card-type {
-  font-size: 0.68rem;
+  font-size: 0.68em;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
@@ -425,17 +428,10 @@
 
 .account-card-name {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.95em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.account-card-balance {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 1.05rem;
-  font-weight: 600;
 }
 
 /* ── Modal ─────────────────────────────────────────────────────────────── */
@@ -940,11 +936,11 @@ dialog::backdrop {
 }
 
 .account-carousel.is-narrowed .account-card--branded.account-card--selected {
-  width: 11.5rem;
+  font-size: calc(1rem * 11.5 / 9.5); /* 9.5em → 11.5rem wide, text and padding in step */
 }
 
 .account-card--branded {
-  transition: width var(--transition), transform var(--transition), box-shadow var(--transition), border-color var(--transition), opacity var(--transition);
+  transition: font-size var(--transition), transform var(--transition), box-shadow var(--transition), border-color var(--transition), opacity var(--transition);
 }
 
 /* Selected cards carry the outline; the rest step back. */
