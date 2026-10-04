@@ -1054,3 +1054,192 @@ dialog::backdrop {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ── Transaction rows ──────────────────────────────────────────────────── */
+/* Per the "Licence Plates" Figma (node 133:478): a pale tile per transaction
+   with the account's card, date, description, chips and a large amount. Grey
+   chips flag special handling only (split, group); the blue chip is the
+   category. Light values are the Figma ones; dark mode keeps the layout. */
+
+.txn-list {
+  --txn-bg: #f1f5fb;
+  --txn-bg-hover: #e6ecf6;
+  --txn-text: #000000;
+  --txn-muted: #6b6b6b;
+  --txn-chip-special: #767676; /* Figma #898989, darkened to keep white 12px text at 4.5:1 */
+  --txn-chip-special-text: #ffffff;
+  --txn-chip-category: #d1e0fa;
+  --txn-chip-category-text: #000000;
+  --txn-expense: #cf2222;
+  --txn-income: #1a7f37;
+
+  list-style: none;
+  margin: 0;
+  /* The Figma tiles sit on white; the panel gives them that contrast on the
+     page's own tinted background. */
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* Layout follows the list's own width, which the side rail narrows. */
+  container-type: inline-size;
+}
+
+@media (prefers-color-scheme: dark) {
+  .txn-list {
+    --txn-bg: var(--surface-raised);
+    --txn-bg-hover: #2d2b3d;
+    --txn-text: var(--text);
+    --txn-muted: var(--text-muted);
+    --txn-chip-special: #5b5966;
+    --txn-chip-category: #2a3a57;
+    --txn-chip-category-text: #dbe6fb;
+    --txn-expense: var(--outflow);
+    --txn-income: var(--accent);
+  }
+}
+
+.txn-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 50px auto minmax(0, 1fr) auto auto;
+  grid-template-areas: 'card date description chips amount';
+  align-items: center;
+  column-gap: 16px;
+  padding: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--txn-bg);
+  color: var(--txn-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.txn-row:hover {
+  background: var(--txn-bg-hover);
+}
+
+.txn-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.txn-row-card {
+  grid-area: card;
+  position: relative;
+  width: 50px;
+  height: 31.5px; /* card proportions */
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--surface-raised);
+}
+
+.txn-row-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.txn-row-date {
+  grid-area: date;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+  white-space: nowrap;
+}
+
+.txn-row-description {
+  grid-area: description;
+  font-size: 18px;
+  line-height: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txn-row-chips {
+  grid-area: chips;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.txn-chip {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.txn-chip--special {
+  background: var(--txn-chip-special);
+  color: var(--txn-chip-special-text);
+}
+
+.txn-chip--category {
+  background: var(--txn-chip-category);
+  color: var(--txn-chip-category-text);
+}
+
+.txn-chip--category.is-empty {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--txn-chip-category);
+  color: var(--txn-muted);
+}
+
+.txn-row-amount {
+  grid-area: amount;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 33px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--txn-expense);
+}
+
+.txn-row-amount.is-income {
+  color: var(--txn-income);
+}
+
+/* Narrow lists: name and date stack beside the card, chips drop below. */
+@container (max-width: 720px) {
+  .txn-row {
+    grid-template-columns: 50px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'card description amount'
+      'card date amount'
+      'chips chips chips';
+    column-gap: 12px;
+    row-gap: 2px;
+  }
+
+  .txn-row-description {
+    font-size: 16px;
+  }
+
+  .txn-row-date {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--txn-muted);
+  }
+
+  .txn-row-amount {
+    font-size: 20px;
+  }
+
+  .txn-row-chips {
+    justify-content: flex-start;
+    margin-top: 6px;
+  }
+}

@@ -3,8 +3,6 @@ import { useSearchParams } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
-import { Table } from '../../components/Table'
-import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { Modal } from '../../components/Modal'
@@ -216,22 +214,17 @@ export function AccountsScreen() {
         </p>
       )}
 
-      <Card style={{ padding: 0, overflow: 'hidden' }}>
-        <Table>
-          <tbody>
-            {rows.map((row, index) => (
-              <TransactionRow
-                key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
-                row={row}
-                categories={categories}
-                accounts={accounts}
-                showAccountTag={!singleSelectedId}
-                onClick={() => setActionRow(row)}
-              />
-            ))}
-          </tbody>
-        </Table>
-      </Card>
+      <ul className="txn-list">
+        {rows.map((row, index) => (
+          <TransactionRow
+            key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
+            row={row}
+            categories={categories}
+            accounts={accounts}
+            onClick={() => setActionRow(row)}
+          />
+        ))}
+      </ul>
 
       {showAccountForm && (
         <AccountForm
