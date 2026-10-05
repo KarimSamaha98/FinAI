@@ -16,8 +16,8 @@ const DELIMITER = ','
 
 const STEPS = ['header', 'currency', 'date', 'description', 'amounts', 'save'] as const
 type StepKey = (typeof STEPS)[number]
-/** Upload happens before the wizard, so it counts as step 1 of the whole flow. */
-const TOTAL_STEPS = STEPS.length + 1
+/** By default uploading the file and choosing its account come first (steps 1 and 2 of the flow). */
+const DEFAULT_STEPS_BEFORE = 2
 
 type SignMode = SignConvention | 'directional'
 
@@ -28,6 +28,8 @@ interface ProfileWizardProps {
   accountCurrency: string
   defaultName: string
   uploadedFileId: string
+  /** Steps of the overall flow before the wizard, for the "Step x of y" counter. */
+  stepsBefore?: number
   onCreated: (input: CreateImportProfileInput) => Promise<void>
   onCancel: () => void
 }
@@ -57,7 +59,8 @@ function guessDirectionValues(values: string[]): { inValue: string; outValue: st
  * question sits underneath, and column questions can also be answered by
  * clicking a column in the preview.
  */
-export function ProfileWizard({ accountId, account, accountCurrency, defaultName, uploadedFileId, onCreated, onCancel }: ProfileWizardProps) {
+export function ProfileWizard({ accountId, account, accountCurrency, defaultName, uploadedFileId, stepsBefore = DEFAULT_STEPS_BEFORE, onCreated, onCancel }: ProfileWizardProps) {
+  const totalSteps = STEPS.length + stepsBefore
   const [stepIndex, setStepIndex] = useState(0)
   const [rawRows, setRawRows] = useState<string[][] | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
@@ -502,10 +505,10 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
     <div className="profile-wizard">
       <div className="wizard-progress">
         <span>
-          Step {stepIndex + 2} of {TOTAL_STEPS}
+          Step {stepIndex + stepsBefore + 1} of {totalSteps}
         </span>
         <div className="wizard-progress-bar" aria-hidden="true">
-          <span style={{ width: `${((stepIndex + 2) / TOTAL_STEPS) * 100}%` }} />
+          <span style={{ width: `${((stepIndex + stepsBefore + 1) / totalSteps) * 100}%` }} />
         </div>
       </div>
 

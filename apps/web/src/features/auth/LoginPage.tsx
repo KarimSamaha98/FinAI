@@ -95,7 +95,7 @@ export function LoginPage() {
   // Sign-up gets a session immediately when email confirmation is off; hold the
   // redirect until the profile photo has finished uploading with it.
   if (!loading && session && !submitting) {
-    return <Navigate to="/accounts" replace />
+    return <Navigate to="/" replace />
   }
 
   function switchMode(next: Mode) {

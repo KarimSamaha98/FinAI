@@ -1,6 +1,6 @@
 import type { SVGProps } from 'react'
 
-// Decorative inline stroke icons for the left rail (no icon dependency).
+// Decorative inline stroke icons for the app chrome (no icon dependency).
 // aria-hidden everywhere — every rail link carries its own aria-label, so
 // the accessible name never depends on the icon.
 
@@ -75,6 +75,33 @@ export function LogoutIcon() {
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <path d="m16 17 5-5-5-5" />
       <path d="M21 12H9" />
+    </Icon>
+  )
+}
+
+export function MenuIcon() {
+  return (
+    <Icon width="22" height="22">
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </Icon>
+  )
+}
+
+export function CloseIcon() {
+  return (
+    <Icon width="22" height="22">
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </Icon>
+  )
+}
+
+export function ChevronLeftIcon() {
+  return (
+    <Icon width="24" height="24" strokeWidth="2.4">
+      <path d="m14.5 5.5-6.5 6.5 6.5 6.5" />
     </Icon>
   )
 }
