@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
 import type { CreateImportProfileInput, ParseWithProfileResult } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
 import { useCategories } from '../../hooks/useCategories'
@@ -12,20 +11,21 @@ import { CategorizationDeck, type CategorizedRow } from './CategorizationDeck'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
 
-/**
- * How the page was opened:
- * - from the Add transactions dialog, which has already uploaded the file;
- * - from an account's "Add CSV profile" button, which names the account to
- *   set up, so the file is uploaded here and the account question is skipped.
- */
-export type ImportLocationState =
-  | {
-      uploadedFileId: string
-      fileName: string
-      /** Pre-selects the account question (e.g. the one card selected on the Transaction page). */
-      accountId?: string | null
-    }
-  | { setupAccountId: string }
+/** A file that's already been uploaded (e.g. by the inline add panel). */
+export interface ImportFlowInitial {
+  uploadedFileId: string
+  fileName: string
+  /** Pre-selects the account question (e.g. the one card selected on the Transaction screen). */
+  accountId?: string | null
+}
+
+interface ImportFlowProps {
+  initial?: ImportFlowInitial | null
+  /** Set up a profile for this account, skipping the account question. */
+  setupAccountId?: string | null
+  /** Called with the account once the rows are committed. */
+  onDone: (accountId: string) => void
+}
 
 interface UploadedFile {
   uploadedFileId: string
@@ -48,22 +48,18 @@ const TITLES: Record<Step['name'], string> = {
 }
 
 /**
- * Reached from the Add transactions dialog (which uploads the file first), or
- * directly at /import with an upload step. Then: "which account is this for?",
- * profile setup if that account has none, and the categorization deck.
+ * The CSV import workflow, rendered inline on the Transaction screen rather
+ * than as its own route: upload → which account → profile setup if needed →
+ * categorization. Calls onDone(accountId) once the rows are committed.
  */
-export function ImportWizardPage() {
-  const handoff = (useLocation().state as ImportLocationState | null) ?? null
-  const uploadedHandoff = handoff && 'uploadedFileId' in handoff ? handoff : null
-  const setupAccountId = handoff && 'setupAccountId' in handoff ? handoff.setupAccountId : null
-  const navigate = useNavigate()
+export function ImportFlow({ initial = null, setupAccountId = null, onDone }: ImportFlowProps) {
   const { categories } = useCategories()
   const { profiles, loading: profilesLoading, createProfile } = useImportProfiles()
   const { accounts } = useAccounts()
   const [step, setStep] = useState<Step>(() =>
-    uploadedHandoff ? { name: 'choose-account', uploadedFileId: uploadedHandoff.uploadedFileId, fileName: uploadedHandoff.fileName } : { name: 'upload' },
+    initial ? { name: 'choose-account', uploadedFileId: initial.uploadedFileId, fileName: initial.fileName } : { name: 'upload' },
   )
-  const [chosenAccountId, setChosenAccountId] = useState<string | null>(uploadedHandoff?.accountId ?? setupAccountId)
+  const [chosenAccountId, setChosenAccountId] = useState<string | null>(initial?.accountId ?? setupAccountId)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [skippedNote, setSkippedNote] = useState<string | null>(null)
@@ -115,15 +111,15 @@ export function ImportWizardPage() {
     setError(null)
     try {
       await apiClient.post('/import-runs/commit', { importRunId, rows: categorized })
-      navigate(`/accounts?selected=${accountId}`)
+      onDone(accountId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to commit import')
     }
   }
 
   return (
-    <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: step.name === 'build-profile' ? 880 : 640, margin: '0 auto', width: '100%' }}>
-      <h1>{step.name === 'upload' && setupAccountId ? 'Set up CSV profile' : TITLES[step.name]}</h1>
+    <div className="import-flow">
+      <h2 className="import-flow-title">{step.name === 'upload' && setupAccountId ? 'Set up CSV profile' : TITLES[step.name]}</h2>
       {error && <Alert variant="error">{error}</Alert>}
 
       {step.name === 'upload' && profilesLoading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
@@ -194,6 +190,6 @@ export function ImportWizardPage() {
           />
         </div>
       )}
-    </main>
+    </div>
   )
 }

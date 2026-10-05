@@ -6,6 +6,7 @@ import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { Modal } from '../../components/Modal'
+import { Card } from '../../components/Card'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
@@ -15,7 +16,8 @@ import { useDisplayRows } from '../../hooks/useDisplayRows'
 import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
 import { useMonthSplits } from '../../hooks/useMonthSplits'
 import { TransactionForm, type TransactionFormValues } from '../transactions/TransactionForm'
-import { AddTransactionDialog } from '../transactions/AddTransactionDialog'
+import { AddTransactionPanel } from '../transactions/AddTransactionPanel'
+import { ImportFlow, type ImportFlowInitial } from '../import/ImportFlow'
 import { ReconcilePicker } from '../reconciliation/ReconcilePicker'
 import { ReconciliationGroupModal } from '../reconciliation/ReconciliationGroupModal'
 import { SplitModal } from '../month-split/SplitModal'
@@ -40,6 +42,12 @@ function toFormValues(transaction: Transaction): TransactionFormValues {
   }
 }
 
+/** The Transaction screen doubles as the add/import surface — no modal, no separate route. */
+type Screen =
+  | { name: 'ledger' }
+  | { name: 'add' }
+  | { name: 'import'; initial?: ImportFlowInitial; setupAccountId?: string }
+
 export function AccountsScreen() {
   const [searchParams] = useSearchParams()
   // Empty = every account selected (the default on arrival).
@@ -50,8 +58,8 @@ export function AccountsScreen() {
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [view, setView] = useState<TransactionView>('real')
+  const [screen, setScreen] = useState<Screen>({ name: 'ledger' })
   const [showAccountForm, setShowAccountForm] = useState(false)
-  const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [reconcileAnchor, setReconcileAnchor] = useState<Transaction | null>(null)
   const [splitTarget, setSplitTarget] = useState<Transaction | null>(null)
@@ -136,6 +144,14 @@ export function AccountsScreen() {
     await refreshAccounts()
   }
 
+  /** Import finished: focus the account it landed in, refresh, and show the ledger again. */
+  function handleImportDone(accountId: string) {
+    setSelectedIds([accountId])
+    void refreshRows()
+    void refreshAccounts()
+    setScreen({ name: 'ledger' })
+  }
+
   function actionsFor(row: DisplayRow): ActionMenuItem[] {
     if (row.kind === 'month_split_portion') {
       const transaction = findTransaction(row.sourceTransactionIds[0])
@@ -170,63 +186,98 @@ export function AccountsScreen() {
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Transaction</h1>
-        <Button variant="primary" onClick={() => setShowAddForm(true)}>
-          + Add Transaction
-        </Button>
+        {screen.name === 'ledger' ? (
+          <Button variant="primary" onClick={() => setScreen({ name: 'add' })}>
+            + Add Transaction
+          </Button>
+        ) : (
+          <Button variant="secondary" onClick={() => setScreen({ name: 'ledger' })}>
+            Cancel
+          </Button>
+        )}
       </div>
-      {accountsError && <Alert variant="error">{accountsError}</Alert>}
-      {!accountsLoading && (
-        <AccountCarousel
-          accounts={accounts}
-          selectedIds={selectedIds}
-          onToggle={handleToggleAccount}
-        />
+      {screen.name === 'ledger' && (
+        <>
+          {accountsError && <Alert variant="error">{accountsError}</Alert>}
+          {!accountsLoading && (
+            <AccountCarousel
+              accounts={accounts}
+              selectedIds={selectedIds}
+              onToggle={handleToggleAccount}
+            />
+          )}
+
+          {selectedAccount ? (
+            <AccountHeader
+              account={selectedAccount}
+              hasProfile={accountProfilesLoading ? null : accountProfiles.length > 0}
+              onAddProfile={() => setScreen({ name: 'import', setupAccountId: selectedAccount.id })}
+            />
+          ) : (
+            <SelectionSummary
+              accounts={summarizedAccounts}
+              allSelected={selectedIds.length === 0}
+              onAddAccount={() => setShowAccountForm(true)}
+            />
+          )}
+
+          <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end', margin: 'var(--space-4) 0' }}>
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+            <CategoryMultiSelect categories={categories} selectedIds={categoryIds} onChange={setCategoryIds} />
+            <label>
+              View
+              <select value={view} onChange={(e) => setView(e.target.value as TransactionView)}>
+                <option value="real">Real</option>
+                <option value="nominal">Nominal</option>
+              </select>
+            </label>
+          </div>
+
+          {(loading || rowsLoading) && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+          {(error || rowsError) && <Alert variant="error">{error ?? rowsError}</Alert>}
+          {!loading && !rowsLoading && rows.length === 0 && (
+            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-5) 0' }}>
+              No transactions in this range yet.
+            </p>
+          )}
+
+          <ul className="txn-list">
+            {rows.map((row, index) => (
+              <TransactionRow
+                key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
+                row={row}
+                categories={categories}
+                accounts={accounts}
+                onClick={() => setActionRow(row)}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
-      {selectedAccount ? (
-        <AccountHeader
-          account={selectedAccount}
-          hasProfile={accountProfilesLoading ? null : accountProfiles.length > 0}
-        />
-      ) : (
-        <SelectionSummary
-          accounts={summarizedAccounts}
-          allSelected={selectedIds.length === 0}
-          onAddAccount={() => setShowAccountForm(true)}
-        />
-      )}
-
-      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end', margin: 'var(--space-4) 0' }}>
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
-        <CategoryMultiSelect categories={categories} selectedIds={categoryIds} onChange={setCategoryIds} />
-        <label>
-          View
-          <select value={view} onChange={(e) => setView(e.target.value as TransactionView)}>
-            <option value="real">Real</option>
-            <option value="nominal">Nominal</option>
-          </select>
-        </label>
-      </div>
-
-      {(loading || rowsLoading) && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
-      {(error || rowsError) && <Alert variant="error">{error ?? rowsError}</Alert>}
-      {!loading && !rowsLoading && rows.length === 0 && (
-        <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-5) 0' }}>
-          No transactions in this range yet.
-        </p>
-      )}
-
-      <ul className="txn-list">
-        {rows.map((row, index) => (
-          <TransactionRow
-            key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
-            row={row}
+      {screen.name === 'add' && (
+        <Card style={{ maxWidth: 640, margin: '0 auto' }}>
+          <AddTransactionPanel
             categories={categories}
             accounts={accounts}
-            onClick={() => setActionRow(row)}
+            fixedAccountId={singleSelectedId}
+            onCreate={async (input) => {
+              await createTransaction(input)
+              await refreshRows()
+              await refreshAccounts()
+              setScreen({ name: 'ledger' })
+            }}
+            onFileUploaded={(uploadedFileId, fileName) =>
+              setScreen({ name: 'import', initial: { uploadedFileId, fileName, accountId: singleSelectedId } })
+            }
+            onCancel={() => setScreen({ name: 'ledger' })}
           />
-        ))}
-      </ul>
+        </Card>
+      )}
+
+      {screen.name === 'import' && (
+        <ImportFlow initial={screen.initial} setupAccountId={screen.setupAccountId} onDone={handleImportDone} />
+      )}
 
       {showAccountForm && (
         <AccountForm
@@ -236,22 +287,6 @@ export function AccountsScreen() {
           uploadCardImage={uploadCardImage}
           defaultCardColor={CARD_COLOR_PALETTE[accounts.length % CARD_COLOR_PALETTE.length]}
           onCreated={(id) => setSelectedIds([id])}
-        />
-      )}
-
-      {showAddForm && (
-        <AddTransactionDialog
-          open={showAddForm}
-          onClose={() => setShowAddForm(false)}
-          categories={categories}
-          accounts={accounts}
-          fixedAccountId={singleSelectedId}
-          onCreate={async (input) => {
-            await createTransaction(input)
-            await refreshRows()
-            await refreshAccounts()
-            setShowAddForm(false)
-          }}
         />
       )}
 
