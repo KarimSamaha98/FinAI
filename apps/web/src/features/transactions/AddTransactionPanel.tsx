@@ -1,30 +1,26 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import type { Account, Category, CreateTransactionInput } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
-import { Modal } from '../../components/Modal'
 import { Alert } from '../../components/Alert'
 import { UploadDropzone } from '../import/UploadDropzone'
-import type { ImportLocationState } from '../import/ImportWizardPage'
 import { TransactionForm } from './TransactionForm'
 
-interface AddTransactionDialogProps {
-  open: boolean
-  onClose: () => void
+interface AddTransactionPanelProps {
   categories: Category[]
   accounts: Account[]
-  /** The one account selected on the Transaction page, if any — fixes the manual form and pre-selects the import's account question. */
+  /** The one account selected on the Transaction screen, if any — fixes the manual form and pre-selects the import's account question. */
   fixedAccountId: string | null
   onCreate: (input: CreateTransactionInput) => Promise<void>
+  /** Hands the uploaded file to the import flow. */
+  onFileUploaded: (uploadedFileId: string, fileName: string) => void
+  onCancel: () => void
 }
 
 /**
- * Two ways to add transactions: import a CSV (top) or enter one by hand
- * (below the OR). Dropping a file uploads it here, then hands over to the
- * import page to ask which account it's for.
+ * Inline (non-modal) "add transactions" panel shown on the Transaction screen:
+ * import a CSV (top) or enter one by hand (below the OR).
  */
-export function AddTransactionDialog({ open, onClose, categories, accounts, fixedAccountId, onCreate }: AddTransactionDialogProps) {
-  const navigate = useNavigate()
+export function AddTransactionPanel({ categories, accounts, fixedAccountId, onCreate, onFileUploaded, onCancel }: AddTransactionPanelProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,9 +29,7 @@ export function AddTransactionDialog({ open, onClose, categories, accounts, fixe
     setUploading(true)
     try {
       const uploaded = await apiClient.upload<{ id: string }>('/import-runs/upload', file)
-      const state: ImportLocationState = { uploadedFileId: uploaded.id, fileName: file.name, accountId: fixedAccountId }
-      onClose()
-      navigate('/import', { state })
+      onFileUploaded(uploaded.id, file.name)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload file')
     } finally {
@@ -44,7 +38,7 @@ export function AddTransactionDialog({ open, onClose, categories, accounts, fixe
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Add transactions">
+    <>
       <section className="add-txn-section">
         <h3>Import a CSV</h3>
         <UploadDropzone compact uploading={uploading} onFile={handleFile} />
@@ -57,14 +51,8 @@ export function AddTransactionDialog({ open, onClose, categories, accounts, fixe
 
       <section className="add-txn-section">
         <h3>Add a single transaction</h3>
-        <TransactionForm
-          categories={categories}
-          accounts={accounts}
-          fixedAccountId={fixedAccountId}
-          onSubmit={onCreate}
-          onCancel={onClose}
-        />
+        <TransactionForm categories={categories} accounts={accounts} fixedAccountId={fixedAccountId} onSubmit={onCreate} onCancel={onCancel} />
       </section>
-    </Modal>
+    </>
   )
 }
