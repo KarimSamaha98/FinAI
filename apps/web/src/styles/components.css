@@ -522,6 +522,148 @@
   padding: 0;
 }
 
+.dropdown-footer button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* Opens leftwards when there's no room on the right (see useDropdown). */
+.dropdown-panel.is-align-end {
+  left: auto;
+  right: 0;
+}
+
+/* Filter bars: dropdown triggers in a wrapping row. */
+.filter-bar,
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.filter-bar {
+  gap: var(--space-3);
+}
+
+/* ── Single select (SelectDropdown) ── */
+
+.dropdown-option {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.dropdown-option.is-selected {
+  font-weight: 600;
+}
+
+.dropdown-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dropdown-option-check {
+  width: 1rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ── Date picker (DatePickerDropdown) ── */
+
+.date-panel {
+  min-width: 17rem;
+  max-height: none;
+}
+
+.date-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.2rem 0.2rem 0.5rem;
+}
+
+.date-panel-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.date-panel-nav {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.date-panel-nav:hover {
+  background: var(--bg);
+}
+
+.date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.date-grid-weekday {
+  padding: 0.2rem 0;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.date-grid-day {
+  aspect-ratio: 1;
+  min-width: 2.1rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.date-grid-day:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.date-grid-day.is-outside {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.date-grid-day.is-today {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.date-grid-day.is-selected {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.date-grid-day:disabled {
+  color: var(--text-muted);
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.date-grid-day:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 
 /* ── Account carousel (signature: a fanned wallet of mini cards) ──────── */
 

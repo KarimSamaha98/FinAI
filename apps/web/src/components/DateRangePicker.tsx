@@ -1,3 +1,5 @@
+import { DatePickerDropdown } from './DatePickerDropdown'
+
 export interface DateRange {
   from?: string
   to?: string
@@ -8,25 +10,12 @@ interface DateRangePickerProps {
   onChange: (value: DateRange) => void
 }
 
+/** From / To date dropdowns; each limits the other so the range can't run backwards. */
 export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   return (
-    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
-      <label>
-        From
-        <input
-          type="date"
-          value={value.from ?? ''}
-          onChange={(e) => onChange({ ...value, from: e.target.value || undefined })}
-        />
-      </label>
-      <label>
-        To
-        <input
-          type="date"
-          value={value.to ?? ''}
-          onChange={(e) => onChange({ ...value, to: e.target.value || undefined })}
-        />
-      </label>
+    <div className="filter-group">
+      <DatePickerDropdown label="From" value={value.from} max={value.to} onChange={(from) => onChange({ ...value, from })} />
+      <DatePickerDropdown label="To" value={value.to} min={value.from} onChange={(to) => onChange({ ...value, to })} />
     </div>
   )
 }

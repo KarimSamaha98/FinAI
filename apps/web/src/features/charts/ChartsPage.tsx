@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { TransactionView } from 'shared-types'
+import { SelectDropdown } from '../../components/SelectDropdown'
 import { DateRangePresetPicker } from '../../components/DateRangePresetPicker'
 import { type DateRange } from '../../components/DateRangePicker'
 import { getPresetRange } from '../../lib/dateRangePresets'
@@ -37,16 +38,18 @@ export function ChartsPage() {
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
       <h1>Insights</h1>
 
-      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
+      <div className="filter-bar" style={{ marginBottom: 'var(--space-4)' }}>
         <DateRangePresetPicker value={dateRange} onChange={setDateRange} />
         <CategoryMultiSelect categories={categories} selectedIds={categoryIds} onChange={setCategoryIds} />
-        <label>
-          View
-          <select value={view} onChange={(e) => setView(e.target.value as TransactionView)}>
-            <option value="real">Real</option>
-            <option value="nominal">Nominal</option>
-          </select>
-        </label>
+        <SelectDropdown<TransactionView>
+          label="View"
+          value={view}
+          options={[
+            { value: 'real', label: 'Real' },
+            { value: 'nominal', label: 'Nominal' },
+          ]}
+          onChange={setView}
+        />
       </div>
 
       {loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
