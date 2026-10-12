@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import type { CreateImportProfileInput, ParseWithProfileResult } from 'shared-types'
+import { CARD_COLOR_PALETTE, type CreateImportProfileInput, type ParseWithProfileResult } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
 import { useCategories } from '../../hooks/useCategories'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
@@ -8,6 +8,7 @@ import { useAccounts } from '../../hooks/useAccounts'
 import { ProfileWizard } from './ProfileWizard'
 import { UploadDropzone } from './UploadDropzone'
 import { ChooseAccountStep } from './ChooseAccountStep'
+import { AccountForm } from '../accounts/AccountForm'
 import { CategorizationDeck, type CategorizedRow } from './CategorizationDeck'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
@@ -60,7 +61,8 @@ export function ImportWizardPage() {
   const navigate = useNavigate()
   const { categories } = useCategories()
   const { profiles, loading: profilesLoading, createProfile } = useImportProfiles()
-  const { accounts } = useAccounts()
+  const { accounts, createAccount, uploadCardImage } = useAccounts()
+  const [showAccountForm, setShowAccountForm] = useState(false)
   const [step, setStep] = useState<Step>(() =>
     uploadedHandoff ? { name: 'choose-account', uploadedFileId: uploadedHandoff.uploadedFileId, fileName: uploadedHandoff.fileName } : { name: 'upload' },
   )
@@ -150,8 +152,23 @@ export function ImportWizardPage() {
           accountIdsWithProfile={new Set(profiles.map((p) => p.accountId).filter((id): id is string => !!id))}
           selectedId={chosenAccountId}
           onSelect={setChosenAccountId}
-          onBack={() => setStep({ name: 'upload' })}
+          onAddAccount={() => setShowAccountForm(true)}
           onContinue={(accountId) => continueWithAccount(accountId, step)}
+        />
+      )}
+
+      {step.name === 'choose-account' && showAccountForm && (
+        <AccountForm
+          open={showAccountForm}
+          onClose={() => setShowAccountForm(false)}
+          createAccount={createAccount}
+          uploadCardImage={uploadCardImage}
+          defaultCardColor={CARD_COLOR_PALETTE[accounts.length % CARD_COLOR_PALETTE.length]}
+          // A brand-new account has no CSV profile, so go straight to setting one up with this file.
+          onCreated={(accountId) => {
+            setChosenAccountId(accountId)
+            setStep({ name: 'build-profile', accountId, uploadedFileId: step.uploadedFileId, fileName: step.fileName })
+          }}
         />
       )}
 
