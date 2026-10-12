@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { Button } from '../components/Button'
 import { Avatar } from '../components/Avatar'
@@ -12,6 +12,15 @@ const NAV_LINKS = [
   { to: '/insights', label: 'Insights', icon: InsightsIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
+
+/** "Demo User" → "Demo U." — first name plus the last name's initial. */
+function shortDisplayName(displayName: string | null | undefined): string {
+  const name = displayName?.trim()
+  if (!name) return 'Account'
+  const parts = name.split(/\s+/)
+  if (parts.length === 1) return parts[0]
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`
+}
 
 /**
  * Desktop/tablet: a fixed left rail. Phone widths: a top bar with a menu
@@ -91,15 +100,14 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="app-rail-user">
-          <Link to="/settings" aria-label="Profile settings" className="app-rail-avatar">
-            <Avatar url={profile?.avatarUrl ?? null} name={profile?.displayName ?? null} size={36} />
-          </Link>
-          <Button variant="secondary" className="app-rail-logout" aria-label="Log out" onClick={handleLogout}>
-            <LogoutIcon />
-            <span className="app-rail-label">Log out</span>
-          </Button>
+        <div className="app-rail-identity">
+          <Avatar url={profile?.avatarUrl ?? null} name={profile?.displayName ?? null} size={36} />
+          <span className="app-rail-identity-name">{shortDisplayName(profile?.displayName)}</span>
         </div>
+        <Button variant="secondary" className="app-rail-logout" aria-label="Log out" onClick={handleLogout}>
+          <LogoutIcon />
+          <span className="app-rail-label">Log out</span>
+        </Button>
       </aside>
       <div className="app-content">
         <Outlet />
