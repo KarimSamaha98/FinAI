@@ -266,8 +266,23 @@
   color: var(--text);
 }
 
+/* Same treatment as the nav links (Home/Insights/Settings): muted text,
+   borderless, with a surface hover — so the rail reads as one consistent set. */
 .app-rail-logout {
   justify-content: flex-start;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  background: transparent;
+  color: var(--text-muted);
+  border-color: transparent;
+  transition: background var(--transition), color var(--transition);
+}
+
+.app-rail-logout:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: transparent;
 }
 
 .app-content {
