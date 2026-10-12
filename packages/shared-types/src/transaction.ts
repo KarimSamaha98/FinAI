@@ -46,6 +46,20 @@ export const UpdateTransactionInputSchema = CreateTransactionInputSchema.partial
 });
 export type UpdateTransactionInput = z.infer<typeof UpdateTransactionInputSchema>;
 
+/** Bulk category assignment — used to categorize several existing transactions at once. */
+export const CategorizeTransactionsInputSchema = z.object({
+  assignments: z
+    .array(
+      z.object({
+        transactionId: z.string().uuid(),
+        categoryId: z.string().uuid(),
+      }),
+    )
+    .min(1)
+    .max(1000),
+});
+export type CategorizeTransactionsInput = z.infer<typeof CategorizeTransactionsInputSchema>;
+
 export const TransactionViewSchema = z.enum(["nominal", "real"]);
 export type TransactionView = z.infer<typeof TransactionViewSchema>;
 

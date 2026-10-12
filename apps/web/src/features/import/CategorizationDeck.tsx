@@ -18,9 +18,11 @@ interface CategorizationDeckProps {
   rows: CandidateRow[]
   categories: Category[]
   onDone: (categorized: CategorizedRow[]) => void
+  /** Note under the Skip buttons; defaults to the import wording. */
+  skipHint?: string
 }
 
-export function CategorizationDeck({ rows, categories, onDone }: CategorizationDeckProps) {
+export function CategorizationDeck({ rows, categories, onDone, skipHint }: CategorizationDeckProps) {
   const [cursor, setCursor] = useState(0)
   const [choices, setChoices] = useState<Record<number, string | null>>({})
   const topCategories = useTopCategories(categories, TOP_CATEGORY_COUNT)
@@ -129,7 +131,7 @@ export function CategorizationDeck({ rows, categories, onDone }: CategorizationD
           )}
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textAlign: 'center', margin: 0 }}>
-          Skipped rows import as Uncategorized — you can recategorize them anytime.
+          {skipHint ?? 'Skipped rows import as Uncategorized — you can recategorize them anytime.'}
         </p>
       </div>
     </div>

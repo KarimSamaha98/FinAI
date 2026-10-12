@@ -12,6 +12,9 @@ import { useAccounts } from '../../hooks/useAccounts'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useDisplayRows } from '../../hooks/useDisplayRows'
+import { useUncategorizedTransactions } from '../../hooks/useUncategorizedTransactions'
+import { CategorizationDeck, type CategorizedRow } from '../import/CategorizationDeck'
+import { UncategorizedNotice } from './UncategorizedNotice'
 import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
 import { useMonthSplits } from '../../hooks/useMonthSplits'
 import { TransactionForm, type TransactionFormValues } from '../transactions/TransactionForm'
@@ -79,10 +82,27 @@ export function AccountsScreen() {
   // find a transaction in a *different* account than the one currently
   // selected (e.g. reconciling a transfer between two accounts). Only the
   // visible ledger (`rows`, below) is account-scoped.
-  const { transactions, loading, error, createTransaction, updateTransaction, deleteTransaction } = useTransactions(
+  const { transactions, loading, error, refresh: refreshTransactions, createTransaction, updateTransaction, deleteTransaction } = useTransactions(
     dateRange,
     categoryIds,
   )
+  const { transactions: uncategorized, refresh: refreshUncategorized, categorize } = useUncategorizedTransactions(accountIds)
+  const [showCategorizeDeck, setShowCategorizeDeck] = useState(false)
+
+  /** Anything that can add, remove or recategorize a transaction also updates the uncategorized notice. */
+  async function refreshLedger() {
+    await Promise.all([refreshRows(), refreshUncategorized()])
+  }
+
+  async function handleCategorizeDone(categorized: CategorizedRow[]) {
+    await categorize(
+      categorized.flatMap(({ rowIndex, categoryId }) =>
+        categoryId ? [{ transactionId: uncategorized[rowIndex].id, categoryId }] : [],
+      ),
+    )
+    await Promise.all([refreshRows(), refreshTransactions()])
+    setShowCategorizeDeck(false)
+  }
   const { rows, loading: rowsLoading, error: rowsError, refresh: refreshRows } = useDisplayRows(
     dateRange,
     categoryIds,
@@ -111,39 +131,39 @@ export function AccountsScreen() {
 
   async function handleCreateGroup(label: string | null, transactionIds: string[]) {
     await createGroup(label, transactionIds)
-    await refreshRows()
+    await refreshLedger()
   }
 
   async function handleAddMember(groupId: string, transactionId: string) {
     await addMember(groupId, transactionId)
-    await refreshRows()
+    await refreshLedger()
   }
 
   async function handleRemoveMember(groupId: string, transactionId: string) {
     await removeMember(groupId, transactionId)
-    await refreshRows()
+    await refreshLedger()
     setViewingGroupId(null)
   }
 
   async function handleDeleteGroup(groupId: string) {
     await deleteGroup(groupId)
-    await refreshRows()
+    await refreshLedger()
     setViewingGroupId(null)
   }
 
   async function handleCreateSplit(transactionId: string, startMonth: string, numMonths: number) {
     await createSplit(transactionId, startMonth, numMonths)
-    await refreshRows()
+    await refreshLedger()
   }
 
   async function handleUpdateSplit(id: string, startMonth: string, numMonths: number) {
     await updateSplit(id, startMonth, numMonths)
-    await refreshRows()
+    await refreshLedger()
   }
 
   async function handleDeleteTransaction(id: string) {
     await deleteTransaction(id)
-    await refreshRows()
+    await refreshLedger()
     await refreshAccounts()
   }
 
@@ -186,6 +206,7 @@ export function AccountsScreen() {
         </Button>
       </div>
       {accountsError && <Alert variant="error">{accountsError}</Alert>}
+      <UncategorizedNotice count={uncategorized.length} onOpen={() => setShowCategorizeDeck(true)} />
       {!accountsLoading && (
         <AccountCarousel
           accounts={accounts}
@@ -259,11 +280,28 @@ export function AccountsScreen() {
           fixedAccountId={singleSelectedId}
           onCreate={async (input) => {
             await createTransaction(input)
-            await refreshRows()
+            await refreshLedger()
             await refreshAccounts()
             setShowAddForm(false)
           }}
         />
+      )}
+
+      {showCategorizeDeck && (
+        <Modal open={showCategorizeDeck} onClose={() => setShowCategorizeDeck(false)} title="Categorize transactions">
+          <CategorizationDeck
+            rows={uncategorized.map((t, rowIndex) => ({
+              rowIndex,
+              date: t.date,
+              amount: t.amount,
+              currencyCode: t.currencyCode,
+              description: t.description,
+            }))}
+            categories={categories}
+            skipHint="Skipped transactions stay Uncategorized — this notice will keep them handy."
+            onDone={handleCategorizeDone}
+          />
+        </Modal>
       )}
 
       {editingTransaction && (
@@ -275,7 +313,7 @@ export function AccountsScreen() {
             initialValues={toFormValues(editingTransaction)}
             onSubmit={async (input) => {
               await updateTransaction(editingTransaction.id, input)
-              await refreshRows()
+              await refreshLedger()
               await refreshAccounts()
               setEditingId(null)
             }}

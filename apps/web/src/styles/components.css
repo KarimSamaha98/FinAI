@@ -1844,3 +1844,59 @@ dialog::backdrop {
 .account-choice-status.has-profile {
   color: var(--accent);
 }
+
+/* ── Notice box (e.g. uncategorized transactions) ─────────────────────── */
+
+.notice-box {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.notice-box:hover {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  border-color: var(--accent);
+}
+
+.notice-box:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.notice-box-icon,
+.notice-box-chevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+
+.notice-box-icon {
+  color: var(--accent);
+}
+
+.notice-box-chevron {
+  color: var(--text-muted);
+}
+
+.notice-box-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notice-box-text span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
