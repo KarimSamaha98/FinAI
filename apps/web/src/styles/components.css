@@ -331,22 +331,35 @@
     padding-left: 0;
   }
 
+  /* A plain X: no box, but still a full-size tap target. */
   .app-rail-head .app-menu-close {
     display: inline-flex;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
   }
 
+  .app-rail-head .app-menu-close:hover {
+    color: var(--text);
+  }
+
+  /* The drawer slides in from the right, the side the menu button is on. */
   .app-rail {
     position: fixed;
     top: 0;
-    left: 0;
+    right: 0;
     bottom: 0;
     z-index: 40;
     width: min(17rem, 85vw);
     height: 100svh;
     padding-top: max(var(--space-4), env(safe-area-inset-top));
+    padding-left: var(--space-3);
+    padding-right: max(var(--space-3), env(safe-area-inset-right));
+    border-right: 0;
+    border-left: 1px solid var(--border);
     background: var(--bg);
     box-shadow: var(--shadow-md);
-    transform: translateX(-100%);
+    transform: translateX(100%);
     visibility: hidden;
     transition: transform 200ms ease, visibility 0s linear 200ms;
   }
