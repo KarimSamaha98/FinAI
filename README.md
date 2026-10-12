@@ -288,7 +288,7 @@ pnpm generate:csv -- --rows 50 --seed 42     # reproducible
 pnpm generate:csv -- --help
 ```
 
-Then log in as the demo user, open **Everyday Checking → Import**, and upload the file.
+Then log in as the demo user, click **+ Add Transaction** on the Transaction page, drop the file under **Import a CSV**, and choose **Everyday Checking**. (Accounts without a profile can start one from **Add CSV profile** on their card, or by choosing them after the upload.)
 
 ## 7. Scripts
 

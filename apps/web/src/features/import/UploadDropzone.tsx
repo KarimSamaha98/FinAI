@@ -6,10 +6,12 @@ const MAX_MB = 5
 interface UploadDropzoneProps {
   uploading: boolean
   onFile: (file: File) => void
+  /** Smaller version for the Add transaction dialog. */
+  compact?: boolean
 }
 
 /** Step 1 of the import flow: drop a bank export here or choose one. */
-export function UploadDropzone({ uploading, onFile }: UploadDropzoneProps) {
+export function UploadDropzone({ uploading, onFile, compact }: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -22,7 +24,7 @@ export function UploadDropzone({ uploading, onFile }: UploadDropzoneProps) {
 
   return (
     <div
-      className={`dropzone${dragging ? ' is-dragging' : ''}${uploading ? ' is-busy' : ''}`}
+      className={`dropzone${compact ? ' dropzone--compact' : ''}${dragging ? ' is-dragging' : ''}${uploading ? ' is-busy' : ''}`}
       onDragOver={(e) => {
         e.preventDefault()
         setDragging(true)
@@ -30,10 +32,12 @@ export function UploadDropzone({ uploading, onFile }: UploadDropzoneProps) {
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
     >
-      <span className="dropzone-badge" aria-hidden="true">
-        CSV
-      </span>
-      <p className="dropzone-title">{uploading ? 'Uploading…' : 'Drop your bank export here'}</p>
+      {!compact && (
+        <span className="dropzone-badge" aria-hidden="true">
+          CSV
+        </span>
+      )}
+      <p className="dropzone-title">{uploading ? 'Uploading…' : compact ? 'Drop a bank CSV here' : 'Drop your bank export here'}</p>
       <p className="dropzone-hint">
         CSV or Excel (.xlsx, .xls) · up to {MAX_MB} MB
       </p>

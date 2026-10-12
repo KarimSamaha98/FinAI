@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
+import { PageHeader } from '../../components/BackButton'
 import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
 import { CURRENCY_CODES } from '../../lib/currencies'
@@ -134,7 +135,7 @@ export function AccountSettingsPage() {
 
   return (
     <main style={{ padding: '1.5rem', maxWidth: 480, margin: '0 auto' }}>
-      <h1>{account.name}</h1>
+      <PageHeader title={account.name} backTo={`/accounts?selected=${account.id}`} />
       <p style={{ color: 'var(--text-muted)', marginTop: '-0.5rem' }}>Account settings</p>
       {error && <Alert variant="error">{error}</Alert>}
 
@@ -173,7 +174,7 @@ export function AccountSettingsPage() {
           </select>
         </label>
         <div key={account.balanceUpdatedAt} style={{ display: 'flex', gap: 'var(--space-3)' }}>
-          <label style={{ flex: 1 }}>
+          <label style={{ flex: 1, minWidth: 0 }}>
             Starting balance
             <input
               type="number"
@@ -183,7 +184,7 @@ export function AccountSettingsPage() {
               onBlur={(e) => handleField('startingBalance', e.target.value)}
             />
           </label>
-          <label style={{ flex: 1 }}>
+          <label style={{ flex: 1, minWidth: 0 }}>
             as of
             <input
               type="date"
@@ -227,18 +228,13 @@ export function AccountSettingsPage() {
         {profile ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{profile.name}</span>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-              <Button variant="primary" onClick={() => navigate(`/accounts/${account.id}/import`)}>
-                Import CSV
-              </Button>
-              <Button variant="danger" onClick={() => deleteProfile(profile.id)}>
-                Delete profile
-              </Button>
-            </div>
+            <Button variant="danger" onClick={() => deleteProfile(profile.id)}>
+              Delete profile
+            </Button>
           </div>
         ) : (
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-            No import profile yet. <Link to={`/accounts/${account.id}/import`}>Set one up</Link>
+            No import profile yet — one is set up the first time you import a CSV for this account from + Add Transaction.
           </p>
         )}
       </Card>

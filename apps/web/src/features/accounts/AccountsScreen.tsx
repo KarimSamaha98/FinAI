@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
@@ -15,6 +15,7 @@ import { useDisplayRows } from '../../hooks/useDisplayRows'
 import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
 import { useMonthSplits } from '../../hooks/useMonthSplits'
 import { TransactionForm, type TransactionFormValues } from '../transactions/TransactionForm'
+import { AddTransactionDialog } from '../transactions/AddTransactionDialog'
 import { ReconcilePicker } from '../reconciliation/ReconcilePicker'
 import { ReconciliationGroupModal } from '../reconciliation/ReconciliationGroupModal'
 import { SplitModal } from '../month-split/SplitModal'
@@ -40,12 +41,23 @@ function toFormValues(transaction: Transaction): TransactionFormValues {
 }
 
 export function AccountsScreen() {
-  const [searchParams] = useSearchParams()
-  // Empty = every account selected (the default on arrival).
-  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
-    const fromUrl = searchParams.get('selected')
-    return fromUrl ? [fromUrl] : []
-  })
+  const [searchParams, setSearchParams] = useSearchParams()
+  // The card selection lives in the URL (?selected=id1,id2) so Back and reload
+  // restore it. Empty = every account selected (the default on arrival).
+  const selectedParam = searchParams.get('selected') ?? ''
+  const selectedIds = useMemo(() => selectedParam.split(',').filter(Boolean), [selectedParam])
+  function setSelectedIds(ids: string[]) {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (ids.length) next.set('selected', ids.join(','))
+        else next.delete('selected')
+        return next
+      },
+      // Toggling cards shouldn't add history entries — Back leaves the page.
+      { replace: true },
+    )
+  }
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [view, setView] = useState<TransactionView>('real')
@@ -61,7 +73,7 @@ export function AccountsScreen() {
   const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
-  const { profiles: accountProfiles } = useImportProfiles(singleSelectedId ?? undefined)
+  const { profiles: accountProfiles, loading: accountProfilesLoading } = useImportProfiles(singleSelectedId ?? undefined)
   // Deliberately NOT scoped to accountIds — this is the candidate pool for
   // reconcile/split pickers and group-member lookups, which must be able to
   // find a transaction in a *different* account than the one currently
@@ -84,9 +96,9 @@ export function AccountsScreen() {
   const summarizedAccounts = selectedIds.length === 0 ? accounts : accounts.filter((a) => selectedIds.includes(a.id))
 
   function handleToggleAccount(id: string) {
-    setSelectedIds((current) =>
+    setSelectedIds(
       nextAccountSelection(
-        current,
+        selectedIds,
         id,
         accounts.map((a) => a.id),
       ),
@@ -185,7 +197,7 @@ export function AccountsScreen() {
       {selectedAccount ? (
         <AccountHeader
           account={selectedAccount}
-          hasProfile={accountProfiles.length > 0}
+          hasProfile={accountProfilesLoading ? null : accountProfiles.length > 0}
         />
       ) : (
         <SelectionSummary
@@ -239,20 +251,19 @@ export function AccountsScreen() {
       )}
 
       {showAddForm && (
-        <Modal open={showAddForm} onClose={() => setShowAddForm(false)} title="Add transaction">
-          <TransactionForm
-            categories={categories}
-            accounts={accounts}
-            fixedAccountId={singleSelectedId}
-            onSubmit={async (input) => {
-              await createTransaction(input)
-              await refreshRows()
-              await refreshAccounts()
-              setShowAddForm(false)
-            }}
-            onCancel={() => setShowAddForm(false)}
-          />
-        </Modal>
+        <AddTransactionDialog
+          open={showAddForm}
+          onClose={() => setShowAddForm(false)}
+          categories={categories}
+          accounts={accounts}
+          fixedAccountId={singleSelectedId}
+          onCreate={async (input) => {
+            await createTransaction(input)
+            await refreshRows()
+            await refreshAccounts()
+            setShowAddForm(false)
+          }}
+        />
       )}
 
       {editingTransaction && (

@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import type { ImportLocationState } from '../import/ImportWizardPage'
 import type { AccountSummary } from 'shared-types'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
@@ -8,11 +9,13 @@ import { formatDate } from '../../lib/formatDate'
 
 interface AccountHeaderProps {
   account: AccountSummary
-  hasProfile: boolean
+  /** Whether the account can already read CSVs; null while unknown (no button flashes in). */
+  hasProfile: boolean | null
 }
 
 export function AccountHeader({ account, hasProfile }: AccountHeaderProps) {
   const navigate = useNavigate()
+  const setupState: ImportLocationState = { setupAccountId: account.id }
 
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
@@ -32,9 +35,8 @@ export function AccountHeader({ account, hasProfile }: AccountHeaderProps) {
         <span>Last balance updated: {formatDate(account.lastBalanceUpdatedAt.slice(0, 10))}</span>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-1)' }}>
-        {/* Only until the account has a profile; importing with it lives in the account's Settings. */}
-        {!hasProfile && (
-          <Button variant="primary" onClick={() => navigate(`/accounts/${account.id}/import`)}>
+        {hasProfile === false && (
+          <Button variant="primary" onClick={() => navigate('/import', { state: setupState })}>
             Add CSV profile
           </Button>
         )}

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import type { AccountSummary, AccountType, CreateAccountInput } from 'shared-types'
 import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
@@ -19,7 +18,6 @@ interface AccountFormProps {
 }
 
 export function AccountForm({ open, onClose, createAccount, uploadCardImage, defaultCardColor, onCreated }: AccountFormProps) {
-  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [type, setType] = useState<AccountType>('checking')
   const [institution, setInstitution] = useState('')
@@ -28,7 +26,6 @@ export function AccountForm({ open, onClose, createAccount, uploadCardImage, def
   const [balanceAsOf, setBalanceAsOf] = useState(new Date().toISOString().slice(0, 10))
   const [cardColor, setCardColor] = useState(defaultCardColor)
   const [cardPhoto, setCardPhoto] = useState<File | null>(null)
-  const [setUpImport, setSetUpImport] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -70,7 +67,6 @@ export function AccountForm({ open, onClose, createAccount, uploadCardImage, def
       }
       onCreated(account.id)
       onClose()
-      if (setUpImport) navigate(`/accounts/${account.id}/import`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account')
     } finally {
@@ -130,14 +126,6 @@ export function AccountForm({ open, onClose, createAccount, uploadCardImage, def
           onPhotoSelected={handlePhotoSelected}
           onRemovePhoto={() => setCardPhoto(null)}
         />
-        <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
-          <label style={{ flexDirection: 'row', alignItems: 'center', gap: '0.4rem' }}>
-            <input type="radio" checked={setUpImport} onChange={() => setSetUpImport(true)} /> Set up CSV import now
-          </label>
-          <label style={{ flexDirection: 'row', alignItems: 'center', gap: '0.4rem' }}>
-            <input type="radio" checked={!setUpImport} onChange={() => setSetUpImport(false)} /> Skip for now
-          </label>
-        </div>
 
         {error && <Alert variant="error">{error}</Alert>}
         <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>

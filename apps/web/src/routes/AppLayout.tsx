@@ -1,8 +1,9 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { Button } from '../components/Button'
 import { Avatar } from '../components/Avatar'
-import { HomeIcon, InsightsIcon, LogoutIcon, SettingsIcon, TransactionIcon } from '../components/icons'
+import { CloseIcon, HomeIcon, InsightsIcon, LogoutIcon, MenuIcon, SettingsIcon, TransactionIcon } from '../components/icons'
 import { useProfile } from '../hooks/useProfile'
 
 const NAV_LINKS = [
@@ -12,9 +13,38 @@ const NAV_LINKS = [
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 
+/**
+ * Desktop/tablet: a fixed left rail. Phone widths: a top bar with a menu
+ * button that slides the same rail in as a drawer (see .app-rail in CSS) —
+ * closed by picking a page, the backdrop, the close button or Escape.
+ */
 export function AppLayout() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { profile } = useProfile()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const railRef = useRef<HTMLElement>(null)
+
+  // Navigating closes the drawer.
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    railRef.current?.querySelector<HTMLElement>('a, button')?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMenu()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
+  function closeMenu() {
+    setMenuOpen(false)
+    menuButtonRef.current?.focus()
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -22,17 +52,37 @@ export function AppLayout() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="app-rail">
+    <div className={`app-shell${menuOpen ? ' is-menu-open' : ''}`}>
+      <header className="app-topbar">
         <span className="app-logo">FinAI</span>
+        <button
+          ref={menuButtonRef}
+          type="button"
+          className="app-menu-button"
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          aria-controls="app-rail"
+          onClick={() => setMenuOpen(true)}
+        >
+          <MenuIcon />
+        </button>
+      </header>
+
+      {menuOpen && <div className="app-rail-backdrop" onClick={closeMenu} aria-hidden="true" />}
+
+      <aside id="app-rail" ref={railRef} className="app-rail" aria-label="Main menu">
+        <div className="app-rail-head">
+          <span className="app-logo">FinAI</span>
+          <button type="button" className="app-menu-button app-menu-close" aria-label="Close menu" onClick={closeMenu}>
+            <CloseIcon />
+          </button>
+        </div>
         <nav className="app-rail-nav" aria-label="Primary">
           {NAV_LINKS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
-              // aria-label keeps the accessible name intact in the icon-only
-              // mini rail, where the visible label span is display:none'd.
               aria-label={label}
               className={({ isActive }) => `app-rail-link${isActive ? ' active' : ''}`}
             >
