@@ -1,10 +1,10 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { eq } from 'drizzle-orm'
 import type { Category, CreateCategoryInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { categories, transactions } from '../../db/schema.js'
+import { categories } from '../../db/schema.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 
 function toCategory(row: typeof categories.$inferSelect): Category {
@@ -12,6 +12,7 @@ function toCategory(row: typeof categories.$inferSelect): Category {
     id: row.id,
     userId: row.userId,
     name: row.name,
+    isArchived: row.isArchived,
     createdAt: row.createdAt.toISOString(),
   }
 }
@@ -20,6 +21,7 @@ function toCategory(row: typeof categories.$inferSelect): Category {
 export class CategoriesService {
   constructor(@Inject(DB) private readonly db: Db) {}
 
+  /** Every category the user owns, archived included — callers filter archived out of pickers but need them to resolve historical transactions. */
   async list(userId: string): Promise<Category[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
       const rows = await tx.select().from(categories).orderBy(categories.name)
@@ -52,15 +54,20 @@ export class CategoriesService {
     })
   }
 
-  async delete(userId: string, id: string): Promise<void> {
+  /**
+   * Soft delete: archives the category so it disappears from pickers while
+   * the transactions that used it keep it (and still display its name).
+   */
+  async archive(userId: string, id: string): Promise<Category> {
     return runInTenantContext(this.db, userId, async (tx) => {
-      const [inUse] = await tx.select({ id: transactions.id }).from(transactions).where(eq(transactions.categoryId, id)).limit(1)
-      if (inUse) {
-        throw new ConflictException('Category is used by existing transactions; reassign them before deleting')
-      }
-      const [row] = await tx.delete(categories).where(eq(categories.id, id)).returning()
-      if (!row) {
-        throw new NotFoundException('Category not found')
+      try {
+        const [row] = await tx.update(categories).set({ isArchived: true }).where(eq(categories.id, id)).returning()
+        if (!row) {
+          throw new NotFoundException('Category not found')
+        }
+        return toCategory(row)
+      } catch (error) {
+        mapPostgresError(error)
       }
     })
   }

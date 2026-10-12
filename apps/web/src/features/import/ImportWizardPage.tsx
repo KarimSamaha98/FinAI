@@ -59,7 +59,7 @@ export function ImportWizardPage() {
   const uploadedHandoff = handoff && 'uploadedFileId' in handoff ? handoff : null
   const setupAccountId = handoff && 'setupAccountId' in handoff ? handoff.setupAccountId : null
   const navigate = useNavigate()
-  const { categories } = useCategories()
+  const { activeCategories } = useCategories()
   const { profiles, loading: profilesLoading, createProfile } = useImportProfiles()
   const { accounts, createAccount, uploadCardImage } = useAccounts()
   const [showAccountForm, setShowAccountForm] = useState(false)
@@ -210,7 +210,7 @@ export function ImportWizardPage() {
           {skippedNote && <p style={{ color: 'var(--text-muted)' }}>{skippedNote}</p>}
           <CategorizationDeck
             rows={step.parseResult.rows}
-            categories={categories}
+            categories={activeCategories}
             onDone={(categorized) => handleCategorizationDone(step.accountId, step.parseResult.importRunId, categorized)}
           />
         </div>

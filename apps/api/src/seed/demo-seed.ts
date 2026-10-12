@@ -15,7 +15,7 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { CARD_COLOR_PALETTE } from 'shared-types'
-import { eq, isNull } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createDb } from '../db/client.js'
@@ -130,11 +130,13 @@ async function main(): Promise<void> {
         dataset.fxRates.map((r) => ({ userId, baseCurrency: r.baseCurrency, quoteCurrency: r.quoteCurrency, rate: String(r.rate) })),
       )
 
-      const presetRows = await tx.select({ id: categories.id, name: categories.name }).from(categories).where(isNull(categories.userId))
+      // Categories are per-user now — the signup trigger seeds the defaults
+      // for the freshly created demo user, so resolve them from their own rows.
+      const presetRows = await tx.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.userId, userId))
       const categoryIdByName = new Map(presetRows.map((c) => [c.name, c.id]))
       const missing = REQUIRED_PRESET_CATEGORIES.filter((name) => !categoryIdByName.has(name))
       if (missing.length > 0) {
-        throw new Error(`Preset categories missing: ${missing.join(', ')} — run \`pnpm exec supabase db reset\` first (seed.sql inserts them), then re-run the seeder.`)
+        throw new Error(`Default categories missing for the demo user: ${missing.join(', ')} — apply migrations (\`pnpm exec supabase migration up\`) so the signup trigger seeds them, then re-run the seeder.`)
       }
       const customRows = await tx.insert(categories).values(dataset.customCategories.map((name) => ({ userId, name }))).returning({ id: categories.id, name: categories.name })
       for (const row of customRows) categoryIdByName.set(row.name, row.id)
