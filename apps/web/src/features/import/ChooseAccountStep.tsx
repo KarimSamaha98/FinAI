@@ -9,17 +9,20 @@ interface ChooseAccountStepProps {
   accountIdsWithProfile: Set<string>
   selectedId: string | null
   onSelect: (accountId: string) => void
-  onBack: () => void
+  /** Create a new account for this file (then set up its CSV profile). */
+  onAddAccount: () => void
   onContinue: (accountId: string) => void
 }
 
 /** "Which account is this CSV for?" — each account as a tile with its card and whether it can already read CSVs. */
-export function ChooseAccountStep({ fileName, accounts, accountIdsWithProfile, selectedId, onSelect, onBack, onContinue }: ChooseAccountStepProps) {
+export function ChooseAccountStep({ fileName, accounts, accountIdsWithProfile, selectedId, onSelect, onAddAccount, onContinue }: ChooseAccountStepProps) {
   return (
     <section className="wizard-question">
       <p className="wizard-hint">
         Uploaded <strong>{fileName}</strong>. Pick the account these transactions belong to.
       </p>
+
+      {accounts.length === 0 && <p className="wizard-hint">You don’t have any accounts yet — add one to import these transactions into.</p>}
 
       <div className="account-choices" role="radiogroup" aria-label="Account">
         {accounts.map((account) => {
@@ -49,8 +52,8 @@ export function ChooseAccountStep({ fileName, accounts, accountIdsWithProfile, s
       </div>
 
       <div className="wizard-nav">
-        <Button variant="secondary" onClick={onBack}>
-          Upload a different file
+        <Button variant="secondary" onClick={onAddAccount}>
+          + Add account
         </Button>
         <Button variant="primary" disabled={!selectedId} onClick={() => selectedId && onContinue(selectedId)}>
           Continue
