@@ -8,22 +8,19 @@ insert into currencies (code, name, symbol) values
   ('JPY', 'Japanese Yen', '¥')
 on conflict (code) do nothing;
 
--- Preset categories (user_id IS NULL = shared, non-editable).
-insert into categories (user_id, name) values
-  (null, 'Groceries'),
-  (null, 'Dining'),
-  (null, 'Rent'),
-  (null, 'Utilities'),
-  (null, 'Transport'),
-  (null, 'Salary'),
-  (null, 'Transfers'),
-  (null, 'Entertainment'),
-  (null, 'Health'),
-  (null, 'Shopping'),
-  (null, 'Travel'),
-  (null, 'Insurance'),
-  (null, 'Subscriptions'),
-  (null, 'Reimbursement'),
-  (null, 'Investment'),
-  (null, 'Other')
-on conflict (user_id, lower(name)) do nothing;
+-- Default category template (user_id IS NULL). Each user gets their own copy
+-- of these at signup (see handle_new_user in
+-- 20261004170000_per_user_categories.sql) and can then rename, add to, or
+-- archive their own copies freely. Guarded with NOT EXISTS because the
+-- (user_id, lower(name)) unique index can't dedupe NULL user_ids, so a plain
+-- ON CONFLICT would not make this idempotent.
+insert into categories (user_id, name)
+select null, v.name
+from (values
+  ('Groceries'), ('Dining'), ('Rent'), ('Utilities'), ('Transport'), ('Salary'),
+  ('Transfers'), ('Entertainment'), ('Health'), ('Shopping'), ('Travel'), ('Insurance'),
+  ('Subscriptions'), ('Reimbursement'), ('Investment'), ('Other')
+) as v(name)
+where not exists (
+  select 1 from categories c where c.user_id is null and lower(c.name) = lower(v.name)
+);

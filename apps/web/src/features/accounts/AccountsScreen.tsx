@@ -73,7 +73,7 @@ export function AccountsScreen() {
   const [viewingGroupId, setViewingGroupId] = useState<string | null>(null)
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
 
-  const { categories } = useCategories()
+  const { categories, activeCategories } = useCategories()
   const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
@@ -231,7 +231,7 @@ export function AccountsScreen() {
       <UncategorizedNotice count={uncategorized.length} onOpen={() => setShowCategorizeDeck(true)} />
       <div className="filter-bar" style={{ margin: 'var(--space-4) 0' }}>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
-        <CategoryMultiSelect categories={categories} selectedIds={categoryIds} onChange={setCategoryIds} />
+        <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
         <SelectDropdown<TransactionView>
           label="View"
           value={view}
@@ -278,7 +278,7 @@ export function AccountsScreen() {
         <AddTransactionDialog
           open={showAddForm}
           onClose={() => setShowAddForm(false)}
-          categories={categories}
+          categories={activeCategories}
           accounts={accounts}
           fixedAccountId={singleSelectedId}
           onCreate={async (input) => {
@@ -300,7 +300,7 @@ export function AccountsScreen() {
               currencyCode: t.currencyCode,
               description: t.description,
             }))}
-            categories={categories}
+            categories={activeCategories}
             skipHint="Skipped transactions stay Uncategorized — this notice will keep them handy."
             onDone={handleCategorizeDone}
           />
@@ -310,7 +310,7 @@ export function AccountsScreen() {
       {editingTransaction && (
         <Modal open={!!editingTransaction} onClose={() => setEditingId(null)} title="Edit transaction">
           <TransactionForm
-            categories={categories}
+            categories={activeCategories}
             accounts={accounts}
             fixedAccountId={null}
             initialValues={toFormValues(editingTransaction)}

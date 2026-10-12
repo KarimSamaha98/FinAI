@@ -4,6 +4,9 @@ export const CategorySchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid().nullable(),
   name: z.string().min(1).max(60),
+  // Soft-deleted categories are hidden from pickers but still resolve by id
+  // for the historical transactions that used them.
+  isArchived: z.boolean(),
   createdAt: z.string().datetime(),
 });
 export type Category = z.infer<typeof CategorySchema>;

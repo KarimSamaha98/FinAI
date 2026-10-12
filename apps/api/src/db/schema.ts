@@ -37,9 +37,17 @@ export const categories = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id'),
     name: text('name').notNull(),
+    // Soft delete: an archived category is hidden from pickers but stays
+    // attached to the transactions that used it. Uniqueness is enforced only
+    // among active rows so a name can be reused after archiving.
+    isArchived: boolean('is_archived').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex('categories_user_lower_name_key').on(table.userId, sql`lower(${table.name})`)],
+  (table) => [
+    uniqueIndex('categories_user_lower_name_key')
+      .on(table.userId, sql`lower(${table.name})`)
+      .where(sql`${table.isArchived} = false`),
+  ],
 )
 
 export const accounts = pgTable(
