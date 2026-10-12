@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
+import { SelectDropdown } from '../../components/SelectDropdown'
 import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Button } from '../../components/Button'
@@ -228,16 +229,18 @@ export function AccountsScreen() {
       )}
 
       <UncategorizedNotice count={uncategorized.length} onOpen={() => setShowCategorizeDeck(true)} />
-      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end', margin: 'var(--space-4) 0' }}>
+      <div className="filter-bar" style={{ margin: 'var(--space-4) 0' }}>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <CategoryMultiSelect categories={categories} selectedIds={categoryIds} onChange={setCategoryIds} />
-        <label>
-          View
-          <select value={view} onChange={(e) => setView(e.target.value as TransactionView)}>
-            <option value="real">Real</option>
-            <option value="nominal">Nominal</option>
-          </select>
-        </label>
+        <SelectDropdown<TransactionView>
+          label="View"
+          value={view}
+          options={[
+            { value: 'real', label: 'Real' },
+            { value: 'nominal', label: 'Nominal' },
+          ]}
+          onChange={setView}
+        />
       </div>
 
       {(loading || rowsLoading) && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}

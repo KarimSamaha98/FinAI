@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { DateRangePicker, type DateRange } from './DateRangePicker'
+import { SelectDropdown } from './SelectDropdown'
 import { DATE_RANGE_PRESET_LABELS, getPresetRange, type DateRangePreset } from '../lib/dateRangePresets'
 
 interface DateRangePresetPickerProps {
@@ -18,17 +19,13 @@ export function DateRangePresetPicker({ value, onChange, defaultPreset = 'curren
   }
 
   return (
-    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-      <label>
-        Range
-        <select value={preset} onChange={(e) => handlePresetChange(e.target.value as DateRangePreset)}>
-          {(Object.keys(DATE_RANGE_PRESET_LABELS) as DateRangePreset[]).map((key) => (
-            <option key={key} value={key}>
-              {DATE_RANGE_PRESET_LABELS[key]}
-            </option>
-          ))}
-        </select>
-      </label>
+    <div className="filter-group">
+      <SelectDropdown
+        label="Range"
+        value={preset}
+        options={(Object.keys(DATE_RANGE_PRESET_LABELS) as DateRangePreset[]).map((key) => ({ value: key, label: DATE_RANGE_PRESET_LABELS[key] }))}
+        onChange={handlePresetChange}
+      />
       {preset === 'custom' && <DateRangePicker value={value} onChange={onChange} />}
     </div>
   )

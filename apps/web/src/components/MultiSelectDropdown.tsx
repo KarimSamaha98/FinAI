@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useDropdown } from '../hooks/useDropdown'
 
 export interface MultiSelectOption {
   id: string
@@ -24,30 +24,22 @@ function triggerLabel(label: string, options: MultiSelectOption[], selectedIds: 
 
 /** A closed-by-default dropdown for choosing zero or more options — used for category/account filters instead of a sprawling inline checkbox list. */
 export function MultiSelectDropdown({ label, options, selectedIds, onChange }: MultiSelectDropdownProps) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    function handleClickOutside(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open])
+  const { open, setOpen, close, alignEnd, rootRef, triggerRef, panelRef } = useDropdown()
 
   function toggle(id: string) {
     onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id])
   }
 
   return (
-    <div className="dropdown" ref={ref}>
-      <button type="button" className="dropdown-trigger" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+    <div className="dropdown" ref={rootRef}>
+      <button ref={triggerRef} type="button" className="dropdown-trigger" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         {triggerLabel(label, options, selectedIds)}
-        <span className="dropdown-trigger-chevron">▾</span>
+        <span className="dropdown-trigger-chevron" aria-hidden="true">
+          ▾
+        </span>
       </button>
       {open && (
-        <div className="dropdown-panel">
+        <div ref={panelRef} className={`dropdown-panel${alignEnd ? ' is-align-end' : ''}`}>
           {options.length === 0 && (
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.4rem 0.5rem', margin: 0 }}>Nothing to choose from yet.</p>
           )}
@@ -63,7 +55,7 @@ export function MultiSelectDropdown({ label, options, selectedIds, onChange }: M
               <button type="button" onClick={() => onChange([])}>
                 Clear
               </button>
-              <button type="button" onClick={() => setOpen(false)}>
+              <button type="button" onClick={close}>
                 Done
               </button>
             </div>
