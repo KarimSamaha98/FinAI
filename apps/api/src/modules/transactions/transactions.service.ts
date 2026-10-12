@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common'
-import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
-import type { CreateTransactionInput, Transaction, UpdateTransactionInput } from 'shared-types'
+import { and, desc, eq, gte, inArray, isNull, lte } from 'drizzle-orm'
+import type { CategorizeTransactionsInput, CreateTransactionInput, Transaction, UpdateTransactionInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
@@ -39,6 +39,7 @@ export class TransactionsService {
       if (filter.dateRange?.to) conditions.push(lte(transactions.date, filter.dateRange.to))
       if (filter.categoryIds?.length) conditions.push(inArray(transactions.categoryId, filter.categoryIds))
       if (filter.accountIds?.length) conditions.push(inArray(transactions.accountId, filter.accountIds))
+      if (filter.uncategorizedOnly) conditions.push(isNull(transactions.categoryId))
 
       const rows = await tx
         .select()
@@ -86,6 +87,27 @@ export class TransactionsService {
           throw new NotFoundException('Transaction not found')
         }
         return toTransaction(row)
+      } catch (error) {
+        mapPostgresError(error)
+      }
+    })
+  }
+
+  /** Sets the category on several transactions in one tenant transaction (RLS limits it to the user's own). */
+  async categorize(userId: string, input: CategorizeTransactionsInput): Promise<{ updatedCount: number }> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      try {
+        const now = new Date()
+        let updatedCount = 0
+        for (const { transactionId, categoryId } of input.assignments) {
+          const updated = await tx
+            .update(transactions)
+            .set({ categoryId, updatedAt: now })
+            .where(eq(transactions.id, transactionId))
+            .returning({ id: transactions.id })
+          updatedCount += updated.length
+        }
+        return { updatedCount }
       } catch (error) {
         mapPostgresError(error)
       }

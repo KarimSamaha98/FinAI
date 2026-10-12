@@ -38,6 +38,8 @@ export interface ListTransactionsFilter {
   dateRange?: DateRangeFilter
   categoryIds?: string[]
   accountIds?: string[]
+  /** Only transactions with no category yet. Honoured by TransactionsService.list only. */
+  uncategorizedOnly?: boolean
 }
 
 @Injectable()

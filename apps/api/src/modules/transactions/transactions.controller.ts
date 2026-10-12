@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
-import { CreateTransactionInputSchema, UpdateTransactionInputSchema } from 'shared-types'
+import { CategorizeTransactionsInputSchema, CreateTransactionInputSchema, UpdateTransactionInputSchema } from 'shared-types'
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard.js'
 import { CurrentUserId } from '../auth/current-user-id.decorator.js'
 import { TransactionsService } from './transactions.service.js'
@@ -20,8 +20,10 @@ export class TransactionsController {
     @Query('to') to?: string,
     @Query('categoryIds') categoryIds?: string,
     @Query('accountIds') accountIds?: string,
+    @Query('uncategorized') uncategorized?: string,
   ) {
     return this.transactionsService.list(userId, {
+      uncategorizedOnly: uncategorized === 'true',
       dateRange: from || to ? { from, to } : undefined,
       categoryIds: categoryIds ? categoryIds.split(',').filter(Boolean) : undefined,
       accountIds: accountIds ? accountIds.split(',').filter(Boolean) : undefined,
@@ -57,6 +59,12 @@ export class TransactionsController {
   create(@CurrentUserId() userId: string, @Body() body: unknown) {
     const input = CreateTransactionInputSchema.parse(body)
     return this.transactionsService.create(userId, input)
+  }
+
+  @Post('categorize')
+  categorize(@CurrentUserId() userId: string, @Body() body: unknown) {
+    const input = CategorizeTransactionsInputSchema.parse(body)
+    return this.transactionsService.categorize(userId, input)
   }
 
   @Patch(':id')

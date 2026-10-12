@@ -105,3 +105,21 @@ export function ChevronLeftIcon() {
     </Icon>
   )
 }
+
+export function InfoIcon() {
+  return (
+    <Icon width="22" height="22">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5" />
+      <path d="M12 7.6v.01" strokeWidth="2.6" />
+    </Icon>
+  )
+}
+
+export function ChevronRightIcon() {
+  return (
+    <Icon width="22" height="22" strokeWidth="2.2">
+      <path d="m9.5 5.5 6.5 6.5-6.5 6.5" />
+    </Icon>
+  )
+}
