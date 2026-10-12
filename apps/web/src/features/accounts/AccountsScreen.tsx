@@ -206,7 +206,6 @@ export function AccountsScreen() {
         </Button>
       </div>
       {accountsError && <Alert variant="error">{accountsError}</Alert>}
-      <UncategorizedNotice count={uncategorized.length} onOpen={() => setShowCategorizeDeck(true)} />
       {!accountsLoading && (
         <AccountCarousel
           accounts={accounts}
@@ -228,6 +227,7 @@ export function AccountsScreen() {
         />
       )}
 
+      <UncategorizedNotice count={uncategorized.length} onOpen={() => setShowCategorizeDeck(true)} />
       <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'flex-end', margin: 'var(--space-4) 0' }}>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <CategoryMultiSelect categories={categories} selectedIds={categoryIds} onChange={setCategoryIds} />
