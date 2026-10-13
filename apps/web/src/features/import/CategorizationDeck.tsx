@@ -80,7 +80,7 @@ export function CategorizationDeck({ rows, categories, onDone, onProgress, showS
     <div style={{ maxWidth: 460, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button type="button" className="text-button" onClick={goBack} disabled={cursor === 0}>
-          ← Back
+          ← Previous
         </button>
         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           Transaction {cursor + 1} of {rows.length}
