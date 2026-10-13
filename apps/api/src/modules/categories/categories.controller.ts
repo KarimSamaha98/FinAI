@@ -26,6 +26,18 @@ export class CategoriesController {
     return this.categoriesService.rename(userId, input.id, input.name)
   }
 
+  @Get(':id/usage')
+  usage(@CurrentUserId() userId: string, @Param('id') id: string) {
+    return this.categoriesService.usage(userId, id)
+  }
+
+  /** Permanent: the category is deleted and cleared from every transaction that had it. */
+  @Delete(':id/permanent')
+  remove(@CurrentUserId() userId: string, @Param('id') id: string) {
+    return this.categoriesService.remove(userId, id)
+  }
+
+  /** Soft delete (archive): hidden from pickers, kept on past transactions. */
   @Delete(':id')
   archive(@CurrentUserId() userId: string, @Param('id') id: string) {
     return this.categoriesService.archive(userId, id)
