@@ -4,7 +4,9 @@ import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
-import { CURRENCY_CODES } from '../../lib/currencies'
+import { CURRENCY_OPTIONS } from '../../lib/currencies'
+import { FieldSelect } from '../../components/FieldSelect'
+import { FieldDatePicker } from '../../components/FieldDatePicker'
 import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
 
 interface AccountFormProps {
@@ -84,23 +86,11 @@ export function AccountForm({ open, onClose, createAccount, uploadCardImage, def
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
           <label style={{ flex: 1 }}>
             Type
-            <select value={type} onChange={(e) => setType(e.target.value as AccountType)}>
-              {ACCOUNT_TYPE_OPTIONS.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+            <FieldSelect<AccountType> value={type} options={ACCOUNT_TYPE_OPTIONS} onChange={setType} />
           </label>
           <label style={{ flex: 1 }}>
             Currency
-            <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)}>
-              {CURRENCY_CODES.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
+            <FieldSelect value={currencyCode} options={CURRENCY_OPTIONS} onChange={setCurrencyCode} />
           </label>
         </div>
         <label>
@@ -114,7 +104,7 @@ export function AccountForm({ open, onClose, createAccount, uploadCardImage, def
           </label>
           <label style={{ flex: 1 }}>
             as of
-            <input type="date" value={balanceAsOf} onChange={(e) => setBalanceAsOf(e.target.value)} />
+            <FieldDatePicker required value={balanceAsOf} onChange={setBalanceAsOf} />
           </label>
         </div>
         <CardAppearanceEditor

@@ -1,21 +1,22 @@
 import type { Account } from 'shared-types'
+import { FieldSelect } from './FieldSelect'
 
 interface AccountSelectProps {
   accounts: Account[]
   value: string | null
   onChange: (id: string | null) => void
   placeholder?: string
+  required?: boolean
 }
 
-export function AccountSelect({ accounts, value, onChange, placeholder = 'Select an account' }: AccountSelectProps) {
+export function AccountSelect({ accounts, value, onChange, placeholder = 'Select an account', required }: AccountSelectProps) {
   return (
-    <select value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
-      <option value="">{placeholder}</option>
-      {accounts.map((account) => (
-        <option key={account.id} value={account.id}>
-          {account.name}
-        </option>
-      ))}
-    </select>
+    <FieldSelect
+      value={value ?? ''}
+      placeholder={placeholder}
+      required={required}
+      options={accounts.map((account) => ({ value: account.id, label: account.name }))}
+      onChange={(id) => onChange(id || null)}
+    />
   )
 }

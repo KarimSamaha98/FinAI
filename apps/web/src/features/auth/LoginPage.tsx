@@ -6,6 +6,7 @@ import { CURRENCY_CODES } from '../../lib/currencies'
 import { defaultCurrencyFor, listCountries } from '../../lib/countries'
 import { useAuth } from './useAuth'
 import { Alert } from '../../components/Alert'
+import { FieldSelect } from '../../components/FieldSelect'
 
 type Mode = 'login' | 'signup'
 
@@ -19,23 +20,9 @@ interface AuthSelectProps {
   options: { value: string; label: string }[]
 }
 
-/** Pill dropdown from the Figma reference: the label doubles as the placeholder option. */
+/** Pill dropdown from the Figma reference: the label doubles as the placeholder. */
 function AuthSelect({ label, value, onChange, options }: AuthSelectProps) {
-  return (
-    <div className="auth-select">
-      <select aria-label={label} required value={value} onChange={(e) => onChange(e.target.value)} className={value ? '' : 'is-empty'}>
-        <option value="" disabled>
-          {label}
-        </option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <img src="/dropdown-arrow.svg" alt="" aria-hidden="true" className="auth-select-arrow" />
-    </div>
-  )
+  return <FieldSelect variant="auth" aria-label={label} placeholder={label} required value={value} options={options} onChange={onChange} />
 }
 
 function ProfilePhotoField({ file, onChange }: { file: File | null; onChange: (file: File | null) => void }) {

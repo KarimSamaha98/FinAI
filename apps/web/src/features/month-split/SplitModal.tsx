@@ -3,6 +3,7 @@ import type { MonthSplit, Transaction } from 'shared-types'
 import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
+import { FieldSelect } from '../../components/FieldSelect'
 import { formatCurrency } from '../../lib/formatCurrency'
 
 const MONTH_NAMES = [
@@ -62,6 +63,8 @@ export function SplitModal({ open, onClose, transaction, existingSplit, onCreate
   const [error, setError] = useState<string | null>(null)
 
   const years = Array.from({ length: 11 }, (_, i) => transactionYear - 5 + i)
+  const monthOptions = MONTH_NAMES.map((name, i) => ({ value: String(i + 1), label: name }))
+  const yearOptions = years.map((y) => ({ value: String(y), label: String(y) }))
   const count = monthCount(startMonth, startYear, endMonth, endYear)
 
   async function handleSubmit() {
@@ -95,46 +98,22 @@ export function SplitModal({ open, onClose, transaction, existingSplit, onCreate
       <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
         <label style={{ flex: 1 }}>
           Start month
-          <select value={startMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
-            {MONTH_NAMES.map((name, i) => (
-              <option key={name} value={i + 1}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <FieldSelect value={String(startMonth)} options={monthOptions} searchable={false} onChange={(v) => setStartMonth(Number(v))} />
         </label>
         <label style={{ flex: 1 }}>
           Start year
-          <select value={startYear} onChange={(e) => setStartYear(Number(e.target.value))}>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
+          <FieldSelect value={String(startYear)} options={yearOptions} searchable={false} onChange={(v) => setStartYear(Number(v))} />
         </label>
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
         <label style={{ flex: 1 }}>
           End month
-          <select value={endMonth} onChange={(e) => setEndMonth(Number(e.target.value))}>
-            {MONTH_NAMES.map((name, i) => (
-              <option key={name} value={i + 1}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <FieldSelect value={String(endMonth)} options={monthOptions} searchable={false} onChange={(v) => setEndMonth(Number(v))} />
         </label>
         <label style={{ flex: 1 }}>
           End year
-          <select value={endYear} onChange={(e) => setEndYear(Number(e.target.value))}>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
+          <FieldSelect value={String(endYear)} options={yearOptions} searchable={false} onChange={(v) => setEndYear(Number(v))} />
         </label>
       </div>
 

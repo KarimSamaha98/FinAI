@@ -20,6 +20,8 @@ export function useDropdown() {
     }
     function handleKey(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        // Only the dropdown closes — not a modal it sits in (a <dialog> closes on Escape by default).
+        event.preventDefault()
         setOpen(false)
         triggerRef.current?.focus()
       }

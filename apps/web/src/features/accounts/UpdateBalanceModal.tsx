@@ -3,6 +3,7 @@ import type { AccountSummary, UpdateAccountInput } from 'shared-types'
 import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
+import { FieldDatePicker } from '../../components/FieldDatePicker'
 
 interface UpdateBalanceModalProps {
   open: boolean
@@ -58,7 +59,7 @@ export function UpdateBalanceModal({ open, onClose, account, updateAccount }: Up
           </label>
           <label style={{ flex: 1 }}>
             as of
-            <input type="date" value={balanceAsOf} onChange={(e) => setBalanceAsOf(e.target.value)} />
+            <FieldDatePicker required value={balanceAsOf} onChange={setBalanceAsOf} />
           </label>
         </div>
 

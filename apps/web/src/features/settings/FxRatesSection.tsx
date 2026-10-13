@@ -4,6 +4,7 @@ import { CURRENCY_CODES } from '../../lib/currencies'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
+import { FieldSelect } from '../../components/FieldSelect'
 
 interface FxRatesSectionProps {
   homeCurrencyCode: string
@@ -105,13 +106,7 @@ export function FxRatesSection({ homeCurrencyCode }: FxRatesSectionProps) {
         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', margin: 'var(--space-3) 0 0', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border)' }}>
           <label>
             Add conversion
-            <select value={selectedAddCode ?? ''} onChange={(e) => setAddCode(e.target.value)}>
-              {addableCodes.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
+            <FieldSelect value={selectedAddCode ?? ''} options={addableCodes.map((code) => ({ value: code, label: code }))} onChange={setAddCode} />
           </label>
           <label>
             1 {selectedAddCode ?? ''} =
