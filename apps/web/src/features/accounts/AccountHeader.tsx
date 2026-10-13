@@ -30,9 +30,7 @@ export function AccountHeader({ account, hasProfile }: AccountHeaderProps) {
         {formatCurrency(account.balance, account.currencyCode)}
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1) var(--space-3)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-        <span>Last transaction: {account.lastTransactionDate ? formatDate(account.lastTransactionDate) : '—'}</span>
         <span>Last transaction updated: {account.lastTransactionUpdatedAt ? formatDate(account.lastTransactionUpdatedAt.slice(0, 10)) : '—'}</span>
-        <span>Last balance updated: {formatDate(account.lastBalanceUpdatedAt.slice(0, 10))}</span>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-1)' }}>
         {hasProfile === false && (
