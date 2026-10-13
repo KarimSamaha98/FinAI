@@ -13,7 +13,14 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
+    if (open && !dialog.open) {
+      dialog.showModal()
+      // showModal() focuses the first focusable element (the ✕); a field marked
+      // data-autofocus wins instead, with any text in it selected (e.g. a rename).
+      const field = dialog.querySelector<HTMLElement>('[data-autofocus]')
+      field?.focus()
+      if (field instanceof HTMLInputElement) field.select()
+    }
     if (!open && dialog.open) dialog.close()
   }, [open])
 

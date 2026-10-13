@@ -1,10 +1,10 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common'
-import { eq } from 'drizzle-orm'
+import { count, eq } from 'drizzle-orm'
 import type { Category, CreateCategoryInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { categories } from '../../db/schema.js'
+import { categories, transactions } from '../../db/schema.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 
 function toCategory(row: typeof categories.$inferSelect): Category {
@@ -66,6 +66,42 @@ export class CategoriesService {
           throw new NotFoundException('Category not found')
         }
         return toCategory(row)
+      } catch (error) {
+        mapPostgresError(error)
+      }
+    })
+  }
+
+  /** How many of the user's transactions carry this category — shown before a permanent remove. */
+  async usage(userId: string, id: string): Promise<{ transactionCount: number }> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const [category] = await tx.select({ id: categories.id }).from(categories).where(eq(categories.id, id))
+      if (!category) {
+        throw new NotFoundException('Category not found')
+      }
+      const [{ value }] = await tx.select({ value: count() }).from(transactions).where(eq(transactions.categoryId, id))
+      return { transactionCount: value }
+    })
+  }
+
+  /**
+   * Hard delete: clears the category from every transaction that had it
+   * (they become Uncategorized), then deletes the category itself — unlike
+   * archive(), nothing keeps it.
+   */
+  async remove(userId: string, id: string): Promise<{ id: string; clearedTransactionCount: number }> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      try {
+        const cleared = await tx
+          .update(transactions)
+          .set({ categoryId: null, updatedAt: new Date() })
+          .where(eq(transactions.categoryId, id))
+          .returning({ id: transactions.id })
+        const [row] = await tx.delete(categories).where(eq(categories.id, id)).returning({ id: categories.id })
+        if (!row) {
+          throw new NotFoundException('Category not found')
+        }
+        return { id: row.id, clearedTransactionCount: cleared.length }
       } catch (error) {
         mapPostgresError(error)
       }

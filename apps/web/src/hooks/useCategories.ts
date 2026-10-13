@@ -46,9 +46,22 @@ export function useCategories() {
     return updated
   }
 
+  /** How many transactions carry the category — for the warning before a permanent remove. */
+  const getCategoryUsage = useCallback(
+    (id: string) => apiClient.get<{ transactionCount: number }>(`/categories/${id}/usage`),
+    [],
+  )
+
+  /** Hard delete — the category is deleted and every transaction that had it becomes Uncategorized. */
+  async function removeCategory(id: string) {
+    const result = await apiClient.delete<{ id: string; clearedTransactionCount: number }>(`/categories/${id}/permanent`)
+    setCategories((prev) => prev.filter((c) => c.id !== id))
+    return result
+  }
+
   // Pickers/forms use activeCategories; display surfaces use the full list so
   // archived categories still resolve their names on historical transactions.
   const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories])
 
-  return { categories, activeCategories, loading, error, refresh, createCategory, renameCategory, archiveCategory }
+  return { categories, activeCategories, loading, error, refresh, createCategory, renameCategory, archiveCategory, getCategoryUsage, removeCategory }
 }
