@@ -150,13 +150,16 @@ export function ImportWizardPage() {
     }
   }
 
+  // Back leaves the import for the Transaction page, keeping the card that was selected there.
+  const returnAccountId = setupAccountId ?? uploadedHandoff?.accountId ?? null
   const autoCount = step.name === 'categorize' ? step.parseResult.rows.filter((row) => row.suggestedCategoryId).length : 0
 
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: step.name === 'build-profile' || step.name === 'review' ? 880 : 640, margin: '0 auto', width: '100%' }}>
       <PageHeader
         title={step.name === 'upload' && setupAccountId ? 'Set up CSV profile' : TITLES[step.name]}
-        backTo={setupAccountId ? `/accounts?selected=${setupAccountId}` : '/accounts'}
+        backTo={returnAccountId ? `/accounts?selected=${returnAccountId}` : '/accounts'}
+        backPlacement="start"
       />
       {error && <Alert variant="error">{error}</Alert>}
 

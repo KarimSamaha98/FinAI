@@ -421,6 +421,10 @@
   min-width: 0;
 }
 
+.page-header--back-start {
+  justify-content: flex-start;
+}
+
 .back-button {
   flex: 0 0 auto;
   display: inline-flex;
