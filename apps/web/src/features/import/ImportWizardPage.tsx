@@ -10,9 +10,15 @@ import { UploadDropzone } from './UploadDropzone'
 import { ChooseAccountStep } from './ChooseAccountStep'
 import { AccountForm } from '../accounts/AccountForm'
 import { CategorizationDeck, type CategorizedRow } from './CategorizationDeck'
+import { ImportReview } from './ImportReview'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
 import { PageHeader } from '../../components/BackButton'
+
+/** rowIndex → category suggested from an earlier transaction with the same name. */
+function suggestedChoices(parseResult: ParseWithProfileResult): Record<number, string | null> {
+  return Object.fromEntries(parseResult.rows.map((row) => [row.rowIndex, row.suggestedCategoryId]))
+}
 
 /**
  * How the page was opened:
@@ -40,6 +46,7 @@ type Step =
   | ({ name: 'needs-profile'; accountId: string } & UploadedFile)
   | ({ name: 'build-profile'; accountId: string } & UploadedFile)
   | { name: 'categorize'; accountId: string; parseResult: ParseWithProfileResult }
+  | { name: 'review'; accountId: string; parseResult: ParseWithProfileResult; choices: Record<number, string | null> }
 
 const TITLES: Record<Step['name'], string> = {
   upload: 'Import transactions',
@@ -47,6 +54,7 @@ const TITLES: Record<Step['name'], string> = {
   'needs-profile': 'This account needs a CSV profile',
   'build-profile': 'Set up CSV profile',
   categorize: 'Import transactions',
+  review: 'Review import',
 }
 
 /**
@@ -70,6 +78,7 @@ export function ImportWizardPage() {
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [skippedNote, setSkippedNote] = useState<string | null>(null)
+  const [committing, setCommitting] = useState(false)
 
   const profileFor = (accountId: string) => profiles.find((p) => p.accountId === accountId) ?? null
   const accountOf = (accountId: string) => accounts.find((a) => a.id === accountId) ?? null
@@ -79,7 +88,13 @@ export function ImportWizardPage() {
     try {
       const parseResult = await apiClient.post<ParseWithProfileResult>('/import-runs/parse', { uploadedFileId, importProfileId })
       setSkippedNote(parseResult.skippedDuplicateCount > 0 ? `Skipped ${parseResult.skippedDuplicateCount} likely duplicates` : null)
-      setStep({ name: 'categorize', accountId, parseResult })
+      // Rows whose name matches an earlier categorized transaction arrive with
+      // that category; the deck only asks about the rest, then everything is reviewed.
+      if (parseResult.rows.length > 0 && parseResult.rows.every((row) => row.suggestedCategoryId)) {
+        setStep({ name: 'review', accountId, parseResult, choices: suggestedChoices(parseResult) })
+      } else {
+        setStep({ name: 'categorize', accountId, parseResult })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse file with this profile')
     }
@@ -114,18 +129,31 @@ export function ImportWizardPage() {
     await parseWithProfile(accountId, uploadedFileId, profile.id)
   }
 
-  async function handleCategorizationDone(accountId: string, importRunId: string, categorized: CategorizedRow[]) {
+  function handleCategorizationDone(accountId: string, parseResult: ParseWithProfileResult, categorized: CategorizedRow[]) {
+    const choices = suggestedChoices(parseResult)
+    for (const { rowIndex, categoryId } of categorized) choices[rowIndex] = categoryId
+    setStep({ name: 'review', accountId, parseResult, choices })
+    window.scrollTo({ top: 0 })
+  }
+
+  async function handleCommit(accountId: string, parseResult: ParseWithProfileResult, choices: Record<number, string | null>) {
     setError(null)
+    setCommitting(true)
     try {
-      await apiClient.post('/import-runs/commit', { importRunId, rows: categorized })
+      const rows = parseResult.rows.map((row) => ({ rowIndex: row.rowIndex, categoryId: choices[row.rowIndex] ?? null }))
+      await apiClient.post('/import-runs/commit', { importRunId: parseResult.importRunId, rows })
       navigate(`/accounts?selected=${accountId}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to commit import')
+    } finally {
+      setCommitting(false)
     }
   }
 
+  const autoCount = step.name === 'categorize' ? step.parseResult.rows.filter((row) => row.suggestedCategoryId).length : 0
+
   return (
-    <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: step.name === 'build-profile' ? 880 : 640, margin: '0 auto', width: '100%' }}>
+    <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: step.name === 'build-profile' || step.name === 'review' ? 880 : 640, margin: '0 auto', width: '100%' }}>
       <PageHeader
         title={step.name === 'upload' && setupAccountId ? 'Set up CSV profile' : TITLES[step.name]}
         backTo={setupAccountId ? `/accounts?selected=${setupAccountId}` : '/accounts'}
@@ -208,12 +236,32 @@ export function ImportWizardPage() {
       {step.name === 'categorize' && (
         <div>
           {skippedNote && <p style={{ color: 'var(--text-muted)' }}>{skippedNote}</p>}
+          {autoCount > 0 && (
+            <p className="wizard-hint" style={{ marginBottom: 'var(--space-4)' }}>
+              {autoCount === 1 ? '1 transaction was' : `${autoCount} transactions were`} categorized from earlier ones with the same name — you’ll
+              see every row before importing.
+            </p>
+          )}
           <CategorizationDeck
-            rows={step.parseResult.rows}
+            rows={step.parseResult.rows.filter((row) => !row.suggestedCategoryId)}
             categories={activeCategories}
-            onDone={(categorized) => handleCategorizationDone(step.accountId, step.parseResult.importRunId, categorized)}
+            onDone={(categorized) => handleCategorizationDone(step.accountId, step.parseResult, categorized)}
           />
         </div>
+      )}
+
+      {step.name === 'review' && (
+        <>
+          {skippedNote && <p style={{ color: 'var(--text-muted)' }}>{skippedNote}</p>}
+          <ImportReview
+            rows={step.parseResult.rows}
+            categories={activeCategories}
+            choices={step.choices}
+            onChange={(rowIndex, categoryId) => setStep({ ...step, choices: { ...step.choices, [rowIndex]: categoryId } })}
+            onConfirm={() => handleCommit(step.accountId, step.parseResult, step.choices)}
+            committing={committing}
+          />
+        </>
       )}
     </main>
   )

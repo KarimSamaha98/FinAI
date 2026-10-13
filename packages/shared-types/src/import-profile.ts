@@ -144,6 +144,13 @@ export const CandidateRowSchema = z.object({
   amount: z.number(),
   currencyCode: CurrencyCodeSchema,
   description: z.string(),
+  /**
+   * The category of the most recent earlier transaction with the same
+   * description (case/whitespace-insensitive), so repeat merchants arrive
+   * pre-categorized. null when there's no such transaction (or its category
+   * has since been archived).
+   */
+  suggestedCategoryId: z.string().uuid().nullable(),
 });
 export type CandidateRow = z.infer<typeof CandidateRowSchema>;
 
