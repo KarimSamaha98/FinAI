@@ -18,11 +18,15 @@ interface CategorizationDeckProps {
   rows: CandidateRow[]
   categories: Category[]
   onDone: (categorized: CategorizedRow[]) => void
+  /** Called after every choice with the rows so far, so a parent can save them if the deck is closed early. */
+  onProgress?: (categorized: CategorizedRow[]) => void
+  /** Hide Skip All where closing the deck already does the same (default: shown). */
+  showSkipAll?: boolean
   /** Note under the Skip buttons; defaults to the import wording. */
   skipHint?: string
 }
 
-export function CategorizationDeck({ rows, categories, onDone, skipHint }: CategorizationDeckProps) {
+export function CategorizationDeck({ rows, categories, onDone, onProgress, showSkipAll = true, skipHint }: CategorizationDeckProps) {
   const [cursor, setCursor] = useState(0)
   const [choices, setChoices] = useState<Record<number, string | null>>({})
   const topCategories = useTopCategories(categories, TOP_CATEGORY_COUNT)
@@ -35,13 +39,18 @@ export function CategorizationDeck({ rows, categories, onDone, skipHint }: Categ
   const allCategories = [...topCategories, ...restCategories]
   const selectedCategoryId = currentRow ? choices[currentRow.rowIndex] : undefined
 
+  function toCategorized(next: Record<number, string | null>): CategorizedRow[] {
+    return rows.map((row) => ({ rowIndex: row.rowIndex, categoryId: next[row.rowIndex] ?? null }))
+  }
+
   function finish(next: Record<number, string | null>) {
-    onDone(rows.map((row) => ({ rowIndex: row.rowIndex, categoryId: next[row.rowIndex] ?? null })))
+    onDone(toCategorized(next))
   }
 
   function choose(categoryId: string | null) {
     const next = { ...choices, [currentRow.rowIndex]: categoryId }
     setChoices(next)
+    onProgress?.(toCategorized(next))
     if (cursor + 1 >= rows.length) {
       finish(next)
       return
@@ -124,7 +133,7 @@ export function CategorizationDeck({ rows, categories, onDone, skipHint }: Categ
           <Button variant="primary" style={{ flex: 1 }} onClick={() => choose(null)}>
             Skip
           </Button>
-          {remaining > 1 && (
+          {showSkipAll && remaining > 1 && (
             <Button variant="secondary" style={{ flex: 1 }} onClick={skipRemaining}>
               Skip All
             </Button>
