@@ -202,9 +202,14 @@ export function AccountsScreen() {
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Transaction</h1>
-        <Button variant="primary" onClick={() => setShowAddForm(true)}>
-          + Add Transaction
-        </Button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+          <Button variant="secondary" onClick={() => setShowAccountForm(true)}>
+            + Add Account
+          </Button>
+          <Button variant="primary" onClick={() => setShowAddForm(true)}>
+            + Add Transaction
+          </Button>
+        </div>
       </div>
       {accountsError && <Alert variant="error">{accountsError}</Alert>}
       {!accountsLoading && (
@@ -224,7 +229,6 @@ export function AccountsScreen() {
         <SelectionSummary
           accounts={summarizedAccounts}
           allSelected={selectedIds.length === 0}
-          onAddAccount={() => setShowAccountForm(true)}
         />
       )}
 
