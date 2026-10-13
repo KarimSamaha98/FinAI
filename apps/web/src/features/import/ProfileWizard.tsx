@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Account, AmountMapping, ColumnRef, CreateImportProfileInput, CurrencyMapping, DisplayRow, PreviewRawRowsResult, SignConvention } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
-import { CURRENCY_CODES } from '../../lib/currencies'
+import { CURRENCY_CODES, CURRENCY_OPTIONS } from '../../lib/currencies'
+import { FieldSelect } from '../../components/FieldSelect'
+import { SuggestInput } from '../../components/SuggestInput'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { DATE_FORMAT_PRESETS, detectDateFormat, previewParsedDate } from './date-format-presets'
@@ -263,16 +265,15 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
 
   function columnSelect(field: string, value: number | null, onChange: (index: number) => void) {
     return (
-      <select value={value ?? ''} onChange={(e) => e.target.value !== '' && onChange(Number(e.target.value))}>
-        <option value="" disabled>
-          Choose a column
-        </option>
-        {columnOptions.filter((option) => !isTakenByOther(option.value, field)).map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <FieldSelect
+        value={value === null ? '' : String(value)}
+        placeholder="Choose a column"
+        searchable={false}
+        options={columnOptions
+          .filter((option) => !isTakenByOther(option.value, field))
+          .map((option) => ({ value: String(option.value), label: option.label }))}
+        onChange={(column) => onChange(Number(column))}
+      />
     )
   }
 
@@ -309,13 +310,7 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
           {currencyMode === 'fixed' && (
             <label className="wizard-inline-field">
               Which currency?
-              <select value={fixedCurrency} onChange={(e) => setFixedCurrency(e.target.value)}>
-                {CURRENCY_CODES.map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
+              <FieldSelect value={fixedCurrency} options={CURRENCY_OPTIONS} onChange={setFixedCurrency} />
             </label>
           )}
           {currencyMode === 'column' && (
@@ -345,20 +340,17 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
               </p>
               <label className="wizard-inline-field">
                 Date format
-                <select
+                <FieldSelect
                   value={dateFormatChoice}
-                  onChange={(e) => {
-                    setDateFormatChoice(e.target.value)
-                    if (e.target.value !== CUSTOM_DATE_FORMAT) setDateFormat(e.target.value)
+                  options={[
+                    ...DATE_FORMAT_PRESETS.map((preset) => ({ value: preset.value, label: preset.label })),
+                    { value: CUSTOM_DATE_FORMAT, label: 'Custom…' },
+                  ]}
+                  onChange={(choice) => {
+                    setDateFormatChoice(choice)
+                    if (choice !== CUSTOM_DATE_FORMAT) setDateFormat(choice)
                   }}
-                >
-                  {DATE_FORMAT_PRESETS.map((preset) => (
-                    <option key={preset.value} value={preset.value}>
-                      {preset.label}
-                    </option>
-                  ))}
-                  <option value={CUSTOM_DATE_FORMAT}>Custom…</option>
-                </select>
+                />
               </label>
               {dateFormatChoice === CUSTOM_DATE_FORMAT && (
                 <input type="text" value={dateFormat} onChange={(e) => setDateFormat(e.target.value)} placeholder="e.g. yyyy-MM-dd" aria-label="Custom date format" />
@@ -413,17 +405,12 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
                     <div className="wizard-field-row">
                       <label className="wizard-inline-field">
                         Value for money in
-                        <input type="text" list="direction-values" value={inValue} onChange={(e) => setInValue(e.target.value)} placeholder="e.g. IN" />
+                        <SuggestInput value={inValue} onChange={setInValue} suggestions={directionValues} placeholder="e.g. IN" />
                       </label>
                       <label className="wizard-inline-field">
                         Value for money out
-                        <input type="text" list="direction-values" value={outValue} onChange={(e) => setOutValue(e.target.value)} placeholder="e.g. OUT" />
+                        <SuggestInput value={outValue} onChange={setOutValue} suggestions={directionValues} placeholder="e.g. OUT" />
                       </label>
-                      <datalist id="direction-values">
-                        {directionValues.map((v) => (
-                          <option key={v} value={v} />
-                        ))}
-                      </datalist>
                     </div>
                   )}
                 </div>

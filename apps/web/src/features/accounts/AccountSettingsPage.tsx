@@ -7,7 +7,9 @@ import { Button } from '../../components/Button'
 import { PageHeader } from '../../components/BackButton'
 import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
-import { CURRENCY_CODES } from '../../lib/currencies'
+import { CURRENCY_OPTIONS } from '../../lib/currencies'
+import { FieldSelect } from '../../components/FieldSelect'
+import { FieldDatePicker } from '../../components/FieldDatePicker'
 import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
 import { UpdateBalanceModal } from './UpdateBalanceModal'
 
@@ -146,13 +148,7 @@ export function AccountSettingsPage() {
         </label>
         <label>
           Type
-          <select defaultValue={account.type} disabled={saving} onChange={(e) => handleField('type', e.target.value)}>
-            {ACCOUNT_TYPE_OPTIONS.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <FieldSelect value={account.type} options={ACCOUNT_TYPE_OPTIONS} disabled={saving} onChange={(type) => handleField('type', type)} />
         </label>
         <label>
           Institution
@@ -165,13 +161,12 @@ export function AccountSettingsPage() {
         </label>
         <label>
           Currency
-          <select defaultValue={account.currencyCode} disabled={saving} onChange={(e) => handleField('currencyCode', e.target.value)}>
-            {CURRENCY_CODES.map((code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ))}
-          </select>
+          <FieldSelect
+            value={account.currencyCode}
+            options={CURRENCY_OPTIONS}
+            disabled={saving}
+            onChange={(currencyCode) => handleField('currencyCode', currencyCode)}
+          />
         </label>
         <div key={account.balanceUpdatedAt} style={{ display: 'flex', gap: 'var(--space-3)' }}>
           <label style={{ flex: 1, minWidth: 0 }}>
@@ -186,11 +181,11 @@ export function AccountSettingsPage() {
           </label>
           <label style={{ flex: 1, minWidth: 0 }}>
             as of
-            <input
-              type="date"
-              defaultValue={account.balanceAsOf}
+            <FieldDatePicker
+              required
+              value={account.balanceAsOf}
               disabled={saving}
-              onChange={(e) => handleField('balanceAsOf', e.target.value)}
+              onChange={(balanceAsOf) => handleField('balanceAsOf', balanceAsOf)}
             />
           </label>
         </div>

@@ -4,6 +4,7 @@ import { Modal } from '../../components/Modal'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
+import { FieldSelect } from '../../components/FieldSelect'
 import { formatCurrency } from '../../lib/formatCurrency'
 
 interface ReconcilePickerProps {
@@ -110,14 +111,11 @@ export function ReconcilePicker({
 
       <label>
         Account
-        <select value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
-          <option value="">All accounts</option>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}
-            </option>
-          ))}
-        </select>
+        <FieldSelect
+          value={accountFilter}
+          options={[{ value: '', label: 'All accounts' }, ...accounts.map((account) => ({ value: account.id, label: account.name }))]}
+          onChange={setAccountFilter}
+        />
       </label>
 
       <div style={{ maxHeight: '16rem', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
