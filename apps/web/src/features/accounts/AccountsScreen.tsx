@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { SelectDropdown } from '../../components/SelectDropdown'
@@ -95,14 +95,24 @@ export function AccountsScreen() {
     await Promise.all([refreshRows(), refreshUncategorized()])
   }
 
+  // Choices made so far in the categorize deck, so closing it (✕) still saves them.
+  const deckProgressRef = useRef<CategorizedRow[]>([])
+
+  function openCategorizeDeck() {
+    deckProgressRef.current = []
+    setShowCategorizeDeck(true)
+  }
+
   async function handleCategorizeDone(categorized: CategorizedRow[]) {
-    await categorize(
-      categorized.flatMap(({ rowIndex, categoryId }) =>
-        categoryId ? [{ transactionId: uncategorized[rowIndex].id, categoryId }] : [],
-      ),
+    const assignments = categorized.flatMap(({ rowIndex, categoryId }) =>
+      categoryId ? [{ transactionId: uncategorized[rowIndex].id, categoryId }] : [],
     )
-    await Promise.all([refreshRows(), refreshTransactions()])
+    // Close first: saving shrinks the uncategorized list the open deck is reading from.
     setShowCategorizeDeck(false)
+    if (assignments.length > 0) {
+      await categorize(assignments)
+      await Promise.all([refreshRows(), refreshTransactions()])
+    }
   }
   const { rows, loading: rowsLoading, error: rowsError, refresh: refreshRows } = useDisplayRows(
     dateRange,
@@ -232,7 +242,7 @@ export function AccountsScreen() {
         />
       )}
 
-      <UncategorizedNotice count={uncategorized.length} onOpen={() => setShowCategorizeDeck(true)} />
+      <UncategorizedNotice count={uncategorized.length} onOpen={openCategorizeDeck} />
       <div className="filter-bar" style={{ margin: 'var(--space-4) 0' }}>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
@@ -295,7 +305,7 @@ export function AccountsScreen() {
       )}
 
       {showCategorizeDeck && (
-        <Modal open={showCategorizeDeck} onClose={() => setShowCategorizeDeck(false)} title="Categorize transactions">
+        <Modal open={showCategorizeDeck} onClose={() => handleCategorizeDone(deckProgressRef.current)} title="Categorize transactions">
           <CategorizationDeck
             rows={uncategorized.map((t, rowIndex) => ({
               rowIndex,
@@ -305,7 +315,11 @@ export function AccountsScreen() {
               description: t.description,
             }))}
             categories={activeCategories}
-            skipHint="Skipped transactions stay Uncategorized — this notice will keep them handy."
+            skipHint="Skipped transactions stay Uncategorized — close anytime and your choices so far are saved."
+            showSkipAll={false}
+            onProgress={(categorized) => {
+              deckProgressRef.current = categorized
+            }}
             onDone={handleCategorizeDone}
           />
         </Modal>
