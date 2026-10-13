@@ -1,11 +1,11 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
-import { and, eq, gte, lte } from 'drizzle-orm'
+import { and, desc, eq, gte, isNotNull, lte } from 'drizzle-orm'
 import type { CommitImportRunInput, CommitImportRunResult, ParseWithProfileResult } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { importProfiles, importRuns, transactions, uploadedFiles } from '../../db/schema.js'
+import { categories, importProfiles, importRuns, transactions, uploadedFiles } from '../../db/schema.js'
 import { StorageService } from '../../storage/storage.module.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 import { parseRawRows } from './file-parsing.js'
@@ -98,6 +98,27 @@ export class ImportRunsService {
     return { file, profile, parsedByIndex }
   }
 
+  /**
+   * Description → category of the most recent categorized transaction with
+   * that description, skipping archived categories. RLS scopes the read to
+   * the current user.
+   */
+  private async pastCategoriesByDescription(tx: Db): Promise<Map<string, string>> {
+    const past = await tx
+      .select({ description: transactions.description, categoryId: transactions.categoryId })
+      .from(transactions)
+      .innerJoin(categories, eq(categories.id, transactions.categoryId))
+      .where(and(isNotNull(transactions.categoryId), eq(categories.isArchived, false)))
+      .orderBy(desc(transactions.date), desc(transactions.updatedAt))
+
+    const byDescription = new Map<string, string>()
+    for (const { description, categoryId } of past) {
+      const key = normalizeDescription(description)
+      if (key && categoryId && !byDescription.has(key)) byDescription.set(key, categoryId)
+    }
+    return byDescription
+  }
+
   async parseWithProfile(userId: string, uploadedFileId: string, importProfileId: string): Promise<ParseWithProfileResult> {
     return runInTenantContext(this.db, userId, async (tx) => {
       const { profile, parsedByIndex } = await this.reparseFile(tx, uploadedFileId, importProfileId)
@@ -128,13 +149,22 @@ export class ImportRunsService {
           existing.map((t) => `${t.accountId}|${t.date}|${Number(t.amount)}|${normalizeDescription(t.description)}`),
         )
 
+        const pastCategories = await this.pastCategoriesByDescription(tx)
+
         for (const [rowIndex, row] of parsedRows) {
           const key = `${profile.accountId}|${row.date}|${row.amount}|${normalizeDescription(row.description)}`
           if (existingKeys.has(key)) {
             skippedDuplicateCount += 1
             continue
           }
-          rows.push({ rowIndex, date: row.date, amount: row.amount, currencyCode: row.currencyCode, description: row.description })
+          rows.push({
+            rowIndex,
+            date: row.date,
+            amount: row.amount,
+            currencyCode: row.currencyCode,
+            description: row.description,
+            suggestedCategoryId: pastCategories.get(normalizeDescription(row.description)) ?? null,
+          })
         }
       }
 

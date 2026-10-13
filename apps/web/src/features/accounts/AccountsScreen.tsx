@@ -313,6 +313,7 @@ export function AccountsScreen() {
               amount: t.amount,
               currencyCode: t.currencyCode,
               description: t.description,
+              suggestedCategoryId: null,
             }))}
             categories={activeCategories}
             skipHint="Skipped transactions stay Uncategorized — close anytime and your choices so far are saved."

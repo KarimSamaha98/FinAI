@@ -2060,3 +2060,76 @@ dialog::backdrop {
   color: var(--text-muted);
   font-size: 0.85rem;
 }
+
+/* ── Import review (last step of an import) ────────────────────────────── */
+.import-review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.import-review-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'main amount'
+    'category category';
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+}
+
+.import-review-row + .import-review-row {
+  border-top: 1px solid var(--border);
+}
+
+.import-review-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.import-review-description {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.import-review-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.import-review-amount {
+  grid-area: amount;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.import-review-category {
+  grid-area: category;
+  display: grid;
+  /* The second column keeps the selects aligned whether or not a row has the Auto badge. */
+  grid-template-columns: minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.import-review-category select {
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .import-review-row {
+    grid-template-columns: minmax(0, 1fr) 15rem 7.5rem;
+    grid-template-areas: 'main category amount';
+  }
+
+  .import-review-amount {
+    text-align: right;
+  }
+}
