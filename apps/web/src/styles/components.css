@@ -2199,24 +2199,21 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 
-.category-delete-option {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: 0.9rem;
+.category-delete-question {
+  margin: 0;
+  font-weight: 600;
 }
 
-.category-delete-option span {
+.category-delete-text {
+  margin: 0;
+  font-size: 0.9rem;
   color: var(--text-muted);
 }
 
-.category-delete-option--danger {
-  border-color: var(--danger);
+.category-delete-text strong {
+  color: var(--text);
 }
 
-.category-delete-option--danger strong {
+.category-delete-text strong.category-delete-danger {
   color: var(--danger);
 }

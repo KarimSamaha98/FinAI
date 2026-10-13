@@ -4,7 +4,7 @@ import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { Modal } from '../../components/Modal'
-import { PencilIcon, PlusIcon, TrashIcon } from '../../components/icons'
+import { PencilIcon, TrashIcon } from '../../components/icons'
 import { useCategories } from '../../hooks/useCategories'
 
 /** Name prompt shared by Add and Rename. */
@@ -107,18 +107,16 @@ function DeleteCategoryModal({
 
   return (
     <Modal open onClose={onClose} title={`Delete “${category.name}”?`}>
-      <div className="category-delete-option">
-        <strong>Archive</strong>
-        <span>Hides it from category pickers. Transactions that already have it keep it.</span>
-      </div>
-      <div className="category-delete-option category-delete-option--danger">
-        <strong>Remove permanently</strong>
-        <span>
-          {transactionCount === 0
-            ? 'Deletes the category. No transactions use it. This can’t be undone.'
-            : `Deletes the category and takes it off ${usedOn} — they become Uncategorized. This can’t be undone.`}
-        </span>
-      </div>
+      <p className="category-delete-question">Are you sure?</p>
+      <p className="category-delete-text">
+        <strong>Archive</strong> – Hides it from category pickers. Transactions that already have it keep it.
+      </p>
+      <p className="category-delete-text">
+        <strong className="category-delete-danger">Remove permanently</strong> –{' '}
+        {transactionCount === 0
+          ? 'Deletes the category. No transactions use it. This can’t be undone.'
+          : `Deletes the category and takes it off ${usedOn} and they become Uncategorized. This can’t be undone.`}
+      </p>
       {error && <Alert variant="error">{error}</Alert>}
       <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
         <Button variant="danger" loading={busy === 'remove'} disabled={busy !== null} onClick={() => run('remove')}>
@@ -143,9 +141,9 @@ export function CategoriesSection() {
     <Card style={{ marginTop: 'var(--space-4)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)' }}>
         <h2 style={{ fontSize: '1rem', margin: 0 }}>Categories</h2>
-        <button type="button" className="icon-button" aria-label="Add category" title="Add category" onClick={() => setDialog({ kind: 'add' })}>
-          <PlusIcon />
-        </button>
+        <Button variant="primary" onClick={() => setDialog({ kind: 'add' })}>
+          Add Category
+        </Button>
       </div>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'var(--space-1)' }}>
         Add your own categories, rename them, or delete the ones you don’t use.
