@@ -47,12 +47,27 @@ export class ExchangeRatesService {
     return nearestRate(asObservations(await this.repo.listRange(base, quote, from, date)), date)
   }
 
+  /**
+   * The rate on `date` (or the nearest earlier cached day) WITHOUT fetching —
+   * for callers that have already warmed the range via ensureRatesFor. A null
+   * means a genuine data gap, not a cold cache.
+   */
+  async rateFromCache(base: string, quote: string, date: string): Promise<number | null> {
+    if (base === quote) return 1
+    const from = format(addDays(parseISO(date), -LOOKBACK_DAYS), 'yyyy-MM-dd')
+    return nearestRate(asObservations(await this.repo.listRange(base, quote, from, date)), date)
+  }
+
   /** Ensure daily base→quote rates over [from, to] are cached, fetching any missing days in one request. */
   async ensureRates(base: string, quote: string, from: string, to: string): Promise<void> {
     if (base === quote) return
-    const existing = new Set((await this.repo.listRange(base, quote, from, to)).map((r) => r.date))
+    const existing = await this.repo.listRange(base, quote, from, to)
+    // Skip the network when the range is already covered at both ends —
+    // avoids a redundant round-trip on every call once the cache is warm.
+    if (rangeCovered(existing, from, to)) return
     const fetched = await this.provider.fetchTimeSeries(base, quote, from, to)
-    const missing = fetched.filter((observation) => !existing.has(observation.date))
+    const have = new Set(existing.map((r) => r.date))
+    const missing = fetched.filter((observation) => !have.has(observation.date))
     if (missing.length) {
       await this.repo.upsertMany(missing.map((observation) => ({ base, quote, date: observation.date, rate: observation.rate })))
     }
@@ -107,4 +122,17 @@ export class ExchangeRatesService {
 
 function asObservations(rates: StoredRate[]): RateObservation[] {
   return rates.map((rate) => ({ date: rate.date, rate: rate.rate }))
+}
+
+/**
+ * True when the cached rates already span [from, to] — i.e. there's an
+ * observation within a week of each end. Frankfurter's blended series has no
+ * interior gaps other than weekends/holidays covered by the nearest-prior
+ * fallback, so this is a safe "already fetched" signal.
+ */
+function rangeCovered(existing: StoredRate[], from: string, to: string): boolean {
+  if (existing.length === 0) return false
+  const nearStart = format(addDays(parseISO(from), 7), 'yyyy-MM-dd')
+  const nearEnd = format(addDays(parseISO(to), -7), 'yyyy-MM-dd')
+  return existing[0].date <= nearStart && existing[existing.length - 1].date >= nearEnd
 }

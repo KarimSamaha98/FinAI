@@ -94,16 +94,17 @@ describe('ExchangeRatesService.rateOnDate', () => {
 })
 
 describe('ExchangeRatesService.ensureRates', () => {
-  it('upserts only the missing days and is idempotent', async () => {
+  it('upserts only the missing days and skips the fetch once the range is covered', async () => {
     const { service, store, provider } = makeService()
     await service.ensureRates('USD', 'CAD', '2026-10-01', '2026-10-05')
     expect(store.rows.size).toBe(3)
     expect(store.upsertCalls).toBe(1)
+    expect(provider.calls).toBe(1)
 
-    // Nothing missing the second time → no upsert.
+    // Range already covered → no fetch, no writes.
     await service.ensureRates('USD', 'CAD', '2026-10-01', '2026-10-05')
     expect(store.upsertCalls).toBe(1)
-    expect(provider.calls).toBe(2) // one fetch each call, but no duplicate writes
+    expect(provider.calls).toBe(1)
   })
 })
 

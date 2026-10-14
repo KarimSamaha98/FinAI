@@ -259,11 +259,13 @@ export class AccountsService {
    * whose balance currency has no rate to home is excluded as a whole.
    */
   async netWorth(userId: string): Promise<NetWorth> {
+    const asOf = todayISO()
+    // Warm the rate cache for every account currency once, so toSummary below
+    // never does per-account network I/O inside the tenant transaction.
+    const homeCurrencyCode = await this.ensureHomeRates(userId, asOf, asOf)
     return runInTenantContext(this.db, userId, async (tx) => {
-      const homeCurrencyCode = await this.homeCurrencyCode(tx, userId)
       const accountRows = await tx.select().from(accounts).where(eq(accounts.isArchived, false)).orderBy(accounts.name)
       const summaries = await Promise.all(accountRows.map((row) => this.toSummary(tx, row, homeCurrencyCode)))
-      const asOf = todayISO()
 
       const netAccounts: NetWorthAccount[] = []
       const excludedAccounts: NetWorth['excludedAccounts'] = []
@@ -277,7 +279,7 @@ export class AccountsService {
           netAccounts.push(toNetWorthAccount(summary, summary.balance))
           continue
         }
-        const rate = await this.exchangeRates.rateOnDate(summary.balanceCurrencyCode, homeCurrencyCode, asOf)
+        const rate = await this.exchangeRates.rateFromCache(summary.balanceCurrencyCode, homeCurrencyCode, asOf)
         if (rate == null) {
           excludedAccounts.push({ id: summary.id, name: summary.name, currencyCode: summary.balanceCurrencyCode, balance: summary.balance })
           continue
@@ -305,8 +307,11 @@ export class AccountsService {
    * starts from the historical balance at `from`, not from zero.
    */
   async netWorthSeries(userId: string, from: string, to: string): Promise<NetWorthSeries> {
+    // Warm each account currency across the whole [from, to] range in one
+    // time-series request per currency — otherwise the per-bucket loop below
+    // would fire a separate network fetch for every (account, bucket).
+    const homeCurrencyCode = await this.ensureHomeRates(userId, from, to)
     return runInTenantContext(this.db, userId, async (tx) => {
-      const homeCurrencyCode = await this.homeCurrencyCode(tx, userId)
       const accountRows = await tx.select().from(accounts).where(eq(accounts.isArchived, false)).orderBy(accounts.name)
       const counting = await this.countingByAccount(tx, accountRows)
 
@@ -323,7 +328,7 @@ export class AccountsService {
           const cutoff = format(bucket.end, 'yyyy-MM-dd')
           if (isMultiCurrency(account, rows)) {
             const startRate =
-              startRateFixed ?? (await this.exchangeRates.rateOnDate(account.currencyCode, homeCurrencyCode, cutoff))
+              startRateFixed ?? (await this.exchangeRates.rateFromCache(account.currencyCode, homeCurrencyCode, cutoff))
             const home = homeBalanceAt(account, rows, startRate, cutoff)
             if (home == null) {
               excludedAccountIds.add(account.id)
@@ -335,7 +340,7 @@ export class AccountsService {
             if (account.currencyCode === homeCurrencyCode) {
               totalsByBucket.set(bucket.key, totalsByBucket.get(bucket.key)! + own)
             } else {
-              const rate = await this.exchangeRates.rateOnDate(account.currencyCode, homeCurrencyCode, cutoff)
+              const rate = await this.exchangeRates.rateFromCache(account.currencyCode, homeCurrencyCode, cutoff)
               if (rate == null) {
                 excludedAccountIds.add(account.id)
                 continue
@@ -369,6 +374,26 @@ export class AccountsService {
   private async homeCurrencyCode(tx: Db, userId: string): Promise<string> {
     const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
     return profileRow.homeCurrencyCode
+  }
+
+  /**
+   * Warm the rate cache for every non-archived account currency over [from, to]
+   * so later conversions are cache-only. `ensureRatesFor` issues one provider
+   * request per currency and no-ops when the range is already cached (the
+   * cheap path for the common single-currency, home-currency account).
+   */
+  private async ensureHomeRates(userId: string, from: string, to: string): Promise<string> {
+    const { homeCurrencyCode, currencies } = await runInTenantContext(this.db, userId, async (tx) => {
+      const home = await this.homeCurrencyCode(tx, userId)
+      const rows = await tx.select({ currencyCode: accounts.currencyCode }).from(accounts).where(eq(accounts.isArchived, false))
+      return { homeCurrencyCode: home, currencies: [...new Set(rows.map((r) => r.currencyCode))] }
+    })
+    const rows = currencies.flatMap((currencyCode) => [
+      { currencyCode, date: from },
+      { currencyCode, date: to },
+    ])
+    await this.exchangeRates.ensureRatesFor(rows, homeCurrencyCode)
+    return homeCurrencyCode
   }
 
   /** All counting transactions (dated after balance_as_of) per account, with their materialized home value. */
