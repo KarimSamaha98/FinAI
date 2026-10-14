@@ -4,7 +4,9 @@ import { CategorySelect } from '../../components/CategorySelect'
 import { AccountSelect } from '../../components/AccountSelect'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
-import { CURRENCY_CODES } from '../../lib/currencies'
+import { CURRENCY_OPTIONS } from '../../lib/currencies'
+import { FieldSelect } from '../../components/FieldSelect'
+import { FieldDatePicker } from '../../components/FieldDatePicker'
 import { useProfile } from '../../hooks/useProfile'
 
 export interface TransactionFormValues {
@@ -91,14 +93,18 @@ export function TransactionForm({ categories, accounts, fixedAccountId, initialV
       <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
         <label style={{ flex: 1 }}>
           Date
-          <input type="date" required value={values.date} onChange={(e) => setValues({ ...values, date: e.target.value })} />
+          <FieldDatePicker required value={values.date} onChange={(date) => setValues({ ...values, date })} />
         </label>
         <label style={{ flex: 1 }}>
           Type
-          <select value={values.type} onChange={(e) => setValues({ ...values, type: e.target.value as 'expense' | 'income' })}>
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-          </select>
+          <FieldSelect
+            value={values.type}
+            options={[
+              { value: 'expense', label: 'Expense' },
+              { value: 'income', label: 'Income' },
+            ]}
+            onChange={(type) => setValues({ ...values, type })}
+          />
         </label>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
@@ -115,13 +121,7 @@ export function TransactionForm({ categories, accounts, fixedAccountId, initialV
         </label>
         <label style={{ flex: 1 }}>
           Currency
-          <select value={values.currencyCode} onChange={(e) => setValues({ ...values, currencyCode: e.target.value })}>
-            {CURRENCY_CODES.map((code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ))}
-          </select>
+          <FieldSelect value={values.currencyCode} options={CURRENCY_OPTIONS} onChange={(currencyCode) => setValues({ ...values, currencyCode })} />
         </label>
       </div>
       <label>
