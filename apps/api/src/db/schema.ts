@@ -2,10 +2,12 @@ import {
   boolean,
   check,
   date,
+  index,
   integer,
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -131,6 +133,11 @@ export const transactions = pgTable('transactions', {
   sourceType: text('source_type', { enum: ['manual', 'import'] }).notNull(),
   importProfileId: uuid('import_profile_id').references(() => importProfiles.id),
   importRunId: uuid('import_run_id').references(() => importRuns.id),
+  // Home-currency materialization (see exchange_rates migration): the rate
+  // currency_code → home and amount × rate, computed at write time.
+  exchangeRate: numeric('exchange_rate', { precision: 18, scale: 8 }),
+  convertedValue: numeric('converted_value', { precision: 14, scale: 2 }),
+  rateSource: text('rate_source', { enum: ['auto', 'manual'] }).notNull().default('auto'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -182,4 +189,24 @@ export const fxRates = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('fx_rates_user_pair_key').on(table.userId, table.baseCurrency, table.quoteCurrency)],
+)
+
+/** Global, non-tenant daily rate cache (see the exchange_rates migration) — readable/writable by the app without a tenant context. */
+export const exchangeRates = pgTable(
+  'exchange_rates',
+  {
+    baseCurrency: text('base_currency')
+      .notNull()
+      .references(() => currencies.code),
+    quoteCurrency: text('quote_currency')
+      .notNull()
+      .references(() => currencies.code),
+    date: date('date').notNull(),
+    rate: numeric('rate', { precision: 18, scale: 8 }).notNull(),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.baseCurrency, table.quoteCurrency, table.date] }),
+    index('exchange_rates_lookup_idx').on(table.baseCurrency, table.quoteCurrency, sql`${table.date} desc`),
+  ],
 )

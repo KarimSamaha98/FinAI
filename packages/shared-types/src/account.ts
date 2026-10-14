@@ -68,6 +68,12 @@ export type UpdateAccountInput = z.infer<typeof UpdateAccountInputSchema>;
  */
 export const AccountSummarySchema = AccountSchema.extend({
   balance: z.number(),
+  /**
+   * The currency `balance` is expressed in. Normally the account's own
+   * currency; a multi-currency account is reported in the home currency (its
+   * transactions span currencies, so its balance is the home-currency total).
+   */
+  balanceCurrencyCode: CurrencyCodeSchema,
   lastTransactionDate: z.string().date().nullable(),
   lastTransactionUpdatedAt: z.string().datetime().nullable(),
   lastBalanceUpdatedAt: z.string().datetime(),

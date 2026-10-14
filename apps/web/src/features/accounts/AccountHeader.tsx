@@ -27,7 +27,7 @@ export function AccountHeader({ account, hasProfile }: AccountHeaderProps) {
         </span>
       </div>
       <p className="mono" style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }}>
-        {formatCurrency(account.balance, account.currencyCode)}
+        {formatCurrency(account.balance, account.balanceCurrencyCode)}
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1) var(--space-3)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
         <span>Last transaction updated: {account.lastTransactionUpdatedAt ? formatDate(account.lastTransactionUpdatedAt.slice(0, 10)) : '—'}</span>

@@ -15,6 +15,7 @@ import { ReconciliationModule } from './modules/reconciliation/reconciliation.mo
 import { MonthSplitModule } from './modules/month-split/month-split.module.js'
 import { ReportingModule } from './modules/reporting/reporting.module.js'
 import { FxRatesModule } from './modules/fx-rates/fx-rates.module.js'
+import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module.js'
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { FxRatesModule } from './modules/fx-rates/fx-rates.module.js'
     MonthSplitModule,
     ReportingModule,
     FxRatesModule,
+    ExchangeRatesModule,
   ],
   controllers: [HealthController],
 })

@@ -5,6 +5,7 @@ import { AccountSelect } from '../../components/AccountSelect'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { CURRENCY_CODES } from '../../lib/currencies'
+import { useProfile } from '../../hooks/useProfile'
 
 export interface TransactionFormValues {
   date: string
@@ -14,6 +15,8 @@ export interface TransactionFormValues {
   description: string
   categoryId: string | null
   accountId: string | null
+  /** Explicit currency → home rate; empty string means "use the automatic rate". */
+  fxRateOverride: string
 }
 
 function emptyValues(fixedAccountId: string | null): TransactionFormValues {
@@ -25,6 +28,7 @@ function emptyValues(fixedAccountId: string | null): TransactionFormValues {
     description: '',
     categoryId: null,
     accountId: fixedAccountId,
+    fxRateOverride: '',
   }
 }
 
@@ -39,6 +43,8 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ categories, accounts, fixedAccountId, initialValues, onSubmit, onCancel }: TransactionFormProps) {
+  const { profile } = useProfile()
+  const homeCurrency = profile?.homeCurrencyCode ?? null
   const [values, setValues] = useState<TransactionFormValues>(initialValues ?? emptyValues(fixedAccountId))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +70,8 @@ export function TransactionForm({ categories, accounts, fixedAccountId, initialV
         description: values.description,
         categoryId: values.categoryId,
         accountId: values.accountId,
+        // Empty = let the API use the automatic market rate for the date.
+        fxRateOverride: values.fxRateOverride.trim() === '' ? null : Number(values.fxRateOverride),
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save transaction')
@@ -120,6 +128,22 @@ export function TransactionForm({ categories, accounts, fixedAccountId, initialV
         Description
         <input type="text" value={values.description} onChange={(e) => setValues({ ...values, description: e.target.value })} />
       </label>
+      {homeCurrency && values.currencyCode !== homeCurrency && (
+        <label>
+          Exchange rate — 1 {values.currencyCode} =
+          <input
+            type="number"
+            step="0.0001"
+            min="0"
+            placeholder={`auto (${homeCurrency})`}
+            value={values.fxRateOverride}
+            onChange={(e) => setValues({ ...values, fxRateOverride: e.target.value })}
+          />
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+            Optional. Leave blank to use the market rate for {values.date} ({homeCurrency}).
+          </span>
+        </label>
+      )}
       <label>
         Category
         <CategorySelect categories={categories} value={values.categoryId} onChange={(categoryId) => setValues({ ...values, categoryId })} />

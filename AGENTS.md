@@ -8,9 +8,9 @@ FinAI: personal finance tracker. pnpm monorepo — `apps/web` (React 19 + Vite P
 - `pnpm build` — ordered: shared-types → web → api.
 - `pnpm lint` — oxlint, zero-config (no config file; shared-types lint is a no-op echo).
 - `pnpm typecheck` — per-package `tsc --noEmit` (web uses `tsc -b`).
-- `pnpm test` — only `apps/api` has a test script (`vitest run`). **No test files exist yet** (`apps/api/test/{e2e,fixtures}` are empty scaffolding), so this currently fails with "No test files found". Web has no test script. There is no CI.
+- `pnpm test` — only `apps/api` has a test script (`vitest run`). Unit tests live in `apps/api/test/` (typechecked, excluded from the prod build). Web has no test script. There is no CI.
 - Single package: `pnpm --filter api|web|shared-types run <script>`.
-- **Demo data**: `pnpm seed:demo` (no-op if the demo user exists) / `pnpm seed:demo:reset` (delete + reseed, deterministic) / `pnpm reset:demo` (db reset + reseed) / `pnpm setup:dev` (full local bring-up) / `pnpm generate:csv -- --rows N` (writes a CIBC-style import-test CSV; `apps/api/src/seed/generate-import-csv.ts`). Seeder lives in `apps/api/src/seed/` (tsx, excluded from the prod build; needs Supabase running + `apps/api/.env`; refuses non-local backends unless `ALLOW_NON_LOCAL_SEED=true`). The demo user's Everyday Checking account has a `CIBC card export` import profile matching `generate:csv` output and real CIBC statements.
+- **Demo data**: `pnpm seed:demo` (no-op if the demo user exists) / `pnpm seed:demo:reset` (delete + reseed, deterministic) / `pnpm reset:demo` (db reset + reseed) / `pnpm setup:dev` (full local bring-up) / `pnpm generate:csv -- --rows N` (writes a CIBC-style import-test CSV; `apps/api/src/seed/generate-import-csv.ts`) / `pnpm recompute:fx` (backfill home-currency values for existing transactions; `apps/api/src/seed/recompute-fx.ts`). Seeder lives in `apps/api/src/seed/` (tsx, excluded from the prod build; needs Supabase running + `apps/api/.env`; refuses non-local backends unless `ALLOW_NON_LOCAL_SEED=true`). The demo user's Everyday Checking account has a `CIBC card export` import profile matching `generate:csv` output and real CIBC statements.
 
 ## Setup
 
@@ -31,6 +31,7 @@ FinAI: personal finance tracker. pnpm monorepo — `apps/web` (React 19 + Vite P
 ## Domain rules baked into the code
 
 - Canonical sign convention: `amount` is **negative = expense, positive = income**, normalized once at ingestion. All downstream math is plain `SUM(amount)`.
+- **FX is materialized on write, not converted on read.** Each transaction stores `exchange_rate` (its currency → home) and `converted_value` (= amount × rate), computed at write time from the Frankfurter API (see `apps/api/src/modules/exchange-rates/`). Insights/charts just `SUM(converted_value)`. Net worth is a *stock* — it converts each account balance once at the current rate, never the per-transaction values. A user can override a transaction's rate (`fx_override` → `rate_source='manual'`); changing the home currency recomputes every transaction (`recomputeForUser`). Rates are cached in the global `exchange_rates` table (public, non-tenant — the one table with permissive RLS).
 - Nominal vs. "real" view (reconciliation collapse + month-split expansion + FX conversion) is computed **on read, never stored**, and lives once in `ReportingQueryService` (`apps/api/src/modules/reporting/reporting-query.service.ts`), reused by the transactions display endpoint and charts. Don't reimplement this logic elsewhere.
 - A transaction cannot be both reconciled and month-split — enforced at the service layer, not the DB.
 - Reconciliation and month-splits are non-destructive: member/split rows only; underlying transactions are never mutated.

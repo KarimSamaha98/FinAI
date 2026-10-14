@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { eq } from 'drizzle-orm'
 import { format, parseISO } from 'date-fns'
 import type {
   AmountKind,
   BucketGranularity,
   CategoryBreakdownResponse,
   DashboardSummary,
+  DisplayRow,
   ExcludedCurrency,
   TimeseriesResponse,
   TransactionView,
@@ -13,14 +13,12 @@ import type {
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { categories, profiles } from '../../db/schema.js'
+import { categories } from '../../db/schema.js'
 import { ReportingQueryService, type ListTransactionsFilter } from './reporting-query.service.js'
-import { convertToTargetCurrency, type ConvertedRow } from './fx-conversion.js'
 import { buildBuckets, resolveGranularity, type Bucket } from './buckets.js'
-import type { DisplayRow } from 'shared-types'
 
 interface ConversionResult {
-  converted: ConvertedRow<DisplayRow>[]
+  converted: { row: DisplayRow; convertedAmount: number }[]
   excludedCurrencies: ExcludedCurrency[]
 }
 
@@ -128,12 +126,26 @@ export class ChartAggregationService {
     return { totalExpense, totalIncome, netIncome, savingsRate, excludedCurrencies }
   }
 
+  /**
+   * Home-currency values are materialized on each transaction at write time
+   * (see ExchangeRatesService), so aggregating is a plain sum of the stored
+   * converted_value. A row whose value could not be resolved is tallied as an
+   * excluded currency rather than thrown.
+   */
   private async getConvertedRows(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<ConversionResult> {
     const rows = await this.reportingQueryService.listDisplayRows(userId, filter, view)
-
-    return runInTenantContext(this.db, userId, async (tx) => {
-      const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
-      return convertToTargetCurrency(tx, rows, profileRow.homeCurrencyCode)
-    })
+    const excluded = new Map<string, number>()
+    const converted: ConversionResult['converted'] = []
+    for (const row of rows) {
+      if (row.convertedValue == null) {
+        excluded.set(row.currencyCode, (excluded.get(row.currencyCode) ?? 0) + 1)
+        continue
+      }
+      converted.push({ row, convertedAmount: row.convertedValue })
+    }
+    return {
+      converted,
+      excludedCurrencies: [...excluded.entries()].map(([currencyCode, transactionCount]) => ({ currencyCode, transactionCount })),
+    }
   }
 }

@@ -205,6 +205,8 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
       sourceTransactionIds: [],
       reconciliationGroupId: null,
       monthSplitId: null,
+      convertedValue: null,
+      rateSource: 'auto',
     })
   }
 

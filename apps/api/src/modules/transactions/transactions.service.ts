@@ -4,9 +4,11 @@ import type { CategorizeTransactionsInput, CreateTransactionInput, Transaction, 
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { transactions } from '../../db/schema.js'
+import { profiles, transactions } from '../../db/schema.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 import type { ListTransactionsFilter } from '../reporting/reporting-query.service.js'
+import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.js'
+import { type TransactionConversion } from '../exchange-rates/conversion.js'
 
 type TransactionRow = typeof transactions.$inferSelect
 
@@ -23,14 +25,28 @@ function toTransaction(row: TransactionRow): Transaction {
     sourceType: row.sourceType,
     importProfileId: row.importProfileId,
     importRunId: row.importRunId,
+    exchangeRate: row.exchangeRate != null ? Number(row.exchangeRate) : null,
+    convertedValue: row.convertedValue != null ? Number(row.convertedValue) : null,
+    rateSource: row.rateSource,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
 }
 
+function conversionColumns(conversion: TransactionConversion) {
+  return {
+    exchangeRate: conversion.exchangeRate != null ? String(conversion.exchangeRate) : null,
+    convertedValue: conversion.convertedValue != null ? String(conversion.convertedValue) : null,
+    rateSource: conversion.rateSource,
+  }
+}
+
 @Injectable()
 export class TransactionsService {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(ExchangeRatesService) private readonly exchangeRates: ExchangeRatesService,
+  ) {}
 
   async list(userId: string, filter: ListTransactionsFilter): Promise<Transaction[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
@@ -61,11 +77,30 @@ export class TransactionsService {
   }
 
   async create(userId: string, input: CreateTransactionInput): Promise<Transaction> {
+    const homeCurrencyCode = await this.homeCurrencyCode(userId)
+    const conversion = await this.exchangeRates.conversionFor({
+      amount: input.amount,
+      currencyCode: input.currencyCode,
+      homeCurrencyCode,
+      date: input.date,
+      override: input.fxRateOverride ?? null,
+    })
+
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
         const [row] = await tx
           .insert(transactions)
-          .values({ ...input, amount: String(input.amount), userId, sourceType: 'manual' })
+          .values({
+            userId,
+            date: input.date,
+            amount: String(input.amount),
+            currencyCode: input.currencyCode,
+            description: input.description,
+            categoryId: input.categoryId,
+            accountId: input.accountId,
+            sourceType: 'manual',
+            ...conversionColumns(conversion),
+          })
           .returning()
         return toTransaction(row)
       } catch (error) {
@@ -75,12 +110,43 @@ export class TransactionsService {
   }
 
   async update(userId: string, id: string, input: UpdateTransactionInput): Promise<Transaction> {
+    // Read the current row + home currency first: the conversion needs the
+    // effective date/amount/currency, and its rate fetch must not run inside
+    // the write transaction.
+    const current = await runInTenantContext(this.db, userId, async (tx) => {
+      const [row] = await tx.select().from(transactions).where(eq(transactions.id, id))
+      if (!row) throw new NotFoundException('Transaction not found')
+      const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
+      return { row, homeCurrencyCode: profileRow.homeCurrencyCode }
+    })
+
+    const nextDate = input.date ?? current.row.date
+    const nextAmount = input.amount ?? Number(current.row.amount)
+    const nextCurrency = input.currencyCode ?? current.row.currencyCode
+    // An explicit override (or explicit null) wins; otherwise a manual rate is
+    // preserved only while the currency is unchanged; otherwise auto.
+    const preservedManual =
+      input.fxRateOverride === undefined && current.row.rateSource === 'manual' && nextCurrency === current.row.currencyCode
+    const override = input.fxRateOverride !== undefined ? input.fxRateOverride : preservedManual ? Number(current.row.exchangeRate) : null
+    const conversion = await this.exchangeRates.conversionFor({
+      amount: nextAmount,
+      currencyCode: nextCurrency,
+      homeCurrencyCode: current.homeCurrencyCode,
+      date: nextDate,
+      override,
+    })
+
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
-        const { id: _id, amount, ...rest } = input
+        const { id: _id, amount, fxRateOverride: _override, ...rest } = input
         const [row] = await tx
           .update(transactions)
-          .set({ ...rest, ...(amount !== undefined ? { amount: String(amount) } : {}), updatedAt: new Date() })
+          .set({
+            ...rest,
+            ...(amount !== undefined ? { amount: String(amount) } : {}),
+            ...conversionColumns(conversion),
+            updatedAt: new Date(),
+          })
           .where(eq(transactions.id, id))
           .returning()
         if (!row) {
@@ -120,6 +186,52 @@ export class TransactionsService {
       if (!row) {
         throw new NotFoundException('Transaction not found')
       }
+    })
+  }
+
+  /**
+   * Recompute the home-currency value of every transaction (used after a
+   * home-currency change and by the backfill). A user's manual override was
+   * expressed against the old home currency, so it is reset to the automatic
+   * market rate here. Rates are ensured (fetched) before the write, keeping
+   * network I/O out of the tenant transaction.
+   */
+  async recomputeForUser(userId: string): Promise<number> {
+    const homeCurrencyCode = await this.homeCurrencyCode(userId)
+    const rows = await runInTenantContext(this.db, userId, (tx) => tx.select().from(transactions))
+    if (rows.length === 0) return 0
+
+    await this.exchangeRates.ensureRatesFor(
+      rows.map((row) => ({ currencyCode: row.currencyCode, date: row.date })),
+      homeCurrencyCode,
+    )
+
+    const conversions = await Promise.all(
+      rows.map(async (row) => ({
+        id: row.id,
+        conversion: await this.exchangeRates.conversionFor({
+          amount: Number(row.amount),
+          currencyCode: row.currencyCode,
+          homeCurrencyCode,
+          date: row.date,
+          override: null,
+        }),
+      })),
+    )
+
+    await runInTenantContext(this.db, userId, async (tx) => {
+      const now = new Date()
+      for (const { id, conversion } of conversions) {
+        await tx.update(transactions).set({ ...conversionColumns(conversion), updatedAt: now }).where(eq(transactions.id, id))
+      }
+    })
+    return conversions.length
+  }
+
+  private async homeCurrencyCode(userId: string): Promise<string> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
+      return profileRow.homeCurrencyCode
     })
   }
 }

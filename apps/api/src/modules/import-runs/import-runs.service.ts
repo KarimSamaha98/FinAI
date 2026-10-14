@@ -5,9 +5,10 @@ import type { CommitImportRunInput, CommitImportRunResult, ParseWithProfileResul
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { categories, importProfiles, importRuns, transactions, uploadedFiles } from '../../db/schema.js'
+import { categories, importProfiles, importRuns, profiles, transactions, uploadedFiles } from '../../db/schema.js'
 import { StorageService } from '../../storage/storage.module.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
+import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.js'
 import { parseRawRows } from './file-parsing.js'
 import { parseRow, RowParseError, type ParsedRow } from './column-mapping.js'
 
@@ -29,6 +30,7 @@ export class ImportRunsService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(StorageService) private readonly storage: StorageService,
+    @Inject(ExchangeRatesService) private readonly exchangeRates: ExchangeRatesService,
   ) {}
 
   async uploadFile(userId: string, input: UploadFileInput) {
@@ -177,39 +179,78 @@ export class ImportRunsService {
   }
 
   async commit(userId: string, input: CommitImportRunInput): Promise<CommitImportRunResult> {
+    // Phase 1 (tenant, read-only): validate the run, re-parse the file, and read
+    // the home currency. Rate resolution does network I/O, so it must happen
+    // outside the tenant transaction — the insert is a separate phase.
+    const prepped = await runInTenantContext(this.db, userId, async (tx) => {
+      const [run] = await tx.select().from(importRuns).where(eq(importRuns.id, input.importRunId))
+      if (!run) throw new NotFoundException('Import run not found')
+      if (run.status !== 'pending_review') {
+        throw new ConflictException(`Import run has already been ${run.status}`)
+      }
+      const { profile, parsedByIndex } = await this.reparseFile(tx, run.uploadedFileId, run.importProfileId)
+      const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
+
+      const selected = input.rows.map(({ rowIndex, categoryId }) => {
+        const parsed = parsedByIndex.get(rowIndex)
+        if (!parsed) {
+          throw new BadRequestException(`Row ${rowIndex} is no longer present in the source file`)
+        }
+        return { ...parsed, categoryId }
+      })
+
+      return {
+        runId: run.id,
+        importProfileId: run.importProfileId,
+        accountId: profile.accountId,
+        homeCurrencyCode: profileRow.homeCurrencyCode,
+        selected,
+      }
+    })
+
+    // Phase 2: ensure the rates (network) and materialize each row's home value.
+    await this.exchangeRates.ensureRatesFor(prepped.selected, prepped.homeCurrencyCode)
+    const conversions = await Promise.all(
+      prepped.selected.map((row) =>
+        this.exchangeRates.conversionFor({
+          amount: row.amount,
+          currencyCode: row.currencyCode,
+          homeCurrencyCode: prepped.homeCurrencyCode,
+          date: row.date,
+          override: null,
+        }),
+      ),
+    )
+
+    // Phase 3 (tenant): re-check, insert + mark committed.
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
-        const [run] = await tx.select().from(importRuns).where(eq(importRuns.id, input.importRunId))
+        const [run] = await tx.select().from(importRuns).where(eq(importRuns.id, prepped.runId))
         if (!run) throw new NotFoundException('Import run not found')
         if (run.status !== 'pending_review') {
           throw new ConflictException(`Import run has already been ${run.status}`)
         }
 
-        const { profile, parsedByIndex } = await this.reparseFile(tx, run.uploadedFileId, run.importProfileId)
-
-        const toInsert = input.rows.map(({ rowIndex, categoryId }) => {
-          const parsed = parsedByIndex.get(rowIndex)
-          if (!parsed) {
-            throw new BadRequestException(`Row ${rowIndex} is no longer present in the source file`)
-          }
-          return {
-            userId,
-            date: parsed.date,
-            amount: String(parsed.amount),
-            currencyCode: parsed.currencyCode,
-            description: parsed.description,
-            categoryId,
-            sourceType: 'import' as const,
-            accountId: profile.accountId,
-            importProfileId: run.importProfileId,
-            importRunId: run.id,
-          }
-        })
+        const toInsert = prepped.selected.map((row, index) => ({
+          userId,
+          date: row.date,
+          amount: String(row.amount),
+          currencyCode: row.currencyCode,
+          description: row.description,
+          categoryId: row.categoryId,
+          sourceType: 'import' as const,
+          accountId: prepped.accountId,
+          importProfileId: prepped.importProfileId,
+          importRunId: prepped.runId,
+          exchangeRate: conversions[index].exchangeRate != null ? String(conversions[index].exchangeRate) : null,
+          convertedValue: conversions[index].convertedValue != null ? String(conversions[index].convertedValue) : null,
+          rateSource: conversions[index].rateSource,
+        }))
 
         if (toInsert.length > 0) {
           await tx.insert(transactions).values(toInsert)
         }
-        await tx.update(importRuns).set({ status: 'committed', committedAt: new Date() }).where(eq(importRuns.id, run.id))
+        await tx.update(importRuns).set({ status: 'committed', committedAt: new Date() }).where(eq(importRuns.id, prepped.runId))
 
         return { importedCount: toInsert.length }
       } catch (error) {

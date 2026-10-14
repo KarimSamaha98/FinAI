@@ -41,6 +41,7 @@ function toFormValues(transaction: Transaction): TransactionFormValues {
     description: transaction.description,
     categoryId: transaction.categoryId,
     accountId: transaction.accountId,
+    fxRateOverride: transaction.rateSource === 'manual' && transaction.exchangeRate != null ? String(transaction.exchangeRate) : '',
   }
 }
 
