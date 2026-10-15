@@ -187,7 +187,15 @@ export const CommitImportRunInputSchema = z.object({
 });
 export type CommitImportRunInput = z.infer<typeof CommitImportRunInputSchema>;
 
+/** Rows whose currency had no exchange rate; they import with an empty rate + converted value. */
+export const ImportWarningSchema = z.object({
+  currencyCode: CurrencyCodeSchema,
+  rowCount: z.number().int().nonnegative(),
+});
+export type ImportWarning = z.infer<typeof ImportWarningSchema>;
+
 export const CommitImportRunResultSchema = z.object({
   importedCount: z.number().int().nonnegative(),
+  warnings: z.array(ImportWarningSchema),
 });
 export type CommitImportRunResult = z.infer<typeof CommitImportRunResultSchema>;

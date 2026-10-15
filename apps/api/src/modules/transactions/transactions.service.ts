@@ -4,7 +4,8 @@ import type { CategorizeTransactionsInput, CreateTransactionInput, Transaction, 
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { profiles, transactions } from '../../db/schema.js'
+import { transactions } from '../../db/schema.js'
+import { loadHomeCurrency } from '../../common/profile.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 import type { ListTransactionsFilter } from '../reporting/reporting-query.service.js'
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.js'
@@ -116,8 +117,7 @@ export class TransactionsService {
     const current = await runInTenantContext(this.db, userId, async (tx) => {
       const [row] = await tx.select().from(transactions).where(eq(transactions.id, id))
       if (!row) throw new NotFoundException('Transaction not found')
-      const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
-      return { row, homeCurrencyCode: profileRow.homeCurrencyCode }
+      return { row, homeCurrencyCode: await loadHomeCurrency(tx, userId) }
     })
 
     const nextDate = input.date ?? current.row.date
@@ -193,18 +193,15 @@ export class TransactionsService {
    * Recompute the home-currency value of every transaction (used after a
    * home-currency change and by the backfill). A user's manual override was
    * expressed against the old home currency, so it is reset to the automatic
-   * market rate here. Rates are ensured (fetched) before the write, keeping
-   * network I/O out of the tenant transaction.
+   * market rate here. Rates are warmed before the write, keeping network I/O
+   * out of the tenant transaction.
    */
   async recomputeForUser(userId: string): Promise<number> {
     const homeCurrencyCode = await this.homeCurrencyCode(userId)
     const rows = await runInTenantContext(this.db, userId, (tx) => tx.select().from(transactions))
     if (rows.length === 0) return 0
 
-    await this.exchangeRates.ensureRatesFor(
-      rows.map((row) => ({ currencyCode: row.currencyCode, date: row.date })),
-      homeCurrencyCode,
-    )
+    await this.exchangeRates.warm(rows.map((row) => row.currencyCode))
 
     const conversions = await Promise.all(
       rows.map(async (row) => ({
@@ -228,10 +225,48 @@ export class TransactionsService {
     return conversions.length
   }
 
-  private async homeCurrencyCode(userId: string): Promise<string> {
-    return runInTenantContext(this.db, userId, async (tx) => {
-      const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
-      return profileRow.homeCurrencyCode
+  /**
+   * Re-materialize only the transactions whose home-currency value is missing
+   * (a conversion that failed at write time, e.g. a provider outage during an
+   * import). Manual overrides are never touched. Rows that still can't be
+   * priced are left for the next attempt. Run opportunistically on login.
+   */
+  async recomputeMissingForUser(userId: string): Promise<number> {
+    const homeCurrencyCode = await this.homeCurrencyCode(userId)
+    const rows = await runInTenantContext(this.db, userId, (tx) => tx.select().from(transactions))
+    const missing = rows.filter(
+      (row) => row.currencyCode !== homeCurrencyCode && row.rateSource === 'auto' && (row.exchangeRate == null || row.convertedValue == null),
+    )
+    if (missing.length === 0) return 0
+
+    await this.exchangeRates.warm(missing.map((row) => row.currencyCode))
+
+    const conversions = await Promise.all(
+      missing.map(async (row) => ({
+        id: row.id,
+        conversion: await this.exchangeRates.conversionFor({
+          amount: Number(row.amount),
+          currencyCode: row.currencyCode,
+          homeCurrencyCode,
+          date: row.date,
+          override: null,
+        }),
+      })),
+    )
+    // A conversion can still come back unpriced (the provider is down); only
+    // write the rows that resolved, and leave the rest for the next attempt.
+    const resolved = conversions.filter((entry) => entry.conversion.convertedValue != null)
+
+    await runInTenantContext(this.db, userId, async (tx) => {
+      const now = new Date()
+      for (const entry of resolved) {
+        await tx.update(transactions).set({ ...conversionColumns(entry.conversion), updatedAt: now }).where(eq(transactions.id, entry.id))
+      }
     })
+    return resolved.length
+  }
+
+  private async homeCurrencyCode(userId: string): Promise<string> {
+    return runInTenantContext(this.db, userId, (tx) => loadHomeCurrency(tx, userId))
   }
 }

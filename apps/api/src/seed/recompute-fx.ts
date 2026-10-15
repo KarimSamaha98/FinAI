@@ -14,7 +14,6 @@ import { fileURLToPath } from 'node:url'
 import { createDb } from '../db/client.js'
 import { validateEnv } from '../config/env.js'
 import { ExchangeRatesService } from '../modules/exchange-rates/exchange-rates.service.js'
-import { ExchangeRateRepository } from '../modules/exchange-rates/exchange-rate-repository.js'
 import { FrankfurterProvider } from '../modules/exchange-rates/frankfurter.provider.js'
 import { TransactionsService } from '../modules/transactions/transactions.service.js'
 
@@ -55,7 +54,7 @@ async function main(): Promise<void> {
     auth: { autoRefreshToken: false, persistSession: false },
   })
   const { client, db } = createDb(env.DATABASE_URL)
-  const transactions = new TransactionsService(db, new ExchangeRatesService(new ExchangeRateRepository(db), new FrankfurterProvider()))
+  const transactions = new TransactionsService(db, new ExchangeRatesService(new FrankfurterProvider()))
 
   try {
     const userIds = await listUserIds(admin, emailOnly)

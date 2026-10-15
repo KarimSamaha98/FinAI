@@ -26,6 +26,9 @@ fi
 echo "==> Building shared-types…"
 pnpm --filter shared-types run build
 
+echo "==> Syncing supported currencies…"
+pnpm sync:currencies
+
 echo "==> Seeding demo user + dataset…"
 pnpm seed:demo
 

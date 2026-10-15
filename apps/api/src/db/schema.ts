@@ -2,12 +2,10 @@ import {
   boolean,
   check,
   date,
-  index,
   integer,
   jsonb,
   numeric,
   pgTable,
-  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -19,7 +17,11 @@ import type { ColumnMapping } from 'shared-types'
 export const currencies = pgTable('currencies', {
   code: text('code').primaryKey(),
   name: text('name').notNull(),
-  symbol: text('symbol').notNull(),
+  // Nullable: some currencies the provider publishes have no symbol.
+  symbol: text('symbol'),
+  // The currency's valid period, from the provider's /currencies endpoint.
+  startDate: date('start_date'),
+  endDate: date('end_date'),
 })
 
 export const profiles = pgTable('profiles', {
@@ -174,39 +176,4 @@ export const monthSplits = pgTable(
   (table) => [check('month_splits_num_months_check', sql`${table.numMonths} >= 2 and ${table.numMonths} <= 60`)],
 )
 
-export const fxRates = pgTable(
-  'fx_rates',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(),
-    baseCurrency: text('base_currency')
-      .notNull()
-      .references(() => currencies.code),
-    quoteCurrency: text('quote_currency')
-      .notNull()
-      .references(() => currencies.code),
-    rate: numeric('rate').notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [uniqueIndex('fx_rates_user_pair_key').on(table.userId, table.baseCurrency, table.quoteCurrency)],
-)
 
-/** Global, non-tenant daily rate cache (see the exchange_rates migration) — readable/writable by the app without a tenant context. */
-export const exchangeRates = pgTable(
-  'exchange_rates',
-  {
-    baseCurrency: text('base_currency')
-      .notNull()
-      .references(() => currencies.code),
-    quoteCurrency: text('quote_currency')
-      .notNull()
-      .references(() => currencies.code),
-    date: date('date').notNull(),
-    rate: numeric('rate', { precision: 18, scale: 8 }).notNull(),
-    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.baseCurrency, table.quoteCurrency, table.date] }),
-    index('exchange_rates_lookup_idx').on(table.baseCurrency, table.quoteCurrency, sql`${table.date} desc`),
-  ],
-)

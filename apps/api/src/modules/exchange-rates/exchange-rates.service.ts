@@ -1,103 +1,75 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { addDays, format, parseISO } from 'date-fns'
-import { EXCHANGE_RATE_STORE, type ExchangeRateStore, type StoredRate } from './exchange-rate-repository.js'
-import { FX_RATE_PROVIDER, type FxRateProvider, type RateObservation } from './fx-rate-provider.js'
+import { format } from 'date-fns'
+import { FX_RATE_PROVIDER, type CurrencyRate, type FxRateProvider, type RateObservation } from './fx-rate-provider.js'
 import { nearestRate, computeTransactionConversion, type TransactionConversion } from './conversion.js'
+import { FxUnavailableError } from './fx-unavailable.error.js'
 
-/** How far back from a target date to look for the nearest published rate (weekends/holidays). */
-const LOOKBACK_DAYS = 60
+/** The pivot every rate is stored against (also the provider's base). */
+const PIVOT = 'USD'
+/**
+ * Earliest history to load for a currency the first time it's used. Defaults to
+ * 2021-01-01 because the hosted Frankfurter API throttles ranges starting before
+ * 2021 to 10 requests/min (a self-hosted instance has no such limit, so raising
+ * FX_FLOOR_DATE there — e.g. to 2000-01-01 — is fine).
+ */
+const FLOOR_DATE = process.env.FX_FLOOR_DATE ?? '2021-01-01'
+
+interface CachedSeries {
+  /** Ascending by date. */
+  rates: RateObservation[]
+  latestDate: string | null
+  /** Newest date we've already attempted to fetch through (so a failed or empty day isn't retried). */
+  attemptedThrough: string | null
+}
+
+function todayISO(): string {
+  return format(new Date(), 'yyyy-MM-dd')
+}
 
 /**
- * Resolves FX rates and materializes per-transaction home-currency values.
- * Rates are global reference data, so the cache is read/written on the raw DB
- * (no tenant context); the network fetch never happens inside a tenant
- * transaction — callers resolve rates first, then write.
+ * Resolves FX rates from an in-memory cache, filling it on demand from the
+ * provider (quoted against USD). There is no persistent rate store: a
+ * currency's full daily history is fetched once on first use and reused for
+ * the process lifetime; a requested day that isn't available yet falls back to
+ * the nearest earlier published day. Any day beyond what's cached is fetched
+ * at most once per process. Process-global because rates are public data
+ * shared by every user.
  */
 @Injectable()
 export class ExchangeRatesService {
   private readonly logger = new Logger(ExchangeRatesService.name)
-  // Dates we've already fetched for, so a weekend/holiday (which never gets an
-  // exact observation) isn't re-fetched on every call. Process-local; a restart
-  // re-checks once.
-  private readonly attempted = new Set<string>()
+  private readonly cache = new Map<string, CachedSeries>()
 
-  constructor(
-    @Inject(EXCHANGE_RATE_STORE) private readonly repo: ExchangeRateStore,
-    @Inject(FX_RATE_PROVIDER) private readonly provider: FxRateProvider,
-  ) {}
+  constructor(@Inject(FX_RATE_PROVIDER) private readonly provider: FxRateProvider) {}
 
-  /** The rate base→quote on `date` (or the nearest earlier published day), fetching missing history. Null when unavailable. */
+  /** The rate base→quote on `date`, or the nearest available day. Null when unresolvable. */
   async rateOnDate(base: string, quote: string, date: string): Promise<number | null> {
     if (base === quote) return 1
-    // Prefer the exact date: a cached earlier day must not shadow a rate the
-    // provider publishes for this date.
-    const [exact] = await this.repo.listRange(base, quote, date, date)
-    if (exact) return exact.rate
+    const [baseRate, quoteRate] = await Promise.all([this.rateVsPivot(base, date), this.rateVsPivot(quote, date)])
+    if (baseRate == null || quoteRate == null) return null
+    return quoteRate / baseRate
+  }
 
-    const from = format(addDays(parseISO(date), -LOOKBACK_DAYS), 'yyyy-MM-dd')
-    const key = `${base}|${quote}|${date}`
-    if (!this.attempted.has(key)) {
-      try {
-        await this.ensureRates(base, quote, from, date)
-        this.attempted.add(key)
-      } catch (error) {
-        this.logger.warn(`FX fetch failed for ${base}→${quote} @ ${date}: ${String(error)}`)
-      }
-    }
-    return nearestRate(asObservations(await this.repo.listRange(base, quote, from, date)), date)
+  /** Like rateOnDate but throws FxUnavailableError instead of returning null. */
+  async requireRate(base: string, quote: string, date: string): Promise<number> {
+    const rate = await this.rateOnDate(base, quote, date)
+    if (rate == null) throw FxUnavailableError.pair(base, quote, date)
+    return rate
+  }
+
+  /** Best-effort warm so later lookups are cache-only. Failures are swallowed (later callers throw/fallback). */
+  async warm(currencies: string[]): Promise<void> {
+    const today = todayISO()
+    await Promise.all([...new Set(currencies)].filter((c) => c !== PIVOT).map((c) => this.rateVsPivot(c, today)))
   }
 
   /**
-   * The rate on `date` (or the nearest earlier cached day) WITHOUT fetching —
-   * for callers that have already warmed the range via ensureRatesFor. A null
-   * means a genuine data gap, not a cold cache.
+   * Resolve and materialize the home-currency value for one transaction. Never
+   * throws: with no override and no auto rate it returns a null-valued
+   * conversion, so the row is stored unpriced and repaired on the next
+   * `/fx/sync` (import does the same). Reads/aggregates that genuinely need a
+   * rate call `requireRate` and still fail loudly.
    */
-  async rateFromCache(base: string, quote: string, date: string): Promise<number | null> {
-    if (base === quote) return 1
-    const from = format(addDays(parseISO(date), -LOOKBACK_DAYS), 'yyyy-MM-dd')
-    return nearestRate(asObservations(await this.repo.listRange(base, quote, from, date)), date)
-  }
-
-  /** Ensure daily base→quote rates over [from, to] are cached, fetching any missing days in one request. */
-  async ensureRates(base: string, quote: string, from: string, to: string): Promise<void> {
-    if (base === quote) return
-    const existing = await this.repo.listRange(base, quote, from, to)
-    // Skip the network when the range is already covered at both ends —
-    // avoids a redundant round-trip on every call once the cache is warm.
-    if (rangeCovered(existing, from, to)) return
-    const fetched = await this.provider.fetchTimeSeries(base, quote, from, to)
-    const have = new Set(existing.map((r) => r.date))
-    const missing = fetched.filter((observation) => !have.has(observation.date))
-    if (missing.length) {
-      await this.repo.upsertMany(missing.map((observation) => ({ base, quote, date: observation.date, rate: observation.rate })))
-    }
-  }
-
-  /**
-   * Ensure every currency in `rows` is cached against home over its span of
-   * dates — one time-series request per distinct currency. Best-effort: a
-   * currency whose fetch fails keeps whatever is cached (its rows may then be
-   * excluded). Call this before materializing a batch (import / recompute).
-   */
-  async ensureRatesFor(rows: { currencyCode: string; date: string }[], homeCurrencyCode: string): Promise<void> {
-    const ranges = new Map<string, { min: string; max: string }>()
-    for (const row of rows) {
-      if (row.currencyCode === homeCurrencyCode) continue
-      const range = ranges.get(row.currencyCode)
-      if (!range) ranges.set(row.currencyCode, { min: row.date, max: row.date })
-      else ranges.set(row.currencyCode, { min: row.date < range.min ? row.date : range.min, max: row.date > range.max ? row.date : range.max })
-    }
-    for (const [currency, range] of ranges) {
-      try {
-        const from = format(addDays(parseISO(range.min), -LOOKBACK_DAYS), 'yyyy-MM-dd')
-        await this.ensureRates(currency, homeCurrencyCode, from, range.max)
-      } catch (error) {
-        this.logger.warn(`FX fetch failed for ${currency}→${homeCurrencyCode}: ${String(error)}`)
-      }
-    }
-  }
-
-  /** Resolve and materialize the home-currency value for one transaction. */
   async conversionFor(input: {
     amount: number
     currencyCode: string
@@ -118,21 +90,47 @@ export class ExchangeRatesService {
       override,
     })
   }
+
+  private getEntry(currency: string): CachedSeries {
+    let entry = this.cache.get(currency)
+    if (!entry) {
+      entry = { rates: [], latestDate: null, attemptedThrough: null }
+      this.cache.set(currency, entry)
+    }
+    return entry
+  }
+
+  /** currency's rate against the pivot on `date` (nearest available day), fetching the series on demand. */
+  private async rateVsPivot(currency: string, date: string): Promise<number | null> {
+    if (currency === PIVOT) return 1
+    const entry = this.getEntry(currency)
+    const today = todayISO()
+    const target = date > today ? date : today
+    const needsFetch = entry.latestDate == null || (target > entry.latestDate && target > (entry.attemptedThrough ?? ''))
+    if (needsFetch) {
+      const from = entry.latestDate ?? FLOOR_DATE
+      try {
+        const fetched = await this.provider.fetchSeries([currency], from, target)
+        this.merge(entry, fetched)
+      } catch (error) {
+        this.logger.warn(`FX fetch failed for ${currency}→${PIVOT} @ ${target}: ${String(error)}`)
+      }
+      entry.attemptedThrough = target
+    }
+    return nearestOrEarliest(entry.rates, date)
+  }
+
+  private merge(entry: CachedSeries, fetched: CurrencyRate[]): void {
+    if (fetched.length === 0) return
+    const byDate = new Map(entry.rates.map((r) => [r.date, r]))
+    for (const row of fetched) byDate.set(row.date, { date: row.date, rate: row.rate })
+    entry.rates = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date))
+    entry.latestDate = entry.rates[entry.rates.length - 1].date
+  }
 }
 
-function asObservations(rates: StoredRate[]): RateObservation[] {
-  return rates.map((rate) => ({ date: rate.date, rate: rate.rate }))
-}
-
-/**
- * True when the cached rates already span [from, to] — i.e. there's an
- * observation within a week of each end. Frankfurter's blended series has no
- * interior gaps other than weekends/holidays covered by the nearest-prior
- * fallback, so this is a safe "already fetched" signal.
- */
-function rangeCovered(existing: StoredRate[], from: string, to: string): boolean {
-  if (existing.length === 0) return false
-  const nearStart = format(addDays(parseISO(from), 7), 'yyyy-MM-dd')
-  const nearEnd = format(addDays(parseISO(to), -7), 'yyyy-MM-dd')
-  return existing[0].date <= nearStart && existing[existing.length - 1].date >= nearEnd
+/** The nearest published day at or before `date`; the earliest day as a last resort; null when empty. */
+function nearestOrEarliest(rates: RateObservation[], date: string): number | null {
+  if (rates.length === 0) return null
+  return nearestRate(rates, date) ?? rates[0].rate
 }

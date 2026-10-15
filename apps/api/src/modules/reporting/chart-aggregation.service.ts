@@ -6,7 +6,6 @@ import type {
   CategoryBreakdownResponse,
   DashboardSummary,
   DisplayRow,
-  ExcludedCurrency,
   TimeseriesResponse,
   TransactionView,
 } from 'shared-types'
@@ -14,12 +13,12 @@ import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
 import { categories } from '../../db/schema.js'
+import { FxUnavailableError } from '../exchange-rates/fx-unavailable.error.js'
 import { ReportingQueryService, type ListTransactionsFilter } from './reporting-query.service.js'
 import { buildBuckets, resolveGranularity, type Bucket } from './buckets.js'
 
 interface ConversionResult {
   converted: { row: DisplayRow; convertedAmount: number }[]
-  excludedCurrencies: ExcludedCurrency[]
 }
 
 function bucketKeyFor(dateISO: string, granularity: BucketGranularity, buckets: Bucket[]): string | undefined {
@@ -48,7 +47,7 @@ export class ChartAggregationService {
     view: TransactionView,
     kind: AmountKind,
   ): Promise<CategoryBreakdownResponse> {
-    const { converted, excludedCurrencies } = await this.getConvertedRows(userId, filter, view)
+    const { converted } = await this.getConvertedRows(userId, filter, view)
 
     return runInTenantContext(this.db, userId, async (tx) => {
       const categoryRows = await tx.select().from(categories)
@@ -70,7 +69,7 @@ export class ChartAggregationService {
         }))
         .sort((a, b) => b.total - a.total)
 
-      return { points, excludedCurrencies }
+      return { points }
     })
   }
 
@@ -80,7 +79,7 @@ export class ChartAggregationService {
     view: TransactionView,
     kind: AmountKind,
   ): Promise<TimeseriesResponse> {
-    const { converted, excludedCurrencies } = await this.getConvertedRows(userId, filter, view)
+    const { converted } = await this.getConvertedRows(userId, filter, view)
 
     const from = filter.dateRange!.from!
     const to = filter.dateRange!.to!
@@ -107,11 +106,11 @@ export class ChartAggregationService {
         i < windowSize - 1 ? null : totals.slice(i - windowSize + 1, i + 1).reduce((s, v) => s + v, 0) / windowSize,
     }))
 
-    return { granularity, points, excludedCurrencies }
+    return { granularity, points }
   }
 
   async getDashboardSummary(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<DashboardSummary> {
-    const { converted, excludedCurrencies } = await this.getConvertedRows(userId, filter, view)
+    const { converted } = await this.getConvertedRows(userId, filter, view)
 
     let totalExpense = 0
     let totalIncome = 0
@@ -123,29 +122,22 @@ export class ChartAggregationService {
     const netIncome = totalIncome - totalExpense
     const savingsRate = totalIncome > 0 ? netIncome / totalIncome : null
 
-    return { totalExpense, totalIncome, netIncome, savingsRate, excludedCurrencies }
+    return { totalExpense, totalIncome, netIncome, savingsRate }
   }
 
   /**
    * Home-currency values are materialized on each transaction at write time
    * (see ExchangeRatesService), so aggregating is a plain sum of the stored
-   * converted_value. A row whose value could not be resolved is tallied as an
-   * excluded currency rather than thrown.
+   * converted_value. A row with no value means a past conversion failed —
+   * surfaced as FX_UNAVAILABLE rather than silently dropped.
    */
   private async getConvertedRows(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<ConversionResult> {
     const rows = await this.reportingQueryService.listDisplayRows(userId, filter, view)
-    const excluded = new Map<string, number>()
     const converted: ConversionResult['converted'] = []
     for (const row of rows) {
-      if (row.convertedValue == null) {
-        excluded.set(row.currencyCode, (excluded.get(row.currencyCode) ?? 0) + 1)
-        continue
-      }
+      if (row.convertedValue == null) throw FxUnavailableError.amount(row.currencyCode, row.date)
       converted.push({ row, convertedAmount: row.convertedValue })
     }
-    return {
-      converted,
-      excludedCurrencies: [...excluded.entries()].map(([currencyCode, transactionCount]) => ({ currencyCode, transactionCount })),
-    }
+    return { converted }
   }
 }

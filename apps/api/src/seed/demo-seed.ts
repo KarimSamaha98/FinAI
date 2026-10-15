@@ -20,10 +20,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createDb } from '../db/client.js'
 import { runInTenantContext } from '../db/tenant-context.js'
-import { accounts, categories, fxRates, importProfiles, monthSplits, profiles, reconciliationGroupMembers, reconciliationGroups, transactions } from '../db/schema.js'
+import { accounts, categories, importProfiles, monthSplits, profiles, reconciliationGroupMembers, reconciliationGroups, transactions } from '../db/schema.js'
 import { validateEnv } from '../config/env.js'
 import { ExchangeRatesService } from '../modules/exchange-rates/exchange-rates.service.js'
-import { ExchangeRateRepository } from '../modules/exchange-rates/exchange-rate-repository.js'
 import { FrankfurterProvider } from '../modules/exchange-rates/frankfurter.provider.js'
 import { TransactionsService } from '../modules/transactions/transactions.service.js'
 import { buildDemoDataset, REQUIRED_PRESET_CATEGORIES, type DemoTransaction } from './demo-data.js'
@@ -130,10 +129,6 @@ async function main(): Promise<void> {
     await runInTenantContext(db, userId, async (tx) => {
       await tx.update(profiles).set({ displayName: dataset.displayName }).where(eq(profiles.id, userId))
 
-      await tx.insert(fxRates).values(
-        dataset.fxRates.map((r) => ({ userId, baseCurrency: r.baseCurrency, quoteCurrency: r.quoteCurrency, rate: String(r.rate) })),
-      )
-
       // Categories are per-user now — the signup trigger seeds the defaults
       // for the freshly created demo user, so resolve them from their own rows.
       const presetRows = await tx.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.userId, userId))
@@ -182,7 +177,7 @@ async function main(): Promise<void> {
 
     // Materialize each transaction's home-currency value from the automatic
     // rates (fetches from the provider; needs network).
-    const exchangeRates = new ExchangeRatesService(new ExchangeRateRepository(db), new FrankfurterProvider())
+    const exchangeRates = new ExchangeRatesService(new FrankfurterProvider())
     const materialized = await new TransactionsService(db, exchangeRates).recomputeForUser(userId)
     console.log(`Materialized home-currency values for ${materialized} transactions.`)
   } finally {

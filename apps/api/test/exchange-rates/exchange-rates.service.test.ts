@@ -1,119 +1,104 @@
 import { describe, expect, it } from 'vitest'
 import { ExchangeRatesService } from '../../src/modules/exchange-rates/exchange-rates.service.js'
-import type { ExchangeRateStore, StoredRate } from '../../src/modules/exchange-rates/exchange-rate-repository.js'
-import type { FxRateProvider, RateObservation } from '../../src/modules/exchange-rates/fx-rate-provider.js'
+import { FxUnavailableError } from '../../src/modules/exchange-rates/fx-unavailable.error.js'
+import type { CurrencyRate, FxRateProvider, ProviderCurrency, RateObservation } from '../../src/modules/exchange-rates/fx-rate-provider.js'
 
-/** In-memory rate cache (mirrors the Postgres exchange_rates table). */
-class FakeStore implements ExchangeRateStore {
-  rows = new Map<string, StoredRate>()
-  upsertCalls = 0
-
-  private key(row: StoredRate): string {
-    return `${row.base}|${row.quote}|${row.date}`
-  }
-
-  async listRange(base: string, quote: string, from: string, to: string): Promise<StoredRate[]> {
-    return [...this.rows.values()]
-      .filter((row) => row.base === base && row.quote === quote && row.date >= from && row.date <= to)
-      .sort((a, b) => a.date.localeCompare(b.date))
-  }
-
-  async upsertMany(rows: StoredRate[]): Promise<void> {
-    this.upsertCalls += 1
-    for (const row of rows) this.rows.set(this.key(row), row)
-  }
-}
-
-/** Deterministic provider — no network. */
+/** Deterministic provider — no network. Series are keyed by currency code (vs the USD pivot). */
 class FakeProvider implements FxRateProvider {
   calls = 0
   constructor(private readonly series: Record<string, RateObservation[]> = {}) {}
 
-  async fetchTimeSeries(base: string, quote: string, from: string, to: string): Promise<RateObservation[]> {
+  async fetchSeries(currencies: string[], from: string, to: string): Promise<CurrencyRate[]> {
     this.calls += 1
-    return (this.series[`${base}|${quote}`] ?? []).filter((o) => o.date >= from && o.date <= to)
+    const out: CurrencyRate[] = []
+    for (const currencyCode of currencies) {
+      for (const o of this.series[currencyCode] ?? []) {
+        if (o.date >= from && o.date <= to) out.push({ currencyCode, date: o.date, rate: o.rate })
+      }
+    }
+    return out
+  }
+
+  async fetchLatest(currencies: string[]): Promise<CurrencyRate[]> {
+    return this.fetchSeries(currencies, '0000-01-01', '9999-12-31')
+  }
+
+  async fetchCurrencies(): Promise<ProviderCurrency[]> {
+    return []
   }
 }
 
 const usdCad: RateObservation[] = [
-  { date: '2026-10-01', rate: 1.42 },
-  { date: '2026-10-02', rate: 1.43 },
-  { date: '2026-10-05', rate: 1.44 },
+  { date: '2026-06-01', rate: 1.35 },
+  { date: '2026-06-02', rate: 1.36 },
+  { date: '2026-06-05', rate: 1.37 },
+]
+const usdEur: RateObservation[] = [
+  { date: '2026-06-01', rate: 0.9 },
+  { date: '2026-06-02', rate: 0.91 },
+  { date: '2026-06-05', rate: 0.92 },
 ]
 
-function makeService(series: Record<string, RateObservation[]> = { 'USD|CAD': usdCad }) {
-  const store = new FakeStore()
+function makeService(series: Record<string, RateObservation[]> = { CAD: usdCad, EUR: usdEur }) {
   const provider = new FakeProvider(series)
-  const service = new ExchangeRatesService(store, provider)
-  return { service, store, provider }
+  const service = new ExchangeRatesService(provider)
+  return { service, provider }
 }
 
 describe('ExchangeRatesService.rateOnDate', () => {
-  it('fetches on a cache miss and serves the same date from the cache afterwards', async () => {
+  it('resolves quote per base against the pivot and caches the series', async () => {
     const { service, provider } = makeService()
-    expect(await service.rateOnDate('USD', 'CAD', '2026-10-02')).toBe(1.43)
+    expect(await service.rateOnDate('USD', 'CAD', '2026-06-02')).toBe(1.36)
     expect(provider.calls).toBe(1)
-    // Second lookup for the same date is an exact-date cache hit.
-    expect(await service.rateOnDate('USD', 'CAD', '2026-10-02')).toBe(1.43)
+    // Same date from cache, and any other past date too — one fetch per process.
+    expect(await service.rateOnDate('USD', 'CAD', '2026-06-02')).toBe(1.36)
+    expect(await service.rateOnDate('USD', 'CAD', '2026-06-01')).toBe(1.35)
     expect(provider.calls).toBe(1)
   })
 
-  it('uses each date`s own rate, not a cached earlier one', async () => {
+  it('inverts and triangulates through the pivot', async () => {
     const { service } = makeService()
-    expect(await service.rateOnDate('USD', 'CAD', '2026-10-01')).toBe(1.42)
-    expect(await service.rateOnDate('USD', 'CAD', '2026-10-02')).toBe(1.43)
+    expect(await service.rateOnDate('CAD', 'USD', '2026-06-02')).toBeCloseTo(1 / 1.36)
+    expect(await service.rateOnDate('CAD', 'EUR', '2026-06-02')).toBeCloseTo(0.91 / 1.36)
   })
 
-  it('uses the nearest earlier rate for a weekend', async () => {
+  it('falls back to the nearest earlier published day (weekend/holiday)', async () => {
     const { service } = makeService()
-    // 2026-10-04 is a Sunday with no observation → Friday 2026-10-02.
-    expect(await service.rateOnDate('USD', 'CAD', '2026-10-04')).toBe(1.43)
+    // 2026-06-06 / 06-07 are a Sat/Sun with no observation → Friday 06-05.
+    expect(await service.rateOnDate('USD', 'CAD', '2026-06-07')).toBe(1.37)
   })
 
   it('returns 1 for identical currencies without touching the provider', async () => {
     const { service, provider } = makeService()
-    expect(await service.rateOnDate('CAD', 'CAD', '2026-10-04')).toBe(1)
+    expect(await service.rateOnDate('CAD', 'CAD', '2026-06-04')).toBe(1)
     expect(provider.calls).toBe(0)
   })
 
-  it('returns null when the provider has no data (unsupported pair)', async () => {
+  it('returns null when the provider has no data, and requireRate throws', async () => {
     const { service } = makeService({})
-    expect(await service.rateOnDate('USD', 'CAD', '2026-10-01')).toBeNull()
+    expect(await service.rateOnDate('USD', 'CAD', '2026-06-01')).toBeNull()
+    await expect(service.requireRate('USD', 'CAD', '2026-06-01')).rejects.toBeInstanceOf(FxUnavailableError)
   })
 
   it('returns null (does not throw) when the provider fails', async () => {
-    const store = new FakeStore()
     const provider: FxRateProvider = {
-      fetchTimeSeries: async () => {
+      fetchSeries: async () => {
         throw new Error('network down')
       },
+      fetchLatest: async () => [],
+      fetchCurrencies: async () => [],
     }
-    const service = new ExchangeRatesService(store, provider)
-    expect(await service.rateOnDate('USD', 'CAD', '2026-10-01')).toBeNull()
-  })
-})
-
-describe('ExchangeRatesService.ensureRates', () => {
-  it('upserts only the missing days and skips the fetch once the range is covered', async () => {
-    const { service, store, provider } = makeService()
-    await service.ensureRates('USD', 'CAD', '2026-10-01', '2026-10-05')
-    expect(store.rows.size).toBe(3)
-    expect(store.upsertCalls).toBe(1)
-    expect(provider.calls).toBe(1)
-
-    // Range already covered → no fetch, no writes.
-    await service.ensureRates('USD', 'CAD', '2026-10-01', '2026-10-05')
-    expect(store.upsertCalls).toBe(1)
-    expect(provider.calls).toBe(1)
+    const service = new ExchangeRatesService(provider)
+    expect(await service.rateOnDate('USD', 'CAD', '2026-06-01')).toBeNull()
   })
 })
 
 describe('ExchangeRatesService.conversionFor', () => {
   it('materializes an automatic conversion for a foreign currency', async () => {
     const { service } = makeService()
-    expect(await service.conversionFor({ amount: 100, currencyCode: 'USD', homeCurrencyCode: 'CAD', date: '2026-10-02' })).toEqual({
-      exchangeRate: 1.43,
-      convertedValue: 143,
+    expect(await service.conversionFor({ amount: 100, currencyCode: 'USD', homeCurrencyCode: 'CAD', date: '2026-06-02' })).toEqual({
+      exchangeRate: 1.36,
+      convertedValue: 136,
       rateSource: 'auto',
     })
   })
@@ -121,18 +106,25 @@ describe('ExchangeRatesService.conversionFor', () => {
   it('honors an override without hitting the provider', async () => {
     const { service, provider } = makeService({})
     expect(
-      await service.conversionFor({ amount: 100, currencyCode: 'USD', homeCurrencyCode: 'CAD', date: '2026-10-02', override: 1.5 }),
+      await service.conversionFor({ amount: 100, currencyCode: 'USD', homeCurrencyCode: 'CAD', date: '2026-06-02', override: 1.5 }),
     ).toEqual({ exchangeRate: 1.5, convertedValue: 150, rateSource: 'manual' })
     expect(provider.calls).toBe(0)
   })
 
   it('is a no-op conversion when the currency already matches home', async () => {
     const { service, provider } = makeService({})
-    expect(await service.conversionFor({ amount: 100, currencyCode: 'CAD', homeCurrencyCode: 'CAD', date: '2026-10-02' })).toEqual({
+    expect(await service.conversionFor({ amount: 100, currencyCode: 'CAD', homeCurrencyCode: 'CAD', date: '2026-06-02' })).toEqual({
       exchangeRate: 1,
       convertedValue: 100,
       rateSource: 'auto',
     })
     expect(provider.calls).toBe(0)
+  })
+
+  it('returns an unpriced conversion when the auto rate cannot be resolved (repaired later)', async () => {
+    const { service } = makeService({})
+    expect(
+      await service.conversionFor({ amount: 100, currencyCode: 'USD', homeCurrencyCode: 'CAD', date: '2026-06-02' }),
+    ).toEqual({ exchangeRate: null, convertedValue: null, rateSource: 'auto' })
   })
 })

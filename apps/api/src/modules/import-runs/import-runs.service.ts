@@ -5,8 +5,9 @@ import type { CommitImportRunInput, CommitImportRunResult, ParseWithProfileResul
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { categories, importProfiles, importRuns, profiles, transactions, uploadedFiles } from '../../db/schema.js'
+import { categories, importProfiles, importRuns, transactions, uploadedFiles } from '../../db/schema.js'
 import { StorageService } from '../../storage/storage.module.js'
+import { loadHomeCurrency } from '../../common/profile.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.js'
 import { parseRawRows } from './file-parsing.js'
@@ -189,7 +190,7 @@ export class ImportRunsService {
         throw new ConflictException(`Import run has already been ${run.status}`)
       }
       const { profile, parsedByIndex } = await this.reparseFile(tx, run.uploadedFileId, run.importProfileId)
-      const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
+      const homeCurrencyCode = await loadHomeCurrency(tx, userId)
 
       const selected = input.rows.map(({ rowIndex, categoryId }) => {
         const parsed = parsedByIndex.get(rowIndex)
@@ -203,23 +204,32 @@ export class ImportRunsService {
         runId: run.id,
         importProfileId: run.importProfileId,
         accountId: profile.accountId,
-        homeCurrencyCode: profileRow.homeCurrencyCode,
+        homeCurrencyCode,
         selected,
       }
     })
 
-    // Phase 2: ensure the rates (network) and materialize each row's home value.
-    await this.exchangeRates.ensureRatesFor(prepped.selected, prepped.homeCurrencyCode)
+    // Phase 2: warm the rates (network, one fetch per distinct currency) then
+    // materialize each row's home value. A row whose currency can't be priced
+    // still imports — with an empty rate/value — and is tallied as a warning.
+    await this.exchangeRates.warm(prepped.selected.map((row) => row.currencyCode))
+    const warningCounts = new Map<string, number>()
     const conversions = await Promise.all(
-      prepped.selected.map((row) =>
-        this.exchangeRates.conversionFor({
+      prepped.selected.map(async (row) => {
+        const conversion = await this.exchangeRates.conversionFor({
           amount: row.amount,
           currencyCode: row.currencyCode,
           homeCurrencyCode: prepped.homeCurrencyCode,
           date: row.date,
           override: null,
-        }),
-      ),
+        })
+        // An unpriced row still imports; it's tallied as a warning and repaired
+        // on the next `/fx/sync`.
+        if (conversion.convertedValue == null) {
+          warningCounts.set(row.currencyCode, (warningCounts.get(row.currencyCode) ?? 0) + 1)
+        }
+        return conversion
+      }),
     )
 
     // Phase 3 (tenant): re-check, insert + mark committed.
@@ -252,7 +262,10 @@ export class ImportRunsService {
         }
         await tx.update(importRuns).set({ status: 'committed', committedAt: new Date() }).where(eq(importRuns.id, prepped.runId))
 
-        return { importedCount: toInsert.length }
+        return {
+          importedCount: toInsert.length,
+          warnings: [...warningCounts.entries()].map(([currencyCode, rowCount]) => ({ currencyCode, rowCount })),
+        }
       } catch (error) {
         mapPostgresError(error)
       }
