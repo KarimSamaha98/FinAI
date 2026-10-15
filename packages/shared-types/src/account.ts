@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CurrencyCodeSchema } from "./currency.js";
-import { BucketGranularitySchema, ExcludedCurrencySchema } from "./reporting.js";
+import { BucketGranularitySchema } from "./reporting.js";
 
 export const AccountTypeSchema = z.enum(["checking", "credit", "investment", "cash", "other"]);
 export type AccountType = z.infer<typeof AccountTypeSchema>;
@@ -68,10 +68,22 @@ export type UpdateAccountInput = z.infer<typeof UpdateAccountInputSchema>;
  */
 export const AccountSummarySchema = AccountSchema.extend({
   balance: z.number(),
+  /**
+   * The currency `balance` is expressed in. Normally the account's own
+   * currency; a multi-currency account is reported in the home currency (its
+   * transactions span currencies, so its balance is the home-currency total).
+   */
+  balanceCurrencyCode: CurrencyCodeSchema,
+  /**
+   * `balance` converted to the user's home currency, so mixed-currency
+   * selections can be summed. Equals `balance` when it already is home
+   * currency. When a required rate can't be resolved the endpoint fails
+   * (FX_UNAVAILABLE) rather than dropping the account from totals.
+   */
+  homeBalance: z.number(),
   lastTransactionDate: z.string().date().nullable(),
   lastTransactionUpdatedAt: z.string().datetime().nullable(),
   lastBalanceUpdatedAt: z.string().datetime(),
-  excludedCurrencies: z.array(ExcludedCurrencySchema),
 });
 export type AccountSummary = z.infer<typeof AccountSummarySchema>;
 
@@ -81,14 +93,11 @@ export type AccountSummary = z.infer<typeof AccountSummarySchema>;
  * the same formula as AccountSummary.balance — starting_balance plus
  * transactions dated strictly after balance_as_of — but are reported in the
  * account's OWN currency (like the Transaction screen's account carousel);
- * only `total` is converted to home currency. An account whose currency has
- * no rate to home is excluded from the total as a whole (excludedAccounts);
- * transactions in currencies with no rate to their account's currency are
- * excluded from that account's balance (excludedCurrencies) — the same drops
- * AccountSummary already applies. asOf is the server-local date the
- * point-in-time total is labeled with; the total itself includes every
- * counting transaction, future-dated ones included, exactly like
- * AccountSummary.balance does.
+ * only `total` is converted to home currency. When a required rate can't be
+ * resolved the endpoint fails outright (FX_UNAVAILABLE) rather than dropping
+ * amounts silently. asOf is the server-local date the point-in-time total is
+ * labeled with; the total itself includes every counting transaction,
+ * future-dated ones included, exactly like AccountSummary.balance does.
  */
 export const NetWorthAccountSchema = z.object({
   id: z.string().uuid(),
@@ -100,21 +109,11 @@ export const NetWorthAccountSchema = z.object({
 });
 export type NetWorthAccount = z.infer<typeof NetWorthAccountSchema>;
 
-export const ExcludedAccountSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  currencyCode: CurrencyCodeSchema,
-  balance: z.number(),
-});
-export type ExcludedAccount = z.infer<typeof ExcludedAccountSchema>;
-
 export const NetWorthSchema = z.object({
   asOf: z.string().date(),
   homeCurrencyCode: CurrencyCodeSchema,
   total: z.number(),
   accounts: z.array(NetWorthAccountSchema),
-  excludedAccounts: z.array(ExcludedAccountSchema),
-  excludedCurrencies: z.array(ExcludedCurrencySchema),
 });
 export type NetWorth = z.infer<typeof NetWorthSchema>;
 
@@ -139,7 +138,5 @@ export const NetWorthSeriesSchema = z.object({
   granularity: BucketGranularitySchema,
   homeCurrencyCode: CurrencyCodeSchema,
   points: z.array(NetWorthSeriesPointSchema),
-  excludedAccounts: z.array(ExcludedAccountSchema),
-  excludedCurrencies: z.array(ExcludedCurrencySchema),
 });
 export type NetWorthSeries = z.infer<typeof NetWorthSeriesSchema>;

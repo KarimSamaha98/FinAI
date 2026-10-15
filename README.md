@@ -193,11 +193,11 @@ flowchart TD
     W --> G["Fetch reconciliation_group_members<br/>and month_splits touching those transaction ids"]
     G --> C["Collapse: replace each grouped/split raw row<br/>with computed synthetic row(s)<br/>(net-per-group, or one row per covered month)"]
     C --> F["Re-apply the caller's actual date range<br/>+ category filter"]
-    F --> X["Convert to home currency<br/>via the user's fx_rates"]
+    F --> X["Convert to home currency<br/>(each transaction's stored converted_value)"]
     X --> R2["Return DisplayRow[]"]
 ```
 
-This logic lives once, as `ReportingQueryService` in `apps/api/src/modules/reporting/reporting-query.service.ts`, reused by both the transaction Review endpoint (`GET /transactions/display`) and the M6 chart endpoints (`ChartAggregationService`, which layers FX conversion and bucketing/moving-average math on top of it) — so the numbers on the Charts page always agree with what Review shows for the same filters. FX conversion (fixed, user-editable rates, no third-party API or rate history) was pulled forward from M7 into M6 since charts can't produce a meaningful cross-currency total without it.
+This logic lives once, as `ReportingQueryService` in `apps/api/src/modules/reporting/reporting-query.service.ts`, reused by both the transaction Review endpoint (`GET /transactions/display`) and the M6 chart endpoints (`ChartAggregationService`, which layers bucketing/moving-average math on top of it) — so the numbers on the Charts page always agree with what Review shows for the same filters. Home-currency values come from each transaction's materialized `converted_value` (see the FX section): automatic daily rates from Frankfurter are resolved by the API from an in-memory cache and frozen onto the transaction at write time, with an optional per-transaction override.
 
 ## 4. Implementation plan
 

@@ -95,7 +95,6 @@ export interface DemoDataset {
   displayName: string
   accounts: DemoAccount[]
   customCategories: string[]
-  fxRates: { baseCurrency: string; quoteCurrency: string; rate: number }[]
   transactions: DemoTransaction[]
   reconciliationGroups: DemoReconciliationGroup[]
   monthSplits: DemoMonthSplit[]
@@ -199,12 +198,6 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   const accounts: DemoAccount[] = [checking, savings, visa, brokerage, tfsa, eurWallet, gbpLegacy]
 
   const customCategories = ['Coffee', 'Gadgets']
-
-  const fxRates = [
-    { baseCurrency: 'EUR', quoteCurrency: 'USD', rate: 1.09 },
-    { baseCurrency: 'CAD', quoteCurrency: 'USD', rate: 0.73 },
-    // GBP intentionally missing — gbpLegacy exercises the excluded-account warning.
-  ]
 
   const transactions: DemoTransaction[] = []
   const add = (
@@ -344,7 +337,6 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
     displayName: 'Demo User',
     accounts,
     customCategories,
-    fxRates,
     transactions,
     reconciliationGroups,
     monthSplits,

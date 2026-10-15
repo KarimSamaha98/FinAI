@@ -17,7 +17,11 @@ import type { ColumnMapping } from 'shared-types'
 export const currencies = pgTable('currencies', {
   code: text('code').primaryKey(),
   name: text('name').notNull(),
-  symbol: text('symbol').notNull(),
+  // Nullable: some currencies the provider publishes have no symbol.
+  symbol: text('symbol'),
+  // The currency's valid period, from the provider's /currencies endpoint.
+  startDate: date('start_date'),
+  endDate: date('end_date'),
 })
 
 export const profiles = pgTable('profiles', {
@@ -131,6 +135,11 @@ export const transactions = pgTable('transactions', {
   sourceType: text('source_type', { enum: ['manual', 'import'] }).notNull(),
   importProfileId: uuid('import_profile_id').references(() => importProfiles.id),
   importRunId: uuid('import_run_id').references(() => importRuns.id),
+  // Home-currency materialization (see exchange_rates migration): the rate
+  // currency_code → home and amount × rate, computed at write time.
+  exchangeRate: numeric('exchange_rate', { precision: 18, scale: 8 }),
+  convertedValue: numeric('converted_value', { precision: 14, scale: 2 }),
+  rateSource: text('rate_source', { enum: ['auto', 'manual'] }).notNull().default('auto'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -167,19 +176,4 @@ export const monthSplits = pgTable(
   (table) => [check('month_splits_num_months_check', sql`${table.numMonths} >= 2 and ${table.numMonths} <= 60`)],
 )
 
-export const fxRates = pgTable(
-  'fx_rates',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(),
-    baseCurrency: text('base_currency')
-      .notNull()
-      .references(() => currencies.code),
-    quoteCurrency: text('quote_currency')
-      .notNull()
-      .references(() => currencies.code),
-    rate: numeric('rate').notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [uniqueIndex('fx_rates_user_pair_key').on(table.userId, table.baseCurrency, table.quoteCurrency)],
-)
+

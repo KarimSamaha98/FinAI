@@ -4,9 +4,12 @@ import { CategorySelect } from '../../components/CategorySelect'
 import { AccountSelect } from '../../components/AccountSelect'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
-import { CURRENCY_OPTIONS } from '../../lib/currencies'
 import { FieldSelect } from '../../components/FieldSelect'
 import { FieldDatePicker } from '../../components/FieldDatePicker'
+import { SegmentedControl } from '../../components/SegmentedControl'
+import { useProfile } from '../../hooks/useProfile'
+import { useCurrencies } from '../../hooks/useCurrencies'
+import { useFxRate } from '../../hooks/useFxRate'
 
 export interface TransactionFormValues {
   date: string
@@ -16,6 +19,10 @@ export interface TransactionFormValues {
   description: string
   categoryId: string | null
   accountId: string | null
+  /** How the currency → home rate is chosen (only editable when overriding is allowed). */
+  fxMode: 'auto' | 'manual'
+  /** Manual currency → home rate; only meaningful when fxMode is 'manual'. */
+  fxRateOverride: string
 }
 
 function emptyValues(fixedAccountId: string | null): TransactionFormValues {
@@ -27,7 +34,14 @@ function emptyValues(fixedAccountId: string | null): TransactionFormValues {
     description: '',
     categoryId: null,
     accountId: fixedAccountId,
+    fxMode: 'auto',
+    fxRateOverride: '',
   }
+}
+
+/** The stored precision is numeric(18,8); round to it so the field shows clean digits. */
+function formatRate(rate: number): string {
+  return Number(rate.toFixed(8)).toString()
 }
 
 interface TransactionFormProps {
@@ -36,14 +50,41 @@ interface TransactionFormProps {
   /** When set (a specific account is selected, not "ALL"), the account is fixed and not shown as a picker. */
   fixedAccountId: string | null
   initialValues?: TransactionFormValues
+  /** Show the Auto/Manual exchange-rate override — only on editing an existing transaction. */
+  allowFxOverride?: boolean
   onSubmit: (input: CreateTransactionInput) => Promise<void>
   onCancel: () => void
 }
 
-export function TransactionForm({ categories, accounts, fixedAccountId, initialValues, onSubmit, onCancel }: TransactionFormProps) {
+export function TransactionForm({
+  categories,
+  accounts,
+  fixedAccountId,
+  initialValues,
+  allowFxOverride = false,
+  onSubmit,
+  onCancel,
+}: TransactionFormProps) {
+  const { profile } = useProfile()
+  const { options: currencyOptions } = useCurrencies()
+  const homeCurrency = profile?.homeCurrencyCode ?? null
   const [values, setValues] = useState<TransactionFormValues>(initialValues ?? emptyValues(fixedAccountId))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const foreign = !!homeCurrency && values.currencyCode !== homeCurrency
+  const showFx = allowFxOverride && foreign
+  const { rate: autoRate, loading: rateLoading } = useFxRate(
+    showFx ? values.currencyCode : null,
+    showFx ? homeCurrency : null,
+    showFx ? values.date : null,
+  )
+
+  function handleModeChange(mode: 'auto' | 'manual') {
+    // Entering Manual: seed the field with the current market rate (or keep what's typed).
+    const seed = mode === 'manual' && values.fxRateOverride.trim() === '' && autoRate != null ? formatRate(autoRate) : values.fxRateOverride
+    setValues({ ...values, fxMode: mode, fxRateOverride: seed })
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -57,6 +98,15 @@ export function TransactionForm({ categories, accounts, fixedAccountId, initialV
       setError('Choose an account')
       return
     }
+    let fxRateOverride: number | null = null
+    if (showFx && values.fxMode === 'manual') {
+      const parsed = Number(values.fxRateOverride)
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        setError('Enter a valid exchange rate')
+        return
+      }
+      fxRateOverride = parsed
+    }
     setSubmitting(true)
     try {
       await onSubmit({
@@ -66,6 +116,8 @@ export function TransactionForm({ categories, accounts, fixedAccountId, initialV
         description: values.description,
         categoryId: values.categoryId,
         accountId: values.accountId,
+        // null = let the API use the automatic market rate for the date.
+        fxRateOverride,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save transaction')
@@ -113,13 +165,40 @@ export function TransactionForm({ categories, accounts, fixedAccountId, initialV
         </label>
         <label style={{ flex: 1 }}>
           Currency
-          <FieldSelect value={values.currencyCode} options={CURRENCY_OPTIONS} onChange={(currencyCode) => setValues({ ...values, currencyCode })} />
+          <FieldSelect value={values.currencyCode} options={currencyOptions} onChange={(currencyCode) => setValues({ ...values, currencyCode })} />
         </label>
       </div>
       <label>
         Description
         <input type="text" value={values.description} onChange={(e) => setValues({ ...values, description: e.target.value })} />
       </label>
+      {showFx && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Exchange rate</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <input
+              className="fx-rate-input"
+              type="number"
+              step="any"
+              min="0"
+              disabled={values.fxMode === 'auto'}
+              placeholder={values.fxMode === 'auto' ? (rateLoading ? '…' : 'N/A') : 'rate'}
+              value={values.fxMode === 'auto' ? (autoRate != null ? formatRate(autoRate) : '') : values.fxRateOverride}
+              onChange={(e) => setValues({ ...values, fxRateOverride: e.target.value })}
+              style={{ flex: 1 }}
+            />
+            <SegmentedControl
+              value={values.fxMode}
+              ariaLabel="Exchange rate mode"
+              options={[
+                { value: 'auto', label: 'Auto' },
+                { value: 'manual', label: 'Manual' },
+              ]}
+              onChange={handleModeChange}
+            />
+          </div>
+        </div>
+      )}
       <label>
         Category
         <CategorySelect categories={categories} value={values.categoryId} onChange={(categoryId) => setValues({ ...values, categoryId })} />

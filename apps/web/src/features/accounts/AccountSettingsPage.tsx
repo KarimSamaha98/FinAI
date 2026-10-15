@@ -7,9 +7,9 @@ import { Button } from '../../components/Button'
 import { PageHeader } from '../../components/BackButton'
 import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
-import { CURRENCY_OPTIONS } from '../../lib/currencies'
 import { FieldSelect } from '../../components/FieldSelect'
 import { FieldDatePicker } from '../../components/FieldDatePicker'
+import { useCurrencies } from '../../hooks/useCurrencies'
 import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
 import { UpdateBalanceModal } from './UpdateBalanceModal'
 
@@ -18,6 +18,7 @@ export function AccountSettingsPage() {
   const navigate = useNavigate()
   const { accounts, updateAccount, deleteAccount, uploadCardImage, removeCardImage } = useAccounts()
   const { profiles, deleteProfile } = useImportProfiles(id)
+  const { options: currencyOptions } = useCurrencies()
   const account = accounts.find((a) => a.id === id)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -163,7 +164,7 @@ export function AccountSettingsPage() {
           Currency
           <FieldSelect
             value={account.currencyCode}
-            options={CURRENCY_OPTIONS}
+            options={currencyOptions}
             disabled={saving}
             onChange={(currencyCode) => handleField('currencyCode', currencyCode)}
           />

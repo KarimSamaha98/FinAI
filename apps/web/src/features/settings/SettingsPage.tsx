@@ -3,14 +3,14 @@ import { Card } from '../../components/Card'
 import { Alert } from '../../components/Alert'
 import { Avatar } from '../../components/Avatar'
 import { useProfile } from '../../hooks/useProfile'
-import { CURRENCY_OPTIONS } from '../../lib/currencies'
+import { useCurrencies } from '../../hooks/useCurrencies'
 import { FieldSelect } from '../../components/FieldSelect'
 import { listCountries } from '../../lib/countries'
-import { FxRatesSection } from './FxRatesSection'
 import { CategoriesSection } from './CategoriesSection'
 
 export function SettingsPage() {
   const { profile, loading, error, updateProfile, uploadAvatar } = useProfile()
+  const { options: currencyOptions } = useCurrencies()
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const countryOptions = useMemo(() => [{ value: '', label: 'Not set' }, ...listCountries().map((c) => ({ value: c.code, label: c.name }))], [])
@@ -81,15 +81,13 @@ export function SettingsPage() {
         <Card>
           <label>
             Home currency
-            <FieldSelect value={profile.homeCurrencyCode} options={CURRENCY_OPTIONS} onChange={(homeCurrencyCode) => updateProfile({ homeCurrencyCode })} />
+            <FieldSelect value={profile.homeCurrencyCode} options={currencyOptions} onChange={(homeCurrencyCode) => updateProfile({ homeCurrencyCode })} />
           </label>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'var(--space-2)', marginBottom: 0 }}>
             Used for Insights totals and any amount converted across currencies.
           </p>
         </Card>
       )}
-
-      {profile && <FxRatesSection homeCurrencyCode={profile.homeCurrencyCode} />}
 
       <CategoriesSection />
     </main>

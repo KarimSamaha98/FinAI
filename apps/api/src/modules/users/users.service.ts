@@ -7,6 +7,7 @@ import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
 import { profiles } from '../../db/schema.js'
 import { StorageService } from '../../storage/storage.module.js'
+import { TransactionsService } from '../transactions/transactions.service.js'
 
 type ProfileRow = typeof profiles.$inferSelect
 
@@ -29,6 +30,7 @@ export class UsersService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(StorageService) private readonly storage: StorageService,
+    @Inject(TransactionsService) private readonly transactions: TransactionsService,
   ) {}
 
   private async toProfile(row: ProfileRow): Promise<Profile> {
@@ -54,12 +56,24 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<Profile> {
-    const row = await runInTenantContext(this.db, userId, async (tx) => {
+    const { row, homeCurrencyChanged } = await runInTenantContext(this.db, userId, async (tx) => {
+      const [before] = await tx.select().from(profiles).where(eq(profiles.id, userId))
       const [updated] = await tx.update(profiles).set(input).where(eq(profiles.id, userId)).returning()
-      return updated
+      return {
+        row: updated,
+        homeCurrencyChanged: !!before && !!updated && before.homeCurrencyCode !== updated.homeCurrencyCode,
+      }
     })
     if (!row) {
       throw new NotFoundException('Profile not found')
+    }
+    // Changing home currency re-prices every transaction's materialized value.
+    if (homeCurrencyChanged) {
+      try {
+        await this.transactions.recomputeForUser(userId)
+      } catch (error) {
+        this.logger.warn(`FX recompute after home-currency change failed: ${String(error)}`)
+      }
     }
     return this.toProfile(row)
   }

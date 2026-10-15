@@ -3,36 +3,27 @@ import { randomUUID } from 'node:crypto'
 import { count, eq, inArray } from 'drizzle-orm'
 import { format } from 'date-fns'
 import { CARD_COLOR_PALETTE } from 'shared-types'
-import type {
-  Account,
-  AccountSummary,
-  CreateAccountInput,
-  ExcludedCurrency,
-  NetWorth,
-  NetWorthAccount,
-  NetWorthSeries,
-  UpdateAccountInput,
-} from 'shared-types'
+import type { Account, AccountSummary, CreateAccountInput, NetWorth, NetWorthAccount, NetWorthSeries, UpdateAccountInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { accounts, importProfiles, profiles, transactions } from '../../db/schema.js'
+import { accounts, importProfiles, transactions } from '../../db/schema.js'
+import { loadHomeCurrency } from '../../common/profile.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 import { ACCOUNT_CARDS_BUCKET, StorageService } from '../../storage/storage.module.js'
-import { convertToTargetCurrency } from '../reporting/fx-conversion.js'
+import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.js'
+import { roundMoney } from '../exchange-rates/conversion.js'
+import { FxUnavailableError } from '../exchange-rates/fx-unavailable.error.js'
 import { buildBuckets, resolveGranularity } from '../reporting/buckets.js'
 
 type AccountRow = typeof accounts.$inferSelect
 
-/** A transaction that counts toward an account's balance, converted to the account's own currency. */
-interface BalanceContribution {
+/** A counting transaction (dated after balance_as_of) with its materialized home value. */
+interface CountingTx {
   date: string
-  convertedAmount: number
-}
-
-interface AccountBalanceData {
-  contributions: BalanceContribution[]
-  excludedCurrencies: ExcludedCurrency[]
+  amount: number
+  currencyCode: string
+  convertedValue: number | null
 }
 
 const CARD_IMAGE_EXTENSIONS: Record<string, string> = {
@@ -44,6 +35,10 @@ const CARD_IMAGE_EXTENSIONS: Record<string, string> = {
 export interface UploadCardImageInput {
   buffer: Buffer
   mimetype: string
+}
+
+function todayISO(): string {
+  return format(new Date(), 'yyyy-MM-dd')
 }
 
 function toAccount(row: AccountRow, cardImageUrl: string | null): Account {
@@ -65,31 +60,43 @@ function toAccount(row: AccountRow, cardImageUrl: string | null): Account {
   }
 }
 
-/** Current balance in the account's own currency — identical semantics to toSummary's balance: starting_balance plus every counting transaction (no upper date bound, future-dated ones included). */
-function currentBalance(account: AccountRow, contributions: BalanceContribution[]): number {
-  let balance = Number(account.startingBalance)
-  for (const c of contributions) balance += c.convertedAmount
+/** An account is multi-currency when any counting transaction is in a currency other than the account's. */
+function isMultiCurrency(row: AccountRow, counting: CountingTx[]): boolean {
+  return counting.some((t) => t.currencyCode !== row.currencyCode)
+}
+
+/** Balance in the account's own currency: starting_balance + counting amounts (≤ cutoff). 0 before balance_as_of. */
+function ownBalanceAt(row: AccountRow, counting: CountingTx[], cutoff?: string): number {
+  if (cutoff && cutoff < row.balanceAsOf) return 0
+  let balance = Number(row.startingBalance)
+  for (const t of counting) {
+    if (cutoff && t.date > cutoff) continue
+    balance += t.amount
+  }
   return balance
 }
 
 /**
- * Balance in the account's own currency as of end-of-day `cutoff`
- * ('yyyy-MM-dd', lexical compare is safe on ISO dates). 0 before the
- * account's balance_as_of — the starting-balance snapshot is only meaningful
- * from that date on, so an account "births" there (a newly-tracked account
- * steps the net-worth line by its starting_balance at that date). From it
- * on: starting_balance + every counting transaction dated up to and including
- * the cutoff. The strict `> balance_as_of` test matches toSummary — a
- * transaction dated exactly on balance_as_of is already reflected in the
- * snapshot.
+ * Balance in the HOME currency for a multi-currency account: the starting
+ * balance converted once (startRate) plus each counting transaction's stored
+ * converted_value. A counting row with no materialized value means a past
+ * conversion failed — surfaced as FX_UNAVAILABLE rather than silently dropped.
  */
-function balanceAt(account: AccountRow, contributions: BalanceContribution[], cutoff: string): number {
-  if (cutoff < account.balanceAsOf) return 0
-  let balance = Number(account.startingBalance)
-  for (const c of contributions) {
-    if (c.date <= cutoff) balance += c.convertedAmount
+function homeBalanceAt(
+  row: AccountRow,
+  counting: CountingTx[],
+  startRate: number,
+  homeCurrencyCode: string,
+  cutoff?: string,
+): number {
+  if (cutoff && cutoff < row.balanceAsOf) return 0
+  let balance = Number(row.startingBalance) * startRate
+  for (const t of counting) {
+    if (cutoff && t.date > cutoff) continue
+    if (t.convertedValue == null) throw FxUnavailableError.pair(t.currencyCode, homeCurrencyCode, t.date)
+    balance += t.convertedValue
   }
-  return balance
+  return roundMoney(balance)
 }
 
 @Injectable()
@@ -99,28 +106,32 @@ export class AccountsService {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(StorageService) private readonly storage: StorageService,
+    @Inject(ExchangeRatesService) private readonly exchangeRates: ExchangeRatesService,
   ) {}
 
   async list(userId: string, filter?: { includeArchived?: boolean }): Promise<AccountSummary[]> {
+    const homeCurrencyCode = await this.warmUserCurrencies(userId)
     return runInTenantContext(this.db, userId, async (tx) => {
       const rows = await tx
         .select()
         .from(accounts)
         .where(filter?.includeArchived ? undefined : eq(accounts.isArchived, false))
         .orderBy(accounts.name)
-      return Promise.all(rows.map((row) => this.toSummary(tx, row)))
+      return Promise.all(rows.map((row) => this.toSummary(tx, row, homeCurrencyCode)))
     })
   }
 
   async getById(userId: string, id: string): Promise<AccountSummary> {
+    const homeCurrencyCode = await this.warmUserCurrencies(userId)
     return runInTenantContext(this.db, userId, async (tx) => {
       const [row] = await tx.select().from(accounts).where(eq(accounts.id, id))
       if (!row) throw new NotFoundException('Account not found')
-      return this.toSummary(tx, row)
+      return this.toSummary(tx, row, homeCurrencyCode)
     })
   }
 
   async create(userId: string, input: CreateAccountInput): Promise<AccountSummary> {
+    const homeCurrencyCode = await this.warmUserCurrencies(userId)
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
         // No colour chosen: continue round the palette so each new card looks different.
@@ -133,7 +144,7 @@ export class AccountsService {
           .insert(accounts)
           .values({ ...input, cardColor, startingBalance: String(input.startingBalance), userId })
           .returning()
-        return this.toSummary(tx, row)
+        return this.toSummary(tx, row, homeCurrencyCode)
       } catch (error) {
         mapPostgresError(error)
       }
@@ -141,6 +152,7 @@ export class AccountsService {
   }
 
   async update(userId: string, id: string, input: Omit<UpdateAccountInput, 'id'>): Promise<AccountSummary> {
+    const homeCurrencyCode = await this.warmUserCurrencies(userId)
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
         const { startingBalance, ...rest } = input
@@ -156,7 +168,7 @@ export class AccountsService {
           .where(eq(accounts.id, id))
           .returning()
         if (!row) throw new NotFoundException('Account not found')
-        return this.toSummary(tx, row)
+        return this.toSummary(tx, row, homeCurrencyCode)
       } catch (error) {
         mapPostgresError(error)
       }
@@ -206,6 +218,7 @@ export class AccountsService {
   }
 
   private async setCardImagePath(userId: string, id: string, path: string | null): Promise<AccountSummary> {
+    const homeCurrencyCode = await this.warmUserCurrencies(userId)
     const { previousPath, summary } = await runInTenantContext(this.db, userId, async (tx) => {
       const [current] = await tx.select({ cardImagePath: accounts.cardImagePath }).from(accounts).where(eq(accounts.id, id))
       if (!current) throw new NotFoundException('Account not found')
@@ -214,7 +227,7 @@ export class AccountsService {
         .set({ cardImagePath: path, updatedAt: new Date() })
         .where(eq(accounts.id, id))
         .returning()
-      return { previousPath: current.cardImagePath, summary: await this.toSummary(tx, row) }
+      return { previousPath: current.cardImagePath, summary: await this.toSummary(tx, row, homeCurrencyCode) }
     })
     if (previousPath && previousPath !== path) await this.removeCardImageFile(previousPath)
     return summary
@@ -228,123 +241,76 @@ export class AccountsService {
 
   /**
    * Point-in-time net worth across every non-archived account, in the user's
-   * home currency (see NetWorthSchema in shared-types for the full contract).
-   * Balances use the same math as list()/getById() — one shared conversion
-   * pass account→home, so an account in a currency with no rate to home is
-   * excluded as a whole rather than silently zeroed.
+   * home currency. A stock: each account's balance is converted to home ONCE
+   * at the current rate (not by re-summing per-transaction values).
    */
   async netWorth(userId: string): Promise<NetWorth> {
+    const asOf = todayISO()
+    const homeCurrencyCode = await this.warmUserCurrencies(userId)
     return runInTenantContext(this.db, userId, async (tx) => {
-      const homeCurrencyCode = await this.homeCurrencyCode(tx, userId)
       const accountRows = await tx.select().from(accounts).where(eq(accounts.isArchived, false)).orderBy(accounts.name)
-      const contributions = await this.balanceContributions(tx, accountRows)
-
-      const conversionRows = accountRows.map((a) => ({
-        accountId: a.id,
-        currencyCode: a.currencyCode,
-        amount: currentBalance(a, contributions.get(a.id)?.contributions ?? []),
-      }))
-      const { converted } = await convertToTargetCurrency(tx, conversionRows, homeCurrencyCode)
-      const includedIds = new Set(converted.map(({ row }) => row.accountId))
-      const homeBalanceById = new Map(converted.map(({ row, convertedAmount }) => [row.accountId, convertedAmount]))
+      const summaries = await Promise.all(accountRows.map((row) => this.toSummary(tx, row, homeCurrencyCode)))
 
       const netAccounts: NetWorthAccount[] = []
-      const excludedAccounts: NetWorth['excludedAccounts'] = []
-      const excludedCurrencies = new Map<string, number>()
       let total = 0
 
-      for (const account of accountRows) {
-        const ownBalance = currentBalance(account, contributions.get(account.id)?.contributions ?? [])
-        if (!includedIds.has(account.id)) {
-          excludedAccounts.push({
-            id: account.id,
-            name: account.name,
-            currencyCode: account.currencyCode,
-            balance: ownBalance,
-          })
-          continue // whole account excluded — its internal drops are moot
+      for (const summary of summaries) {
+        if (summary.balanceCurrencyCode === homeCurrencyCode) {
+          total += summary.balance
+          netAccounts.push(toNetWorthAccount(summary, summary.balance))
+          continue
         }
-        total += homeBalanceById.get(account.id)!
-        // Account rows read in the account's own currency (matching the
-        // Transaction screen's carousel); only the total is home-converted.
-        netAccounts.push({
-          id: account.id,
-          name: account.name,
-          institution: account.institution,
-          type: account.type,
-          currencyCode: account.currencyCode,
-          balance: ownBalance,
-        })
-        for (const excluded of contributions.get(account.id)?.excludedCurrencies ?? []) {
-          excludedCurrencies.set(excluded.currencyCode, (excludedCurrencies.get(excluded.currencyCode) ?? 0) + excluded.transactionCount)
-        }
+        const rate = await this.exchangeRates.requireRate(summary.balanceCurrencyCode, homeCurrencyCode, asOf)
+        total += summary.balance * rate
+        netAccounts.push(toNetWorthAccount(summary, summary.balance))
       }
 
       return {
-        asOf: format(new Date(), 'yyyy-MM-dd'),
+        asOf,
         homeCurrencyCode,
-        total,
+        total: roundMoney(total),
         accounts: netAccounts,
-        excludedAccounts,
-        excludedCurrencies: [...excludedCurrencies.entries()].map(([currencyCode, transactionCount]) => ({ currencyCode, transactionCount })),
       }
     })
   }
 
   /**
-   * Net worth over time (see NetWorthSeriesSchema in shared-types): one point
-   * per bucket at adaptive granularity (same daily/weekly/monthly rules as
-   * the reporting timeseries), each point the summed balance of every
-   * non-archived account at that bucket's end, in home currency. A stock, not
-   * a flow — unlike getTimeseries's per-bucket sums, this is a running
-   * balance sampled at bucket ends, so it starts from the historical balance
-   * at `from`, not from zero.
+   * Net worth over time: one point per bucket at adaptive granularity, each
+   * point the summed balances of every non-archived account at that bucket's
+   * end, in home currency. Account balances are converted once per bucket (at
+   * the bucket-end rate) — a running balance sampled at bucket ends, so it
+   * starts from the historical balance at `from`, not from zero.
    */
   async netWorthSeries(userId: string, from: string, to: string): Promise<NetWorthSeries> {
+    const homeCurrencyCode = await this.warmUserCurrencies(userId)
     return runInTenantContext(this.db, userId, async (tx) => {
-      const homeCurrencyCode = await this.homeCurrencyCode(tx, userId)
       const accountRows = await tx.select().from(accounts).where(eq(accounts.isArchived, false)).orderBy(accounts.name)
-      const contributions = await this.balanceContributions(tx, accountRows)
+      const counting = await this.countingByAccount(tx, accountRows)
 
       const granularity = resolveGranularity(from, to)
       const buckets = buildBuckets(from, to, granularity)
-
-      // One conversion row per account × bucket — a single shared
-      // convertToTargetCurrency pass resolves every account→home rate once.
-      const conversionRows: { accountId: string; currencyCode: string; bucketKey: string; amount: number }[] = []
-      for (const account of accountRows) {
-        const accountContributions = contributions.get(account.id)?.contributions ?? []
-        for (const bucket of buckets) {
-          conversionRows.push({
-            accountId: account.id,
-            currencyCode: account.currencyCode,
-            bucketKey: bucket.key,
-            amount: balanceAt(account, accountContributions, format(bucket.end, 'yyyy-MM-dd')),
-          })
-        }
-      }
-
-      const { converted } = await convertToTargetCurrency(tx, conversionRows, homeCurrencyCode)
-      const includedIds = new Set(converted.map(({ row }) => row.accountId))
       const totalsByBucket = new Map(buckets.map((b) => [b.key, 0]))
-      for (const { row, convertedAmount } of converted) {
-        totalsByBucket.set(row.bucketKey, totalsByBucket.get(row.bucketKey)! + convertedAmount)
-      }
 
-      const excludedAccounts = accountRows
-        .filter((a) => !includedIds.has(a.id))
-        .map((a) => ({
-          id: a.id,
-          name: a.name,
-          currencyCode: a.currencyCode,
-          balance: currentBalance(a, contributions.get(a.id)?.contributions ?? []),
-        }))
-
-      const excludedCurrencies = new Map<string, number>()
       for (const account of accountRows) {
-        if (!includedIds.has(account.id)) continue
-        for (const excluded of contributions.get(account.id)?.excludedCurrencies ?? []) {
-          excludedCurrencies.set(excluded.currencyCode, (excludedCurrencies.get(excluded.currencyCode) ?? 0) + excluded.transactionCount)
+        const rows = counting.get(account.id) ?? []
+        const multi = isMultiCurrency(account, rows)
+        const startRateFixed = multi && account.currencyCode === homeCurrencyCode ? 1 : null
+        for (const bucket of buckets) {
+          const cutoff = format(bucket.end, 'yyyy-MM-dd')
+          if (multi) {
+            const startRate =
+              startRateFixed ?? (await this.exchangeRates.requireRate(account.currencyCode, homeCurrencyCode, cutoff))
+            const home = homeBalanceAt(account, rows, startRate, homeCurrencyCode, cutoff)
+            totalsByBucket.set(bucket.key, totalsByBucket.get(bucket.key)! + home)
+          } else {
+            const own = ownBalanceAt(account, rows, cutoff)
+            if (account.currencyCode === homeCurrencyCode) {
+              totalsByBucket.set(bucket.key, totalsByBucket.get(bucket.key)! + own)
+            } else {
+              const rate = await this.exchangeRates.requireRate(account.currencyCode, homeCurrencyCode, cutoff)
+              totalsByBucket.set(bucket.key, totalsByBucket.get(bucket.key)! + own * rate)
+            }
+          }
         }
       }
 
@@ -354,28 +320,38 @@ export class AccountsService {
         points: buckets.map((b) => ({
           bucketStart: format(b.start, 'yyyy-MM-dd'),
           bucketLabel: b.label,
-          total: totalsByBucket.get(b.key)!,
+          total: roundMoney(totalsByBucket.get(b.key)!),
         })),
-        excludedAccounts,
-        excludedCurrencies: [...excludedCurrencies.entries()].map(([currencyCode, transactionCount]) => ({ currencyCode, transactionCount })),
       }
     })
   }
 
   private async homeCurrencyCode(tx: Db, userId: string): Promise<string> {
-    const [profileRow] = await tx.select().from(profiles).where(eq(profiles.id, userId))
-    return profileRow.homeCurrencyCode
+    return loadHomeCurrency(tx, userId)
   }
 
   /**
-   * Per account: the transactions that count toward its balance (dated
-   * strictly after balance_as_of), each converted to the account's own
-   * currency — the same conversion toSummary applies, but each row keeps its
-   * date so a balance can be reconstructed at any cutoff. All of the user's
-   * relevant transactions are fetched in one query and grouped in memory.
+   * Load every currency the user's accounts or transactions reference into the
+   * rate cache BEFORE entering the tenant transaction, keeping network I/O out
+   * of it (the invariant every service follows). Returns the home currency.
    */
-  private async balanceContributions(tx: Db, accountRows: AccountRow[]): Promise<Map<string, AccountBalanceData>> {
-    const byAccount = new Map<string, AccountBalanceData>()
+  private async warmUserCurrencies(userId: string): Promise<string> {
+    const { homeCurrencyCode, currencies } = await runInTenantContext(this.db, userId, async (tx) => {
+      const home = await this.homeCurrencyCode(tx, userId)
+      const [accountRows, txRows] = await Promise.all([
+        tx.select({ currencyCode: accounts.currencyCode }).from(accounts).where(eq(accounts.isArchived, false)),
+        tx.select({ currencyCode: transactions.currencyCode }).from(transactions),
+      ])
+      const codes = new Set<string>([home, ...accountRows.map((r) => r.currencyCode), ...txRows.map((r) => r.currencyCode)])
+      return { homeCurrencyCode: home, currencies: [...codes] }
+    })
+    await this.exchangeRates.warm(currencies)
+    return homeCurrencyCode
+  }
+
+  /** All counting transactions (dated after balance_as_of) per account, with their materialized home value. */
+  private async countingByAccount(tx: Db, accountRows: AccountRow[]): Promise<Map<string, CountingTx[]>> {
+    const byAccount = new Map<string, CountingTx[]>()
     if (accountRows.length === 0) return byAccount
 
     const txRows = await tx
@@ -384,58 +360,75 @@ export class AccountsService {
         date: transactions.date,
         amount: transactions.amount,
         currencyCode: transactions.currencyCode,
+        convertedValue: transactions.convertedValue,
       })
       .from(transactions)
       .where(inArray(transactions.accountId, accountRows.map((a) => a.id)))
 
     for (const account of accountRows) {
-      const rows = txRows
-        .filter((t) => t.accountId === account.id && t.date > account.balanceAsOf)
-        .map((t) => ({ currencyCode: t.currencyCode, amount: Number(t.amount), date: t.date }))
-      const { converted, excludedCurrencies } = await convertToTargetCurrency(tx, rows, account.currencyCode)
-      byAccount.set(account.id, {
-        contributions: converted
-          .map(({ row, convertedAmount }) => ({ date: row.date, convertedAmount }))
+      byAccount.set(
+        account.id,
+        txRows
+          .filter((t) => t.accountId === account.id && t.date > account.balanceAsOf)
+          .map((t) => ({
+            date: t.date,
+            amount: Number(t.amount),
+            currencyCode: t.currencyCode,
+            convertedValue: t.convertedValue != null ? Number(t.convertedValue) : null,
+          }))
           .sort((a, b) => a.date.localeCompare(b.date)),
-        excludedCurrencies,
-      })
+      )
     }
     return byAccount
   }
 
   /**
-   * Balance = starting_balance + the sum of every transaction (manual or
-   * imported alike) dated *strictly after* balance_as_of, converted to the
-   * account's own currency. balance_as_of is a plain date (no time-of-day) —
-   * the starting balance is assumed to already reflect everything up to and
-   * including that date, so only transactions dated later count. In
-   * practice, set balance_as_of to the day *before* you want counting to
-   * start (e.g. yesterday, if you want today's activity to count) — a
-   * transaction dated exactly on balance_as_of is treated as already
-   * reflected in the snapshot, same as anything earlier.
-   * lastTransactionDate/lastTransactionUpdatedAt reflect ALL of the account's
-   * transactions, regardless of whether they count toward the balance.
-   * lastBalanceUpdatedAt is the account row's own balanceUpdatedAt — kept
-   * separate from lastTransactionUpdatedAt so a manual "Update balance" and a
-   * transaction add/import don't get conflated into one ambiguous "last
-   * updated" timestamp.
+   * Balance = starting_balance + the sum of every transaction dated *strictly
+   * after* balance_as_of (the snapshot already reflects everything up to and
+   * including that date). Single-currency accounts read in their own currency;
+   * multi-currency accounts read in home currency (`balanceCurrencyCode`).
    */
-  private async toSummary(tx: Db, row: AccountRow): Promise<AccountSummary> {
+  private async toSummary(tx: Db, row: AccountRow, homeCurrencyCode: string): Promise<AccountSummary> {
     const txRows = await tx
       .select({
         date: transactions.date,
         amount: transactions.amount,
         currencyCode: transactions.currencyCode,
+        convertedValue: transactions.convertedValue,
         updatedAt: transactions.updatedAt,
       })
       .from(transactions)
       .where(eq(transactions.accountId, row.id))
 
-    const balanceRows = txRows
+    const counting = txRows
       .filter((t) => t.date > row.balanceAsOf)
-      .map((t) => ({ currencyCode: t.currencyCode, amount: Number(t.amount) }))
-    const { converted, excludedCurrencies } = await convertToTargetCurrency(tx, balanceRows, row.currencyCode)
-    const balance = Number(row.startingBalance) + converted.reduce((sum, c) => sum + c.convertedAmount, 0)
+      .map((t) => ({
+        date: t.date,
+        amount: Number(t.amount),
+        currencyCode: t.currencyCode,
+        convertedValue: t.convertedValue != null ? Number(t.convertedValue) : null,
+      }))
+
+    let balance: number
+    let balanceCurrencyCode: string
+    let homeBalance: number
+
+    if (!isMultiCurrency(row, counting)) {
+      balance = ownBalanceAt(row, counting)
+      balanceCurrencyCode = row.currencyCode
+      // A foreign single-currency account is converted here (the client has no
+      // rates); a missing rate fails loudly (FX_UNAVAILABLE), like net worth.
+      homeBalance =
+        row.currencyCode === homeCurrencyCode
+          ? balance
+          : balance * (await this.exchangeRates.requireRate(row.currencyCode, homeCurrencyCode, todayISO()))
+    } else {
+      const startRate =
+        row.currencyCode === homeCurrencyCode ? 1 : await this.exchangeRates.requireRate(row.currencyCode, homeCurrencyCode, todayISO())
+      balance = homeBalanceAt(row, counting, startRate, homeCurrencyCode)
+      balanceCurrencyCode = homeCurrencyCode
+      homeBalance = balance
+    }
 
     const lastTransactionDate = txRows.length ? txRows.reduce((max, t) => (t.date > max ? t.date : max), txRows[0].date) : null
     const lastTransactionUpdatedAt = txRows.length
@@ -446,11 +439,23 @@ export class AccountsService {
 
     return {
       ...toAccount(row, cardImageUrl),
-      balance,
+      balance: roundMoney(balance),
+      balanceCurrencyCode,
+      homeBalance: roundMoney(homeBalance),
       lastTransactionDate,
       lastTransactionUpdatedAt,
       lastBalanceUpdatedAt: row.balanceUpdatedAt.toISOString(),
-      excludedCurrencies,
     }
+  }
+}
+
+function toNetWorthAccount(summary: AccountSummary, balance: number): NetWorthAccount {
+  return {
+    id: summary.id,
+    name: summary.name,
+    institution: summary.institution,
+    type: summary.type,
+    currencyCode: summary.balanceCurrencyCode,
+    balance: roundMoney(balance),
   }
 }

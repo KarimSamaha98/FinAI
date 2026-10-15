@@ -20,8 +20,11 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createDb } from '../db/client.js'
 import { runInTenantContext } from '../db/tenant-context.js'
-import { accounts, categories, fxRates, importProfiles, monthSplits, profiles, reconciliationGroupMembers, reconciliationGroups, transactions } from '../db/schema.js'
+import { accounts, categories, importProfiles, monthSplits, profiles, reconciliationGroupMembers, reconciliationGroups, transactions } from '../db/schema.js'
 import { validateEnv } from '../config/env.js'
+import { ExchangeRatesService } from '../modules/exchange-rates/exchange-rates.service.js'
+import { FrankfurterProvider } from '../modules/exchange-rates/frankfurter.provider.js'
+import { TransactionsService } from '../modules/transactions/transactions.service.js'
 import { buildDemoDataset, REQUIRED_PRESET_CATEGORIES, type DemoTransaction } from './demo-data.js'
 
 const RESET = process.argv.includes('--reset')
@@ -126,10 +129,6 @@ async function main(): Promise<void> {
     await runInTenantContext(db, userId, async (tx) => {
       await tx.update(profiles).set({ displayName: dataset.displayName }).where(eq(profiles.id, userId))
 
-      await tx.insert(fxRates).values(
-        dataset.fxRates.map((r) => ({ userId, baseCurrency: r.baseCurrency, quoteCurrency: r.quoteCurrency, rate: String(r.rate) })),
-      )
-
       // Categories are per-user now — the signup trigger seeds the defaults
       // for the freshly created demo user, so resolve them from their own rows.
       const presetRows = await tx.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.userId, userId))
@@ -175,6 +174,12 @@ async function main(): Promise<void> {
         await tx.insert(importProfiles).values({ id, userId, accountId, name, hasHeader, delimiter, dateFormat, columnMapping })
       }
     })
+
+    // Materialize each transaction's home-currency value from the automatic
+    // rates (fetches from the provider; needs network).
+    const exchangeRates = new ExchangeRatesService(new FrankfurterProvider())
+    const materialized = await new TransactionsService(db, exchangeRates).recomputeForUser(userId)
+    console.log(`Materialized home-currency values for ${materialized} transactions.`)
   } finally {
     await client.end()
   }
@@ -185,7 +190,7 @@ async function main(): Promise<void> {
   console.log(`  accounts:  ${dataset.accounts.length} — ${dataset.accounts.map((a) => `${a.name} (${a.type}, ${a.currencyCode})`).join('; ')}`)
   console.log(`  tx count:  ${dataset.transactions.length}`)
   console.log(`  groups:    ${dataset.reconciliationGroups.length}, month splits: ${dataset.monthSplits.length}`)
-  console.log('  note:      the Legacy GBP Account has no FX rate on purpose — it exercises the excluded-from-net-worth warning on Home.')
+  console.log('  note:      foreign balances convert to home automatically via Frankfurter; per-transaction rates can be overridden in the form.')
 }
 
 main().catch((error) => {

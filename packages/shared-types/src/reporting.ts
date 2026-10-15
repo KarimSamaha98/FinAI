@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { CurrencyCodeSchema } from "./currency.js";
 import { TransactionViewSchema } from "./transaction.js";
 
 // Unlike TransactionListQuerySchema/DateRangeFilterSchema, from/to are
@@ -22,15 +21,8 @@ export const CategoryBreakdownPointSchema = z.object({
 });
 export type CategoryBreakdownPoint = z.infer<typeof CategoryBreakdownPointSchema>;
 
-export const ExcludedCurrencySchema = z.object({
-  currencyCode: CurrencyCodeSchema,
-  transactionCount: z.number().int().nonnegative(),
-});
-export type ExcludedCurrency = z.infer<typeof ExcludedCurrencySchema>;
-
 export const CategoryBreakdownResponseSchema = z.object({
   points: z.array(CategoryBreakdownPointSchema),
-  excludedCurrencies: z.array(ExcludedCurrencySchema),
 });
 export type CategoryBreakdownResponse = z.infer<typeof CategoryBreakdownResponseSchema>;
 
@@ -48,7 +40,6 @@ export type TimeseriesPoint = z.infer<typeof TimeseriesPointSchema>;
 export const TimeseriesResponseSchema = z.object({
   granularity: BucketGranularitySchema,
   points: z.array(TimeseriesPointSchema),
-  excludedCurrencies: z.array(ExcludedCurrencySchema),
 });
 export type TimeseriesResponse = z.infer<typeof TimeseriesResponseSchema>;
 
@@ -57,6 +48,5 @@ export const DashboardSummarySchema = z.object({
   totalIncome: z.number(),
   netIncome: z.number(),
   savingsRate: z.number().nullable(),
-  excludedCurrencies: z.array(ExcludedCurrencySchema),
 });
 export type DashboardSummary = z.infer<typeof DashboardSummarySchema>;
