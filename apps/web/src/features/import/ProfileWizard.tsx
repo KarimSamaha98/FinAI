@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Account, AmountMapping, ColumnRef, CreateImportProfileInput, CurrencyMapping, DisplayRow, PreviewRawRowsResult, SignConvention } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
-import { CURRENCY_CODES, CURRENCY_OPTIONS } from '../../lib/currencies'
+import { useCurrencies } from '../../hooks/useCurrencies'
 import { FieldSelect } from '../../components/FieldSelect'
 import { SuggestInput } from '../../components/SuggestInput'
 import { Button } from '../../components/Button'
@@ -63,13 +63,14 @@ function guessDirectionValues(values: string[]): { inValue: string; outValue: st
  */
 export function ProfileWizard({ accountId, account, accountCurrency, defaultName, uploadedFileId, stepsBefore = DEFAULT_STEPS_BEFORE, onCreated, onCancel }: ProfileWizardProps) {
   const totalSteps = STEPS.length + stepsBefore
+  const { options: currencyOptions } = useCurrencies()
   const [stepIndex, setStepIndex] = useState(0)
   const [rawRows, setRawRows] = useState<string[][] | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
 
   const [hasHeader, setHasHeader] = useState<boolean | null>(null)
   const [currencyMode, setCurrencyMode] = useState<'fixed' | 'column' | null>(null)
-  const [fixedCurrency, setFixedCurrency] = useState(CURRENCY_CODES.includes(accountCurrency) ? accountCurrency : 'USD')
+  const [fixedCurrency, setFixedCurrency] = useState(accountCurrency || 'USD')
   const [currencyCol, setCurrencyCol] = useState<number | null>(null)
   const [dateCol, setDateCol] = useState<number | null>(null)
   const [dateFormat, setDateFormat] = useState('yyyy-MM-dd')
@@ -312,7 +313,7 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
           {currencyMode === 'fixed' && (
             <label className="wizard-inline-field">
               Which currency?
-              <FieldSelect value={fixedCurrency} options={CURRENCY_OPTIONS} onChange={setFixedCurrency} />
+              <FieldSelect value={fixedCurrency} options={currencyOptions} onChange={setFixedCurrency} />
             </label>
           )}
           {currencyMode === 'column' && (

@@ -1,5 +1,3 @@
-import { CURRENCY_CODES } from './currencies'
-
 // ISO 3166-1 alpha-2 codes; display names come from the browser's Intl data
 // so they're localized and we don't ship a hand-maintained name table.
 const COUNTRY_CODES =
@@ -26,9 +24,8 @@ export function listCountries(): Country[] {
 
 const EUROZONE = 'AT BE CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK'.split(' ')
 
-/** The country's own currency, when it's one the app supports — used to pre-fill sign-up. */
+/** The country's own currency — used to pre-fill sign-up. */
 export function defaultCurrencyFor(countryCode: string): string | null {
   const byCountry: Record<string, string> = { US: 'USD', CA: 'CAD', GB: 'GBP', AU: 'AUD', JP: 'JPY' }
-  const currency = byCountry[countryCode] ?? (EUROZONE.includes(countryCode) ? 'EUR' : null)
-  return currency && CURRENCY_CODES.includes(currency) ? currency : null
+  return byCountry[countryCode] ?? (EUROZONE.includes(countryCode) ? 'EUR' : null)
 }

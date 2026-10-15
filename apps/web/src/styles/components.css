@@ -2325,3 +2325,46 @@ dialog::backdrop {
 .field-select--auth .field-select-trigger[aria-expanded='true'] .field-select-auth-arrow {
   transform: none;
 }
+
+/* Compact single-choice control (Auto | Manual, etc.). */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+}
+
+.segmented-option {
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.segmented-option:hover {
+  color: var(--text);
+}
+
+.segmented-option.is-selected {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.segmented-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Exchange-rate field: disabled (Auto) reads as locked rather than editable. */
+.fx-rate-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

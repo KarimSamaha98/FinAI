@@ -7,8 +7,9 @@ import { getPresetRange } from '../../lib/dateRangePresets'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
 import { Card } from '../../components/Card'
+import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
-import { ExcludedCurrenciesWarning } from '../charts/ExcludedCurrenciesWarning'
+import { isFxUnavailable } from '../../lib/apiClient'
 import { useNetWorth } from '../../hooks/useNetWorth'
 import { useNetWorthSeries } from '../../hooks/useNetWorthSeries'
 import { NetWorthChart } from './NetWorthChart'
@@ -43,8 +44,31 @@ function AccountRow({ account }: { account: NetWorthAccount }) {
 
 export function HomeScreen() {
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('6m'))
-  const { netWorth, loading, error } = useNetWorth()
-  const { series, loading: seriesLoading, error: seriesError } = useNetWorthSeries(dateRange)
+  const { netWorth, loading, error, refresh } = useNetWorth()
+  const { series, loading: seriesLoading, error: seriesError, refresh: refreshSeries } = useNetWorthSeries(dateRange)
+
+  // A failed exchange-rate fetch means the totals can't be computed — show a
+  // retry screen instead of misleading partial numbers.
+  if (isFxUnavailable(error) || isFxUnavailable(seriesError)) {
+    return (
+      <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 640, margin: '0 auto', width: '100%' }}>
+        <h1>Home</h1>
+        <Card className="home-empty">
+          <h2>Fetching data failed</h2>
+          <p>We couldn&apos;t fetch exchange rates, so your balances and net worth can&apos;t be shown right now.</p>
+          <Button
+            variant="primary"
+            onClick={() => {
+              refresh()
+              refreshSeries()
+            }}
+          >
+            Try again
+          </Button>
+        </Card>
+      </main>
+    )
+  }
 
   const chartCard = (
     <Card className="home-chart">
@@ -74,7 +98,7 @@ export function HomeScreen() {
         </p>
       )}
 
-      {!loading && netWorth && (netWorth.accounts.length > 0 || netWorth.excludedAccounts.length > 0) && (
+      {!loading && netWorth && netWorth.accounts.length > 0 && (
         <>
           <Card className="home-hero">
             <span className="home-hero-label">Total Net Worth</span>
@@ -84,40 +108,27 @@ export function HomeScreen() {
             <span className="home-hero-asof">as of {formatDate(netWorth.asOf)}</span>
           </Card>
 
-          {netWorth.excludedAccounts.length > 0 && (
-            <Alert variant="info">
-              {netWorth.excludedAccounts.map((a) => `${a.name} (${formatCurrency(a.balance, a.currencyCode)})`).join(', ')}{' '}
-              {netWorth.excludedAccounts.length === 1 ? 'is' : 'are'} excluded from net worth — no exchange rate to{' '}
-              {netWorth.homeCurrencyCode}. <Link to="/settings">Add one in Settings.</Link>
-            </Alert>
-          )}
-          <ExcludedCurrenciesWarning excludedCurrencies={netWorth.excludedCurrencies} />
-
-          {netWorth.accounts.length > 0 ? (
-            <div className="home-grid">
-              <div className="home-buckets">
-                {HOME_BUCKETS.map(({ type, label }) => {
-                  const bucketAccounts = netWorth.accounts.filter((a) => a.type === type)
-                  if (bucketAccounts.length === 0) return null
-                  return (
-                    <Card key={type} className="home-bucket">
-                      <h2>{label}</h2>
-                      {bucketAccounts.map((account) => (
-                        <AccountRow key={account.id} account={account} />
-                      ))}
-                    </Card>
-                  )
-                })}
-              </div>
-              {chartCard}
+          <div className="home-grid">
+            <div className="home-buckets">
+              {HOME_BUCKETS.map(({ type, label }) => {
+                const bucketAccounts = netWorth.accounts.filter((a) => a.type === type)
+                if (bucketAccounts.length === 0) return null
+                return (
+                  <Card key={type} className="home-bucket">
+                    <h2>{label}</h2>
+                    {bucketAccounts.map((account) => (
+                      <AccountRow key={account.id} account={account} />
+                    ))}
+                  </Card>
+                )
+              })}
             </div>
-          ) : (
-            chartCard
-          )}
+            {chartCard}
+          </div>
         </>
       )}
 
-      {!loading && netWorth && netWorth.accounts.length === 0 && netWorth.excludedAccounts.length === 0 && (
+      {!loading && netWorth && netWorth.accounts.length === 0 && (
         <Card className="home-empty">
           <h2>No accounts yet</h2>
           <p>Add your first account to see your net worth here.</p>

@@ -6,7 +6,9 @@ import { DateRangePicker, type DateRange } from '../../components/DateRangePicke
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
+import { Card } from '../../components/Card'
 import { Modal } from '../../components/Modal'
+import { apiClient, isFxUnavailable } from '../../lib/apiClient'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
@@ -41,6 +43,7 @@ function toFormValues(transaction: Transaction): TransactionFormValues {
     description: transaction.description,
     categoryId: transaction.categoryId,
     accountId: transaction.accountId,
+    fxMode: transaction.rateSource,
     fxRateOverride: transaction.rateSource === 'manual' && transaction.exchangeRate != null ? String(transaction.exchangeRate) : '',
   }
 }
@@ -209,6 +212,33 @@ export function AccountsScreen() {
   const viewingGroup = viewingGroupId ? groups.find((g) => g.id === viewingGroupId) : undefined
   const editingSplit = splitTarget ? (splits.find((s: MonthSplit) => s.transactionId === splitTarget.id) ?? null) : null
 
+  // A failed exchange-rate fetch means balances can't be converted to home —
+  // fail loudly (like Home) rather than showing misleading partial totals.
+  if (isFxUnavailable(accountsError) || isFxUnavailable(error) || isFxUnavailable(rowsError)) {
+    return (
+      <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 640, margin: '0 auto', width: '100%' }}>
+        <h1>Transaction</h1>
+        <Card className="home-empty">
+          <h2>Fetching data failed</h2>
+          <p>We couldn&apos;t fetch exchange rates, so your balances and totals can&apos;t be shown right now.</p>
+          <Button
+            variant="primary"
+            onClick={() => {
+              // Repair any transactions left unpriced (a provider outage at write
+              // time) before re-reading, so a retry can actually recover.
+              void (async () => {
+                await apiClient.post('/fx/sync').catch(() => {})
+                await Promise.all([refreshAccounts(), refreshTransactions(), refreshRows()])
+              })()
+            }}
+          >
+            Try again
+          </Button>
+        </Card>
+      </main>
+    )
+  }
+
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -334,6 +364,7 @@ export function AccountsScreen() {
             accounts={accounts}
             fixedAccountId={null}
             initialValues={toFormValues(editingTransaction)}
+            allowFxOverride
             onSubmit={async (input) => {
               await updateTransaction(editingTransaction.id, input)
               await refreshLedger()

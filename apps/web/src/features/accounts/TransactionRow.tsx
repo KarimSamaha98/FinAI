@@ -53,6 +53,11 @@ export function TransactionRow({ row, categories, accounts, onClick }: Transacti
       <span className="txn-row-chips">
         {row.monthSplitId && <span className="txn-chip txn-chip--special">Split</span>}
         {row.reconciliationGroupId && <span className="txn-chip txn-chip--special">Group</span>}
+        {row.convertedValue == null && (
+          <span className="txn-chip txn-chip--special" title="No exchange rate yet — it fills in automatically on your next sign-in.">
+            Rate pending
+          </span>
+        )}
         <span className={`txn-chip txn-chip--category${row.categoryId ? '' : ' is-empty'}`}>{category}</span>
       </span>
       <span className={`txn-row-amount${isIncome ? ' is-income' : ''}`}>{formatCurrency(row.amount, row.currencyCode)}</span>

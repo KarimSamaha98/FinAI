@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { AmountKind, BucketGranularity, ExcludedCurrency, TimeseriesPoint, TransactionView } from 'shared-types'
+import type { AmountKind, BucketGranularity, TimeseriesPoint, TransactionView } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
 import type { DateRange } from '../components/DateRangePicker'
 
 export function useTimeseries(dateRange: DateRange, categoryIds: string[], view: TransactionView, kind: AmountKind) {
   const [granularity, setGranularity] = useState<BucketGranularity>('monthly')
   const [points, setPoints] = useState<TimeseriesPoint[]>([])
-  const [excludedCurrencies, setExcludedCurrencies] = useState<ExcludedCurrency[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const categoryIdsKey = categoryIds.join(',')
@@ -26,21 +25,17 @@ export function useTimeseries(dateRange: DateRange, categoryIds: string[], view:
   const refresh = useCallback(async () => {
     if (!query) {
       setPoints([])
-      setExcludedCurrencies([])
       setLoading(false)
       return
     }
     setLoading(true)
     setError(null)
     try {
-      const response = await apiClient.get<{
-        granularity: BucketGranularity
-        points: TimeseriesPoint[]
-        excludedCurrencies: ExcludedCurrency[]
-      }>(`/reporting/timeseries${query}`)
+      const response = await apiClient.get<{ granularity: BucketGranularity; points: TimeseriesPoint[] }>(
+        `/reporting/timeseries${query}`,
+      )
       setGranularity(response.granularity)
       setPoints(response.points)
-      setExcludedCurrencies(response.excludedCurrencies)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load timeseries')
     } finally {
@@ -52,5 +47,5 @@ export function useTimeseries(dateRange: DateRange, categoryIds: string[], view:
     refresh()
   }, [refresh])
 
-  return { granularity, points, excludedCurrencies, loading, error, refresh }
+  return { granularity, points, loading, error, refresh }
 }
