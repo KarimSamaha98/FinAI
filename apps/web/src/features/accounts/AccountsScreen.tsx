@@ -4,7 +4,9 @@ import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction,
 import { SelectDropdown } from '../../components/SelectDropdown'
 import { SearchInput } from '../../components/SearchInput'
 import { SortControl } from '../../components/SortControl'
-import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
+import { type DateRange } from '../../components/DateRangePicker'
+import { DateRangePresetPicker } from '../../components/DateRangePresetPicker'
+import { getPresetRange } from '../../lib/dateRangePresets'
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
@@ -32,7 +34,8 @@ import { nextAccountSelection } from '../../lib/accountSelection'
 import { SelectionSummary } from './SelectionSummary'
 import { AccountHeader } from './AccountHeader'
 import { AccountForm } from './AccountForm'
-import { TransactionRow } from './TransactionRow'
+import { TransactionRow, type RowAction } from './TransactionRow'
+import { SplitIcon, LinkIcon } from '../../components/icons'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
 import {
@@ -76,7 +79,7 @@ export function AccountsScreen() {
       { replace: true },
     )
   }
-  const [dateRange, setDateRange] = useState<DateRange>({})
+  const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('current-month'))
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [view, setView] = useState<TransactionView>('real')
   const [search, setSearch] = useState('')
@@ -146,6 +149,7 @@ export function AccountsScreen() {
     () => sortDisplayRows(filterRowsByDescription(rows, search), sortField, sortDirection, accountNameById),
     [rows, search, sortField, sortDirection, accountNameById],
   )
+  const splitByTransactionId = useMemo(() => new Map(splits.map((s) => [s.transactionId, s])), [splits])
 
   const selectedAccount = singleSelectedId ? accounts.find((a) => a.id === singleSelectedId) : undefined
   const summarizedAccounts = selectedIds.length === 0 ? accounts : accounts.filter((a) => selectedIds.includes(a.id))
@@ -228,6 +232,23 @@ export function AccountsScreen() {
     return actions
   }
 
+  // Quick actions revealed on row hover/focus — the discoverable entry points
+  // to the split/group flows that used to live only inside the row's modal.
+  function quickActionsFor(row: DisplayRow): RowAction[] {
+    const transaction = findTransaction(row.sourceTransactionIds[0])
+    if (!transaction) return []
+    if (row.kind === 'month_split_portion') {
+      return [{ key: 'edit-split', label: 'Edit split', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) }]
+    }
+    if (row.kind === 'plain') {
+      return [
+        { key: 'split', label: 'Split transaction', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) },
+        { key: 'link', label: 'Link to another transaction', icon: <LinkIcon />, onClick: () => setReconcileAnchor(transaction) },
+      ]
+    }
+    return []
+  }
+
   const editingTransaction = editingId ? findTransaction(editingId) : undefined
   const viewingGroup = viewingGroupId ? groups.find((g) => g.id === viewingGroupId) : undefined
   const editingSplit = splitTarget ? (splits.find((s: MonthSplit) => s.transactionId === splitTarget.id) ?? null) : null
@@ -295,7 +316,7 @@ export function AccountsScreen() {
 
       <UncategorizedNotice count={uncategorized.length} onOpen={openCategorizeDeck} />
       <div className="filter-bar" style={{ margin: 'var(--space-4) 0' }}>
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <DateRangePresetPicker value={dateRange} onChange={setDateRange} />
         <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
         <SelectDropdown<TransactionView>
           label="View"
@@ -336,6 +357,9 @@ export function AccountsScreen() {
               row={row}
               categories={categories}
               accounts={accounts}
+              transactions={transactions}
+              splitByTransactionId={splitByTransactionId}
+              actions={quickActionsFor(row)}
               onClick={() => setActionRow(row)}
             />
           ))}
