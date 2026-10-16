@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { SelectDropdown } from '../../components/SelectDropdown'
+import { SearchInput } from '../../components/SearchInput'
+import { SortControl } from '../../components/SortControl'
 import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Button } from '../../components/Button'
@@ -33,6 +35,14 @@ import { AccountForm } from './AccountForm'
 import { TransactionRow } from './TransactionRow'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
+import {
+  DEFAULT_SORT_DIRECTION,
+  DEFAULT_SORT_FIELD,
+  filterRowsByDescription,
+  sortDisplayRows,
+  type SortDirection,
+  type SortField,
+} from '../../lib/transactionSort'
 
 function toFormValues(transaction: Transaction): TransactionFormValues {
   return {
@@ -69,6 +79,9 @@ export function AccountsScreen() {
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [view, setView] = useState<TransactionView>('real')
+  const [search, setSearch] = useState('')
+  const [sortField, setSortField] = useState<SortField>(DEFAULT_SORT_FIELD)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION)
   const [showAccountForm, setShowAccountForm] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -126,6 +139,13 @@ export function AccountsScreen() {
   )
   const { groups, createGroup, addMember, removeMember, deleteGroup } = useReconciliationGroups()
   const { splits, createSplit, updateSplit } = useMonthSplits()
+
+  // Search + sort are presentation-only over the already-tenant-scoped rows.
+  const accountNameById = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts])
+  const visibleRows = useMemo(
+    () => sortDisplayRows(filterRowsByDescription(rows, search), sortField, sortDirection, accountNameById),
+    [rows, search, sortField, sortDirection, accountNameById],
+  )
 
   const selectedAccount = singleSelectedId ? accounts.find((a) => a.id === singleSelectedId) : undefined
   const summarizedAccounts = selectedIds.length === 0 ? accounts : accounts.filter((a) => selectedIds.includes(a.id))
@@ -286,6 +306,13 @@ export function AccountsScreen() {
           ]}
           onChange={setView}
         />
+        <SortControl
+          field={sortField}
+          direction={sortDirection}
+          onFieldChange={setSortField}
+          onDirectionChange={setSortDirection}
+        />
+        <SearchInput value={search} onChange={setSearch} aria-label="Search transactions by description" />
       </div>
 
       {(loading || rowsLoading) && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
@@ -295,18 +322,25 @@ export function AccountsScreen() {
           No transactions in this range yet.
         </p>
       )}
+      {!loading && !rowsLoading && rows.length > 0 && visibleRows.length === 0 && (
+        <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-5) 0' }}>
+          No transactions match your search.
+        </p>
+      )}
 
-      <ul className="txn-list">
-        {rows.map((row, index) => (
-          <TransactionRow
-            key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
-            row={row}
-            categories={categories}
-            accounts={accounts}
-            onClick={() => setActionRow(row)}
-          />
-        ))}
-      </ul>
+      {visibleRows.length > 0 && (
+        <ul className="txn-list">
+          {visibleRows.map((row, index) => (
+            <TransactionRow
+              key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
+              row={row}
+              categories={categories}
+              accounts={accounts}
+              onClick={() => setActionRow(row)}
+            />
+          ))}
+        </ul>
+      )}
 
       {showAccountForm && (
         <AccountForm
