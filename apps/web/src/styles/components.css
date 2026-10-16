@@ -568,6 +568,78 @@
   gap: var(--space-3);
 }
 
+/* Search field in the filter bar (grows to fill the rest of the row). */
+.search-input {
+  position: relative;
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.search-input input {
+  width: 100%;
+  font-size: 0.85rem;
+  padding-left: 2.1rem;
+  padding-right: 2rem;
+}
+
+.search-input-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.6rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.search-input-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0.15rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.search-input-clear:hover {
+  color: var(--text);
+}
+
+.search-input-clear svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Sort field picker + asc/desc toggle. The button shares .dropdown-trigger's
+   box so its height and border line up with the neighbouring filters. */
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sort-direction-button {
+  justify-content: center;
+  padding-inline: 0.6rem;
+}
+
+.sort-direction-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ── Single select (SelectDropdown) ── */
 
 .dropdown-option {
