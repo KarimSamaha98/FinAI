@@ -827,22 +827,21 @@ dialog::backdrop {
 }
 
 /* ── Auth ──────────────────────────────────────────────────────────────── */
-/* Login / sign-up follow the "Licence Plates" Figma frames (Signup Screen
-   124:16, Login Screen 124:189) in the app's own fonts: a pale blue-grey page, a white
-   panel, pill fields and a slate submit button. Light values are the Figma
-   ones; dark mode keeps the same shapes on the app's Night Ledger surfaces. */
+/* Login / sign-up keep the "Licence Plates" shapes (pills, white panel) but
+   now sit on the Night Ledger palette: a violet-tinted page, violet fields and
+   the app's acid-lime primary action. */
 
 .auth-shell {
-  --auth-page: #f1f5fb;
-  --auth-panel: #ffffff;
-  --auth-field: #f1f5fb;
-  --auth-text: #000000;
-  --auth-muted: #818080;
-  --auth-button: #9299a6;
-  --auth-button-hover: #7f8796;
-  --auth-button-text: #ffffff;
-  --auth-focus: #5f6b80;
-  --auth-panel-shadow: 0 2px 6px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --auth-page: var(--bg);
+  --auth-panel: var(--surface);
+  --auth-field: var(--bg);
+  --auth-text: var(--text);
+  --auth-muted: var(--text-muted);
+  --auth-button: var(--accent);
+  --auth-button-hover: color-mix(in srgb, var(--accent) 85%, var(--text));
+  --auth-button-text: var(--accent-contrast);
+  --auth-focus: var(--accent);
+  --auth-panel-shadow: var(--shadow-sm), var(--shadow-md);
 
   flex: 1;
   display: flex;
@@ -860,10 +859,11 @@ dialog::backdrop {
     --auth-field: var(--surface-raised);
     --auth-text: var(--text);
     --auth-muted: var(--text-muted);
-    --auth-button: #6b7385;
-    --auth-button-hover: #7c8497;
-    --auth-focus: var(--text-muted);
-    --auth-panel-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --auth-button: var(--accent);
+    --auth-button-hover: color-mix(in srgb, var(--accent) 85%, var(--text));
+    --auth-button-text: var(--accent-contrast);
+    --auth-focus: var(--accent);
+    --auth-panel-shadow: var(--shadow-md);
   }
 }
 
@@ -1426,20 +1426,21 @@ dialog::backdrop {
    category. Light values are the Figma ones; dark mode keeps the layout. */
 
 .txn-list {
-  --txn-bg: #f1f5fb;
-  --txn-bg-hover: #e6ecf6;
-  --txn-text: #000000;
-  --txn-muted: #6b6b6b;
-  --txn-chip-special: #767676; /* Figma #898989, darkened to keep white 12px text at 4.5:1 */
-  --txn-chip-special-text: #ffffff;
-  --txn-chip-category: #d1e0fa;
-  --txn-chip-category-text: #000000;
-  --txn-expense: #cf2222;
-  --txn-income: #1a7f37;
+  --txn-bg: var(--bg);
+  --txn-bg-hover: color-mix(in srgb, var(--border) 55%, var(--bg));
+  --txn-text: var(--text);
+  --txn-muted: var(--text-muted);
+  --txn-meta: var(--text-muted);
+  --txn-chip-line: var(--border);
+  --txn-expense: var(--outflow);
+  --txn-income: var(--success);
+  --txn-card-ring: var(--surface);
+  --txn-split-tint: color-mix(in srgb, var(--border) 30%, var(--txn-bg));
+  --txn-group-tint: color-mix(in srgb, var(--border) 55%, var(--txn-bg));
 
   list-style: none;
   margin: 0;
-  /* The Figma tiles sit on white; the panel gives them that contrast on the
+  /* The tiles sit on white; the panel gives them that contrast on the
      page's own tinted background. */
   padding: var(--space-2);
   border-radius: var(--radius-md);
@@ -1454,30 +1455,34 @@ dialog::backdrop {
 @media (prefers-color-scheme: dark) {
   .txn-list {
     --txn-bg: var(--surface-raised);
-    --txn-bg-hover: #2d2b3d;
+    --txn-bg-hover: color-mix(in srgb, var(--border) 45%, var(--surface-raised));
     --txn-text: var(--text);
     --txn-muted: var(--text-muted);
-    --txn-chip-special: #5b5966;
-    --txn-chip-category: #2a3a57;
-    --txn-chip-category-text: #dbe6fb;
+    --txn-meta: var(--text-muted);
+    --txn-chip-line: var(--border);
     --txn-expense: var(--outflow);
-    --txn-income: var(--accent);
+    --txn-income: var(--success);
+    --txn-card-ring: var(--surface-raised);
   }
+}
+
+.txn-item {
+  position: relative;
 }
 
 .txn-row {
   width: 100%;
   display: grid;
-  /* The amount column has a fixed minimum so the category chips (to its left)
-     stay aligned across rows regardless of how many digits each amount has —
-     with an `auto` amount column, wider amounts shift the chips leftward. */
-  grid-template-columns: 50px auto minmax(0, 1fr) auto minmax(7rem, max-content);
+  /* The amount column has a fixed minimum so the category pill (to its left)
+     stays aligned across rows regardless of how many digits each amount has. */
+  grid-template-columns: 40px 96px minmax(0, 1fr) auto minmax(6.5rem, max-content);
   grid-template-areas: 'card date description chips amount';
   align-items: center;
   column-gap: 16px;
-  padding: 8px;
+  /* Right band reserved for quick actions, so they never shift the amount. */
+  padding: 10px 88px 10px 12px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 10px;
   background: var(--txn-bg);
   color: var(--txn-text);
   font: inherit;
@@ -1486,12 +1491,22 @@ dialog::backdrop {
   transition: background var(--transition);
 }
 
+/* Derived rows get a quiet tint; the account-tile badge carries the kind. */
+.txn-item--month-split-portion .txn-row {
+  background: var(--txn-split-tint);
+}
+
+.txn-item--reconciliation-net .txn-row {
+  background: var(--txn-group-tint);
+}
+
 .txn-row:hover {
   background: var(--txn-bg-hover);
 }
 
 .txn-row.is-static {
   cursor: default;
+  padding-right: 12px;
 }
 
 .txn-row.is-static:hover {
@@ -1503,36 +1518,114 @@ dialog::backdrop {
   outline-offset: 2px;
 }
 
+/* Account tile: one face, or a stack when a group spans several accounts. */
 .txn-row-card {
   grid-area: card;
   position: relative;
-  width: 50px;
-  height: 31.5px; /* card proportions */
-  overflow: hidden;
-  border-radius: 4px;
-  background: var(--surface-raised);
+  display: flex;
+  align-items: center;
+  width: 40px;
+  height: 25px;
 }
 
-.txn-row-card img {
+.txn-row-card-face {
+  position: relative;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 25px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 2px var(--txn-card-ring);
+}
+
+.txn-row-card--stack {
+  width: auto;
+}
+
+.txn-row-card--stack .txn-row-card-face {
+  margin-left: -14px;
+}
+
+.txn-row-card--stack .txn-row-card-face:first-child {
+  margin-left: 0;
+}
+
+.txn-row-card-face img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
+.txn-row-card-plus {
+  align-self: flex-end;
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--txn-muted);
+}
+
+.txn-row-card-face--empty {
+  background: var(--surface-raised);
+}
+
+.txn-row-card-face--empty .txn-row-card-initial {
+  color: var(--txn-muted);
+  text-shadow: none;
+}
+
+/* Corner badge marking a derived row (split portion / reconciliation net). */
+.txn-row-card-kind {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--txn-text);
+  color: var(--txn-bg);
+  border: 2px solid var(--txn-card-ring);
+}
+
+.txn-row-card-kind svg {
+  width: 11px;
+  height: 11px;
+}
+
 .txn-row-date {
   grid-area: date;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 20px;
-  letter-spacing: 0.25px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--txn-muted);
   white-space: nowrap;
 }
 
-.txn-row-description {
+.txn-row-description-cell {
   grid-area: description;
-  font-size: 18px;
-  line-height: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.txn-row-description {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txn-row-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--txn-meta);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1541,42 +1634,41 @@ dialog::backdrop {
 .txn-row-chips {
   grid-area: chips;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
   justify-content: flex-end;
 }
 
 .txn-chip {
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--txn-chip-line);
+  background: var(--surface);
+  color: var(--txn-text);
+  font-size: 11px;
   font-weight: 500;
   line-height: 16px;
-  letter-spacing: 0.5px;
   white-space: nowrap;
 }
 
-.txn-chip--special {
-  background: var(--txn-chip-special);
-  color: var(--txn-chip-special-text);
-}
-
-.txn-chip--category {
-  background: var(--txn-chip-category);
-  color: var(--txn-chip-category-text);
+.txn-chip-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
 }
 
 .txn-chip--category.is-empty {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--txn-chip-category);
+  border-style: dashed;
   color: var(--txn-muted);
 }
 
 .txn-row-amount {
   grid-area: amount;
-  font-size: 18px; /* matches the description; the weight and colour carry the emphasis */
-  font-weight: 700;
-  line-height: 24px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -1587,35 +1679,161 @@ dialog::backdrop {
   color: var(--txn-income);
 }
 
-/* Narrow lists: name and date stack beside the card, chips drop below. */
+.txn-row-amount.is-zero {
+  color: var(--txn-muted);
+}
+
+/* Quick actions plus the group expander, in the reserved right band. */
+.txn-row-actions {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
+.txn-item:hover .txn-row-actions,
+.txn-item:focus-within .txn-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* A group row's expander is always offered. */
+.txn-item--reconciliation-net .txn-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.txn-row-action {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--txn-text);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.txn-row-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.txn-row-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.txn-row-expand svg {
+  transition: transform var(--transition);
+}
+
+.txn-row-expand[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+/* Inline members of an expanded reconciliation group. */
+.txn-members {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 4px 12px 6px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: txn-members-in 160ms ease;
+}
+
+@keyframes txn-members-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.txn-member {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto minmax(6.5rem, max-content);
+  align-items: center;
+  column-gap: 16px;
+  font-size: 13px;
+  color: var(--txn-muted);
+}
+
+.txn-member-date {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.txn-member-desc {
+  color: var(--txn-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txn-member-account {
+  white-space: nowrap;
+}
+
+.txn-member-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--txn-expense);
+}
+
+.txn-member-amount.is-income {
+  color: var(--txn-income);
+}
+
+/* Narrow lists: description and date stack beside the card, chips drop below. */
 @container (max-width: 720px) {
   .txn-row {
-    grid-template-columns: 50px minmax(0, 1fr) auto;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
     grid-template-areas:
       'card description amount'
       'card date amount'
       'chips chips chips';
     column-gap: 12px;
     row-gap: 2px;
-  }
-
-  .txn-row-description {
-    font-size: 16px;
+    padding: 10px 52px 10px 12px;
   }
 
   .txn-row-date {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--txn-muted);
+    font-size: 12px;
   }
 
   .txn-row-amount {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .txn-row-chips {
     justify-content: flex-start;
     margin-top: 6px;
+  }
+
+  .txn-members {
+    padding-left: 52px;
+  }
+
+  .txn-member {
+    grid-template-columns: 84px minmax(0, 1fr) auto;
+  }
+
+  .txn-member-account {
+    display: none;
   }
 }
 
@@ -1924,7 +2142,7 @@ dialog::backdrop {
   justify-content: center;
   color: #ffffff;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 12px;
   line-height: 1;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }

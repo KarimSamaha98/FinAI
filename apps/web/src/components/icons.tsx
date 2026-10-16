@@ -124,6 +124,62 @@ export function ChevronRightIcon() {
   )
 }
 
+export function SearchIcon() {
+  return (
+    <Icon>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </Icon>
+  )
+}
+
+export function ArrowUpIcon() {
+  return (
+    <Icon>
+      <path d="M12 19V5" />
+      <path d="m6 11 6-6 6 6" />
+    </Icon>
+  )
+}
+
+export function ArrowDownIcon() {
+  return (
+    <Icon>
+      <path d="M12 5v14" />
+      <path d="m6 13 6 6 6-6" />
+    </Icon>
+  )
+}
+
+export function ChevronDownIcon() {
+  return (
+    <Icon>
+      <path d="m6 9.5 6 6 6-6" />
+    </Icon>
+  )
+}
+
+export function SplitIcon() {
+  return (
+    <Icon>
+      <path d="M17 3.5 20 6.5l-3 3" />
+      <path d="M20 6.5H7a4 4 0 0 0-4 4v1" />
+      <path d="M7 20.5 4 17.5l3-3" />
+      <path d="M4 17.5h13a4 4 0 0 0 4-4v-1" />
+    </Icon>
+  )
+}
+
+export function LinkIcon() {
+  return (
+    <Icon>
+      <path d="M9.5 14.5 14.5 9.5" />
+      <path d="M10.5 6.5 12 5a3.5 3.5 0 0 1 5 5l-1.5 1.5" />
+      <path d="M13.5 17.5 12 19a3.5 3.5 0 0 1-5-5l1.5-1.5" />
+    </Icon>
+  )
+}
+
 export function PencilIcon() {
   return (
     <Icon>
