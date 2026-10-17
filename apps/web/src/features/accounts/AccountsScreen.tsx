@@ -34,8 +34,7 @@ import { nextAccountSelection } from '../../lib/accountSelection'
 import { SelectionSummary } from './SelectionSummary'
 import { AccountHeader } from './AccountHeader'
 import { AccountForm } from './AccountForm'
-import { TransactionRow, type RowAction } from './TransactionRow'
-import { SplitIcon, LinkIcon } from '../../components/icons'
+import { TransactionRow } from './TransactionRow'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
 import {
@@ -222,31 +221,14 @@ export function AccountsScreen() {
     }
     if (row.kind === 'reconciliation_net' && row.reconciliationGroupId) {
       const groupId = row.reconciliationGroupId
-      actions.push({ label: 'View reconciliation group', onClick: () => setViewingGroupId(groupId) })
+      actions.push({ label: 'Manage linked transactions', onClick: () => setViewingGroupId(groupId) })
     }
     actions.push({ label: 'Split transaction', onClick: () => setSplitTarget(anchorTransaction) })
-    actions.push({ label: 'Reconcile / group', onClick: () => setReconcileAnchor(anchorTransaction) })
+    actions.push({ label: 'Link transactions', onClick: () => setReconcileAnchor(anchorTransaction) })
     if (row.kind === 'plain') {
       actions.push({ label: 'Delete', variant: 'danger', onClick: () => handleDeleteTransaction(anchorTransaction.id) })
     }
     return actions
-  }
-
-  // Quick actions revealed on row hover/focus — the discoverable entry points
-  // to the split/group flows that used to live only inside the row's modal.
-  function quickActionsFor(row: DisplayRow): RowAction[] {
-    const transaction = findTransaction(row.sourceTransactionIds[0])
-    if (!transaction) return []
-    if (row.kind === 'month_split_portion') {
-      return [{ key: 'edit-split', label: 'Edit split', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) }]
-    }
-    if (row.kind === 'plain') {
-      return [
-        { key: 'split', label: 'Split transaction', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) },
-        { key: 'link', label: 'Link to another transaction', icon: <LinkIcon />, onClick: () => setReconcileAnchor(transaction) },
-      ]
-    }
-    return []
   }
 
   const editingTransaction = editingId ? findTransaction(editingId) : undefined
@@ -357,9 +339,7 @@ export function AccountsScreen() {
               row={row}
               categories={categories}
               accounts={accounts}
-              transactions={transactions}
               splitByTransactionId={splitByTransactionId}
-              actions={quickActionsFor(row)}
               onClick={() => setActionRow(row)}
             />
           ))}
