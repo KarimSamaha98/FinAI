@@ -1435,8 +1435,6 @@ dialog::backdrop {
   --txn-expense: var(--outflow);
   --txn-income: var(--success);
   --txn-card-ring: var(--surface);
-  --txn-split-tint: color-mix(in srgb, var(--border) 30%, var(--txn-bg));
-  --txn-group-tint: color-mix(in srgb, var(--border) 55%, var(--txn-bg));
 
   list-style: none;
   margin: 0;
@@ -1479,8 +1477,7 @@ dialog::backdrop {
   grid-template-areas: 'card date description chips amount';
   align-items: center;
   column-gap: 16px;
-  /* Right band reserved for quick actions, so they never shift the amount. */
-  padding: 10px 88px 10px 12px;
+  padding: 10px 12px;
   border: 0;
   border-radius: 10px;
   background: var(--txn-bg);
@@ -1491,22 +1488,12 @@ dialog::backdrop {
   transition: background var(--transition);
 }
 
-/* Derived rows get a quiet tint; the account-tile badge carries the kind. */
-.txn-item--month-split-portion .txn-row {
-  background: var(--txn-split-tint);
-}
-
-.txn-item--reconciliation-net .txn-row {
-  background: var(--txn-group-tint);
-}
-
 .txn-row:hover {
   background: var(--txn-bg-hover);
 }
 
 .txn-row.is-static {
   cursor: default;
-  padding-right: 12px;
 }
 
 .txn-row.is-static:hover {
@@ -1608,8 +1595,13 @@ dialog::backdrop {
   grid-area: description;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 1px;
   min-width: 0;
+  /* Reserve two lines (20 title + 1 gap + 16 meta) so rows without a meta line
+     — everything but split/group rows — match the taller ones, and centre the
+     single-line case so its title sits mid-row like the other columns. */
+  min-height: 37px;
 }
 
 .txn-row-description {
@@ -1683,121 +1675,6 @@ dialog::backdrop {
   color: var(--txn-muted);
 }
 
-/* Quick actions plus the group expander, in the reserved right band. */
-.txn-row-actions {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  display: flex;
-  gap: 6px;
-  transform: translateY(-50%);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--transition);
-}
-
-.txn-item:hover .txn-row-actions,
-.txn-item:focus-within .txn-row-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* A group row's expander is always offered. */
-.txn-item--reconciliation-net .txn-row-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.txn-row-action {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface-raised);
-  color: var(--txn-text);
-  cursor: pointer;
-  transition: border-color var(--transition), color var(--transition);
-}
-
-.txn-row-action:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.txn-row-action svg {
-  width: 16px;
-  height: 16px;
-}
-
-.txn-row-expand svg {
-  transition: transform var(--transition);
-}
-
-.txn-row-expand[aria-expanded='true'] svg {
-  transform: rotate(180deg);
-}
-
-/* Inline members of an expanded reconciliation group. */
-.txn-members {
-  list-style: none;
-  margin: 2px 0 0;
-  padding: 4px 12px 6px 56px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  animation: txn-members-in 160ms ease;
-}
-
-@keyframes txn-members-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.txn-member {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) auto minmax(6.5rem, max-content);
-  align-items: center;
-  column-gap: 16px;
-  font-size: 13px;
-  color: var(--txn-muted);
-}
-
-.txn-member-date {
-  font-family: var(--font-mono);
-  white-space: nowrap;
-}
-
-.txn-member-desc {
-  color: var(--txn-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.txn-member-account {
-  white-space: nowrap;
-}
-
-.txn-member-amount {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-  color: var(--txn-expense);
-}
-
-.txn-member-amount.is-income {
-  color: var(--txn-income);
-}
-
 /* Narrow lists: description and date stack beside the card, chips drop below. */
 @container (max-width: 720px) {
   .txn-row {
@@ -1808,7 +1685,7 @@ dialog::backdrop {
       'chips chips chips';
     column-gap: 12px;
     row-gap: 2px;
-    padding: 10px 52px 10px 12px;
+    padding: 10px 12px;
   }
 
   .txn-row-date {
@@ -1822,18 +1699,6 @@ dialog::backdrop {
   .txn-row-chips {
     justify-content: flex-start;
     margin-top: 6px;
-  }
-
-  .txn-members {
-    padding-left: 52px;
-  }
-
-  .txn-member {
-    grid-template-columns: 84px minmax(0, 1fr) auto;
-  }
-
-  .txn-member-account {
-    display: none;
   }
 }
 

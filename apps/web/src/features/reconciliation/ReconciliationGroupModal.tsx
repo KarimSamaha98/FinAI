@@ -40,7 +40,7 @@ export function ReconciliationGroupModal({
   const netCurrency = anchor?.currencyCode ?? 'USD'
 
   return (
-    <Modal open={open} onClose={onClose} title={group.label || 'Reconciliation group'}>
+    <Modal open={open} onClose={onClose} title={group.label || 'Linked transactions'}>
       <p style={{ margin: 0, color: 'var(--text-muted)' }}>
         {group.memberTransactionIds.length} members · net{' '}
         <span className="mono">{formatCurrency(group.netAmountHomeCurrency, netCurrency)}</span> · anchor category:{' '}
