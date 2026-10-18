@@ -65,7 +65,6 @@ export function TransactionRow({
     .join(', ')
 
   return (
-  return (
     <li className="txn-item">
       <button
         type="button"
