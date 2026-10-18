@@ -1,4 +1,5 @@
 import type { Category } from 'shared-types'
+import { CategoryIcon } from './categoryIcons'
 import { MultiSelectDropdown } from './MultiSelectDropdown'
 
 interface CategoryMultiSelectProps {
@@ -11,7 +12,7 @@ export function CategoryMultiSelect({ categories, selectedIds, onChange }: Categ
   return (
     <MultiSelectDropdown
       label="Category"
-      options={categories.map((c) => ({ id: c.id, label: c.name }))}
+      options={categories.map((c) => ({ id: c.id, label: c.name, icon: <CategoryIcon name={c.icon} /> }))}
       selectedIds={selectedIds}
       onChange={onChange}
     />

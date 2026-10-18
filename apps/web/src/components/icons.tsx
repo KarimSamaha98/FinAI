@@ -173,9 +173,8 @@ export function SplitIcon() {
 export function LinkIcon() {
   return (
     <Icon>
-      <path d="M9.5 14.5 14.5 9.5" />
-      <path d="M10.5 6.5 12 5a3.5 3.5 0 0 1 5 5l-1.5 1.5" />
-      <path d="M13.5 17.5 12 19a3.5 3.5 0 0 1-5-5l1.5-1.5" />
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </Icon>
   )
 }
@@ -210,6 +209,16 @@ export function LockIcon() {
   )
 }
 
+export function BankIcon() {
+  return (
+    <Icon>
+      <path d="M3 9 12 4l9 5" />
+      <path d="M5 9v8M19 9v8M9.5 9v8M14.5 9v8" />
+      <path d="M3 21h18" />
+    </Icon>
+  )
+}
+
 export function UnlockIcon() {
   return (
     <Icon>
@@ -219,29 +228,40 @@ export function UnlockIcon() {
   )
 }
 
-export function SearchIcon() {
+export function CreditCardIcon() {
   return (
     <Icon>
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="m16 16 4.5 4.5" />
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M7 14h4" />
     </Icon>
   )
 }
 
-export function ArrowUpIcon() {
+export function InvestmentIcon() {
   return (
     <Icon>
-      <path d="M12 19V5" />
-      <path d="m6 11 6-6 6 6" />
+      <path d="M4 17l5-5 3 3 6-7" />
+      <path d="M16 8h4v4" />
     </Icon>
   )
 }
 
-export function ArrowDownIcon() {
+export function CashIcon() {
   return (
     <Icon>
-      <path d="M12 5v14" />
-      <path d="m6 13 6 6 6-6" />
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.6" />
+      <path d="M6.5 9v6M17.5 9v6" />
+    </Icon>
+  )
+}
+
+export function AccountIcon() {
+  return (
+    <Icon>
+      <rect x="3" y="6" width="18" height="12" rx="3" />
+      <circle cx="12" cy="12" r="2" />
     </Icon>
   )
 }

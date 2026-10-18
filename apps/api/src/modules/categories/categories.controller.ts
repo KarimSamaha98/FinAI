@@ -23,7 +23,7 @@ export class CategoriesController {
   @Patch(':id')
   rename(@CurrentUserId() userId: string, @Param('id') id: string, @Body() body: unknown) {
     const input = RenameCategoryInputSchema.parse({ ...(body as object), id })
-    return this.categoriesService.rename(userId, input.id, input.name)
+    return this.categoriesService.rename(userId, input.id, input.name, input.icon)
   }
 
   @Get(':id/usage')
