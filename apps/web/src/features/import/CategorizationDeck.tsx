@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Category, CandidateRow } from 'shared-types'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
+import { CategoryIcon } from '../../components/categoryIcons'
 import { useTopCategories } from '../../hooks/useTopCategories'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
@@ -119,7 +120,10 @@ export function CategorizationDeck({ rows, categories, onDone, onProgress, showS
                 aria-label={isSelected ? `${category.name} (selected)` : undefined}
                 onClick={() => choose(category.id)}
               >
-                {category.name}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <CategoryIcon name={category.icon} />
+                  {category.name}
+                </span>
               </Button>
             )
           })}

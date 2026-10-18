@@ -152,6 +152,8 @@ export function AccountsScreen() {
 
   const selectedAccount = singleSelectedId ? accounts.find((a) => a.id === singleSelectedId) : undefined
   const summarizedAccounts = selectedIds.length === 0 ? accounts : accounts.filter((a) => selectedIds.includes(a.id))
+  // Accounts are only ambiguous when more than one is in view (all, or several).
+  const showAccountPerRow = selectedIds.length !== 1
 
   function handleToggleAccount(id: string) {
     setSelectedIds(
@@ -340,6 +342,7 @@ export function AccountsScreen() {
               categories={categories}
               accounts={accounts}
               splitByTransactionId={splitByTransactionId}
+              showAccount={showAccountPerRow}
               onClick={() => setActionRow(row)}
             />
           ))}

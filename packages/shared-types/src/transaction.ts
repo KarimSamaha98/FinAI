@@ -109,6 +109,10 @@ export const DisplayRowSchema = z.object({
   // keys off the anchor transaction only, mirroring the existing anchor-based
   // category filtering — see ReportingQueryService.
   accountIds: z.array(z.string().uuid()),
+  // The account of the anchor transaction (largest absolute amount in a
+  // reconciliation group; the row's own transaction otherwise). The row is
+  // represented by this account wherever a single one is shown.
+  anchorAccountId: z.string().uuid().nullable(),
   sourceTransactionIds: z.array(z.string().uuid()),
   reconciliationGroupId: z.string().uuid().nullable(),
   monthSplitId: z.string().uuid().nullable(),

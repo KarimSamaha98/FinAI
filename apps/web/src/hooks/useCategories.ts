@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Category, CreateCategoryInput } from 'shared-types'
+import type { Category, CategoryIconKey, CreateCategoryInput } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
 
 export function useCategories() {
@@ -33,8 +33,8 @@ export function useCategories() {
     return category
   }
 
-  async function renameCategory(id: string, name: string) {
-    const updated = await apiClient.patch<Category>(`/categories/${id}`, { name })
+  async function renameCategory(id: string, name: string, icon?: CategoryIconKey | null) {
+    const updated = await apiClient.patch<Category>(`/categories/${id}`, icon === undefined ? { name } : { name, icon })
     setCategories((prev) => sortByName(prev.map((c) => (c.id === id ? updated : c))))
     return updated
   }
