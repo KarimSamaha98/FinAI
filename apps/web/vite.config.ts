@@ -36,6 +36,9 @@ export default defineConfig({
     }),
   ],
   server: {
+    // Bind to all interfaces so the dev server is reachable from a phone on
+    // the same Wi-Fi (e.g. http://<mac-ip>:5173).
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
