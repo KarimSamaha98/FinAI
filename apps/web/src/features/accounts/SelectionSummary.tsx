@@ -11,7 +11,7 @@ interface SelectionSummaryProps {
 
 /** Shown below the cards when more than one account is in view: their combined total in the home currency. */
 export function SelectionSummary({ accounts, allSelected }: SelectionSummaryProps) {
-  const { total, homeCurrency, excluded } = useCombinedBalance(accounts)
+  const { total, homeCurrency } = useCombinedBalance(accounts)
 
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', margin: 'var(--space-4) 0' }}>
@@ -24,11 +24,6 @@ export function SelectionSummary({ accounts, allSelected }: SelectionSummaryProp
       <p className="mono" style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }} aria-label={`Combined total ${formatCurrency(total, homeCurrency)}`}>
         {formatCurrency(total, homeCurrency)}
       </p>
-      {excluded.length > 0 && (
-        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-          Not included (no exchange rate to {homeCurrency}): {excluded.map((a) => a.name).join(', ')}
-        </p>
-      )}
     </Card>
   )
 }

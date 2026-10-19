@@ -15,7 +15,6 @@ import { useDashboardSummary } from '../../hooks/useDashboardSummary'
 import { CategoryPieChart } from './CategoryPieChart'
 import { TimeseriesChart } from './TimeseriesChart'
 import { DashboardMetrics } from './DashboardMetrics'
-import { ExcludedCurrenciesWarning } from './ExcludedCurrenciesWarning'
 
 export function ChartsPage() {
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('current-month'))
@@ -54,8 +53,6 @@ export function ChartsPage() {
 
       {loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
       {error && <Alert variant="error">{error}</Alert>}
-
-      <ExcludedCurrenciesWarning excludedCurrencies={summary.excludedCurrencies} />
 
       <DashboardMetrics
         totalExpense={summary.totalExpense}

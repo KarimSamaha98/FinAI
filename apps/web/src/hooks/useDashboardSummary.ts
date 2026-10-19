@@ -3,7 +3,7 @@ import type { DashboardSummary, TransactionView } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
 import type { DateRange } from '../components/DateRangePicker'
 
-const EMPTY_SUMMARY: DashboardSummary = { totalExpense: 0, totalIncome: 0, netIncome: 0, savingsRate: null, excludedCurrencies: [] }
+const EMPTY_SUMMARY: DashboardSummary = { totalExpense: 0, totalIncome: 0, netIncome: 0, savingsRate: null }
 
 export function useDashboardSummary(dateRange: DateRange, categoryIds: string[], view: TransactionView) {
   const [summary, setSummary] = useState<DashboardSummary>(EMPTY_SUMMARY)

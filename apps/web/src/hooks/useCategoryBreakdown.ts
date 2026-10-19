@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { AmountKind, CategoryBreakdownPoint, ExcludedCurrency, TransactionView } from 'shared-types'
+import type { AmountKind, CategoryBreakdownPoint, TransactionView } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
 import type { DateRange } from '../components/DateRangePicker'
 
@@ -10,7 +10,6 @@ export function useCategoryBreakdown(
   kind: AmountKind,
 ) {
   const [points, setPoints] = useState<CategoryBreakdownPoint[]>([])
-  const [excludedCurrencies, setExcludedCurrencies] = useState<ExcludedCurrency[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const categoryIdsKey = categoryIds.join(',')
@@ -30,18 +29,14 @@ export function useCategoryBreakdown(
   const refresh = useCallback(async () => {
     if (!query) {
       setPoints([])
-      setExcludedCurrencies([])
       setLoading(false)
       return
     }
     setLoading(true)
     setError(null)
     try {
-      const response = await apiClient.get<{ points: CategoryBreakdownPoint[]; excludedCurrencies: ExcludedCurrency[] }>(
-        `/reporting/category-breakdown${query}`,
-      )
+      const response = await apiClient.get<{ points: CategoryBreakdownPoint[] }>(`/reporting/category-breakdown${query}`)
       setPoints(response.points)
-      setExcludedCurrencies(response.excludedCurrencies)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load category breakdown')
     } finally {
@@ -53,5 +48,5 @@ export function useCategoryBreakdown(
     refresh()
   }, [refresh])
 
-  return { points, excludedCurrencies, loading, error, refresh }
+  return { points, loading, error, refresh }
 }

@@ -6,5 +6,4 @@ export * from "./transaction.js";
 export * from "./import-profile.js";
 export * from "./reconciliation.js";
 export * from "./month-split.js";
-export * from "./fx-rate.js";
 export * from "./reporting.js";

@@ -4,9 +4,9 @@ import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { ACCOUNT_TYPE_OPTIONS } from '../../lib/accountTypes'
-import { CURRENCY_OPTIONS } from '../../lib/currencies'
 import { FieldSelect } from '../../components/FieldSelect'
 import { FieldDatePicker } from '../../components/FieldDatePicker'
+import { useCurrencies } from '../../hooks/useCurrencies'
 import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
 
 interface AccountFormProps {
@@ -20,6 +20,7 @@ interface AccountFormProps {
 }
 
 export function AccountForm({ open, onClose, createAccount, uploadCardImage, defaultCardColor, onCreated }: AccountFormProps) {
+  const { options: currencyOptions } = useCurrencies()
   const [name, setName] = useState('')
   const [type, setType] = useState<AccountType>('checking')
   const [institution, setInstitution] = useState('')
@@ -90,7 +91,7 @@ export function AccountForm({ open, onClose, createAccount, uploadCardImage, def
           </label>
           <label style={{ flex: 1 }}>
             Currency
-            <FieldSelect value={currencyCode} options={CURRENCY_OPTIONS} onChange={setCurrencyCode} />
+            <FieldSelect value={currencyCode} options={currencyOptions} onChange={setCurrencyCode} />
           </label>
         </div>
         <label>

@@ -14,7 +14,9 @@ import { ImportRunsModule } from './modules/import-runs/import-runs.module.js'
 import { ReconciliationModule } from './modules/reconciliation/reconciliation.module.js'
 import { MonthSplitModule } from './modules/month-split/month-split.module.js'
 import { ReportingModule } from './modules/reporting/reporting.module.js'
-import { FxRatesModule } from './modules/fx-rates/fx-rates.module.js'
+import { CurrenciesModule } from './modules/currencies/currencies.module.js'
+import { FxSyncModule } from './modules/fx-sync/fx-sync.module.js'
+import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module.js'
 
 @Module({
   imports: [
@@ -34,7 +36,9 @@ import { FxRatesModule } from './modules/fx-rates/fx-rates.module.js'
     ReconciliationModule,
     MonthSplitModule,
     ReportingModule,
-    FxRatesModule,
+    CurrenciesModule,
+    FxSyncModule,
+    ExchangeRatesModule,
   ],
   controllers: [HealthController],
 })

@@ -12,7 +12,9 @@
     "test": "vitest run",
     "seed:demo": "tsx src/seed/demo-seed.ts",
     "seed:demo:reset": "tsx src/seed/demo-seed.ts --reset",
-    "generate:csv": "tsx src/seed/generate-import-csv.ts"
+    "generate:csv": "tsx src/seed/generate-import-csv.ts",
+    "recompute:fx": "tsx src/seed/recompute-fx.ts",
+    "sync:currencies": "tsx src/seed/sync-currencies.ts"
   },
   "dependencies": {
     "@fastify/multipart": "^8.3.1",

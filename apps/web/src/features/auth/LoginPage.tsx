@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import { apiClient } from '../../lib/apiClient'
-import { CURRENCY_CODES } from '../../lib/currencies'
 import { defaultCurrencyFor, listCountries } from '../../lib/countries'
 import { useAuth } from './useAuth'
+import { useCurrencies } from '../../hooks/useCurrencies'
 import { Alert } from '../../components/Alert'
 import { FieldSelect } from '../../components/FieldSelect'
 
@@ -77,7 +77,7 @@ export function LoginPage() {
   const [confirmationSent, setConfirmationSent] = useState(false)
 
   const countryOptions = useMemo(() => listCountries().map((c) => ({ value: c.code, label: c.name })), [])
-  const currencyOptions = CURRENCY_CODES.map((code) => ({ value: code, label: code }))
+  const { options: currencyOptions } = useCurrencies()
 
   // Sign-up gets a session immediately when email confirmation is off; hold the
   // redirect until the profile photo has finished uploading with it.

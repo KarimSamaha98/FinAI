@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { CARD_COLOR_PALETTE, type CreateImportProfileInput, type ParseWithProfileResult } from 'shared-types'
+import { CARD_COLOR_PALETTE, type CommitImportRunResult, type CreateImportProfileInput, type ParseWithProfileResult } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
 import { useCategories } from '../../hooks/useCategories'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
@@ -79,6 +79,8 @@ export function ImportWizardPage() {
   const [uploading, setUploading] = useState(false)
   const [skippedNote, setSkippedNote] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
+  const [commitWarning, setCommitWarning] = useState<string | null>(null)
+  const [commitAccountId, setCommitAccountId] = useState<string | null>(null)
 
   const profileFor = (accountId: string) => profiles.find((p) => p.accountId === accountId) ?? null
   const accountOf = (accountId: string) => accounts.find((a) => a.id === accountId) ?? null
@@ -141,7 +143,17 @@ export function ImportWizardPage() {
     setCommitting(true)
     try {
       const rows = parseResult.rows.map((row) => ({ rowIndex: row.rowIndex, categoryId: choices[row.rowIndex] ?? null }))
-      await apiClient.post('/import-runs/commit', { importRunId: parseResult.importRunId, rows })
+      const result = await apiClient.post<CommitImportRunResult>('/import-runs/commit', { importRunId: parseResult.importRunId, rows })
+      if (result.warnings.length > 0) {
+        const total = result.warnings.reduce((sum, warning) => sum + warning.rowCount, 0)
+        const detail = result.warnings.map((warning) => `${warning.rowCount} in ${warning.currencyCode}`).join(', ')
+        setCommitWarning(
+          `Imported ${result.importedCount} transactions, but ${total} couldn't be converted (no exchange rate: ${detail}). ` +
+            'Their exchange rate and converted value are empty — they fill in automatically the next time you log in.',
+        )
+        setCommitAccountId(accountId)
+        return
+      }
       navigate(`/accounts?selected=${accountId}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to commit import')
@@ -162,6 +174,12 @@ export function ImportWizardPage() {
         backPlacement="start"
       />
       {error && <Alert variant="error">{error}</Alert>}
+      {commitWarning && (
+        <Alert variant="error">
+          <p style={{ margin: 0 }}>{commitWarning}</p>
+          <Button onClick={() => commitAccountId && navigate(`/accounts?selected=${commitAccountId}`)}>Continue</Button>
+        </Alert>
+      )}
 
       {step.name === 'upload' && profilesLoading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
 

@@ -144,3 +144,21 @@ export function TrashIcon() {
     </Icon>
   )
 }
+
+export function LockIcon() {
+  return (
+    <Icon>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M7.5 10.5V8a4.5 4.5 0 0 1 9 0v2.5" />
+    </Icon>
+  )
+}
+
+export function UnlockIcon() {
+  return (
+    <Icon>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M7.5 10.5V8a4.5 4.5 0 0 1 8.3-2.5" />
+    </Icon>
+  )
+}

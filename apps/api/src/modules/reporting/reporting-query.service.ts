@@ -5,6 +5,7 @@ import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
 import { monthSplits, reconciliationGroupMembers, reconciliationGroups, transactions } from '../../db/schema.js'
+import { roundMoney } from '../exchange-rates/conversion.js'
 
 type TransactionRow = typeof transactions.$inferSelect
 
@@ -20,6 +21,8 @@ function toPlainDisplayRow(row: TransactionRow, reconciliationGroupId: string | 
     sourceTransactionIds: [row.id],
     reconciliationGroupId,
     monthSplitId,
+    convertedValue: row.convertedValue != null ? Number(row.convertedValue) : null,
+    rateSource: row.rateSource,
   }
 }
 
@@ -137,6 +140,11 @@ export class ReportingQueryService {
           sourceTransactionIds: members.map((m) => m.id),
           reconciliationGroupId: group.id,
           monthSplitId: null,
+          // The net is only meaningful in home currency when every member converted.
+          convertedValue: members.every((m) => m.convertedValue != null)
+            ? roundMoney(members.reduce((sum, m) => sum + Number(m.convertedValue), 0))
+            : null,
+          rateSource: 'auto',
         })
       }
 
@@ -176,6 +184,8 @@ export class ReportingQueryService {
             sourceTransactionIds: [original.id],
             reconciliationGroupId: null,
             monthSplitId: split.id,
+            convertedValue: original.convertedValue != null ? roundMoney(Number(original.convertedValue) / split.numMonths) : null,
+            rateSource: original.rateSource,
           })
         }
       }
