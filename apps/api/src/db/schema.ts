@@ -41,6 +41,8 @@ export const categories = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id'),
     name: text('name').notNull(),
+    // Icon key from the shared-types CategoryIconKey set; null falls back to "tag".
+    icon: text('icon'),
     // Soft delete: an archived category is hidden from pickers but stays
     // attached to the transactions that used it. Uniqueness is enforced only
     // among active rows so a name can be reused after archiving.

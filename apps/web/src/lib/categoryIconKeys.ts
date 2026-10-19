@@ -1,0 +1,48 @@
+import type { CategoryIconKey } from 'shared-types'
+
+/** Fallback when a category has no icon (or an unknown key). */
+export const DEFAULT_CATEGORY_ICON: CategoryIconKey = 'tag'
+
+/** Pickable icons with human labels, in the order shown in the picker. */
+export const CATEGORY_ICON_KEYS: { key: CategoryIconKey; label: string }[] = [
+  { key: 'cart', label: 'Groceries' },
+  { key: 'utensils', label: 'Dining' },
+  { key: 'coffee', label: 'Coffee' },
+  { key: 'home', label: 'Home / Rent' },
+  { key: 'bolt', label: 'Utilities' },
+  { key: 'droplet', label: 'Water' },
+  { key: 'flame', label: 'Gas / Heat' },
+  { key: 'wifi', label: 'Internet' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'car', label: 'Car' },
+  { key: 'fuel', label: 'Fuel' },
+  { key: 'bus', label: 'Transit' },
+  { key: 'plane', label: 'Travel' },
+  { key: 'bag', label: 'Shopping' },
+  { key: 'shirt', label: 'Clothing' },
+  { key: 'heart', label: 'Health' },
+  { key: 'pill', label: 'Pharmacy' },
+  { key: 'dumbbell', label: 'Fitness' },
+  { key: 'shield', label: 'Insurance' },
+  { key: 'film', label: 'Entertainment' },
+  { key: 'music', label: 'Music' },
+  { key: 'gamepad', label: 'Games' },
+  { key: 'book', label: 'Books' },
+  { key: 'graduation-cap', label: 'Education' },
+  { key: 'wallet', label: 'Wallet' },
+  { key: 'banknote', label: 'Income' },
+  { key: 'transfer', label: 'Transfers' },
+  { key: 'repeat', label: 'Subscriptions' },
+  { key: 'receipt', label: 'Receipt / Tax' },
+  { key: 'trending-up', label: 'Investments' },
+  { key: 'piggy-bank', label: 'Savings' },
+  { key: 'gift', label: 'Gifts' },
+  { key: 'paw', label: 'Pets' },
+  { key: 'baby', label: 'Childcare' },
+  { key: 'hand-heart', label: 'Charity' },
+  { key: 'scissors', label: 'Personal care' },
+  { key: 'sparkles', label: 'Beauty' },
+  { key: 'tool', label: 'Repairs' },
+  { key: 'laundry', label: 'Laundry' },
+  { key: 'tag', label: 'Other' },
+]

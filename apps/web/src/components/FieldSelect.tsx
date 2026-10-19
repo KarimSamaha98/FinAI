@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useDropdown } from '../hooks/useDropdown'
 import { useFloatingPanel } from '../hooks/useFloatingPanel'
 
 export interface FieldSelectOption<T extends string> {
   value: T
   label: string
+  /** Optional leading glyph (e.g. a category icon). */
+  icon?: ReactNode
 }
 
 interface FieldSelectProps<T extends string> {
@@ -129,6 +131,11 @@ export function FieldSelect<T extends string>({
           }
         }}
       >
+        {current?.icon && (
+          <span className="option-icon" aria-hidden="true">
+            {current.icon}
+          </span>
+        )}
         <span className="field-select-value">{current?.label ?? placeholder}</span>
         {variant === 'auth' ? (
           <img src="/dropdown-arrow.svg" alt="" aria-hidden="true" className="field-select-auth-arrow" />
@@ -195,6 +202,11 @@ export function FieldSelect<T extends string>({
                   <span className="dropdown-option-check" aria-hidden="true">
                     {selected ? '✓' : ''}
                   </span>
+                  {option.icon && (
+                    <span className="option-icon" aria-hidden="true">
+                      {option.icon}
+                    </span>
+                  )}
                   {option.label}
                 </button>
               )

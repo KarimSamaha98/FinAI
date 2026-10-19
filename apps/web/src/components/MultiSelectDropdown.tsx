@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react'
 import { useDropdown } from '../hooks/useDropdown'
 
 export interface MultiSelectOption {
   id: string
   label: string
-  icon?: string
+  icon?: ReactNode
 }
 
 interface MultiSelectDropdownProps {
@@ -46,7 +47,11 @@ export function MultiSelectDropdown({ label, options, selectedIds, onChange }: M
           {options.map((option) => (
             <label key={option.id} className="dropdown-item">
               <input type="checkbox" checked={selectedIds.includes(option.id)} onChange={() => toggle(option.id)} />
-              {option.icon && <span aria-hidden="true">{option.icon}</span>}
+              {option.icon && (
+                <span className="option-icon" aria-hidden="true">
+                  {option.icon}
+                </span>
+              )}
               {option.label}
             </label>
           ))}

@@ -1,78 +1,113 @@
-import type { Account, Category, DisplayRow } from 'shared-types'
+import type { Account, Category, DisplayRow, MonthSplit } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
-import { cardBackground } from '../../lib/cardBackground'
-import { accountTypeLabel } from '../../lib/accountTypes'
-import { formatDate } from '../../lib/formatDate'
+import { formatDate, formatMonthYear } from '../../lib/formatDate'
+import { accountTypeIcon } from '../../lib/accountIcons'
+import { CategoryIcon } from '../../components/categoryIcons'
+import { AccountIcon, LinkIcon, SplitIcon } from '../../components/icons'
 
 interface TransactionRowProps {
   row: DisplayRow
   categories: Category[]
   accounts: Account[]
+  /** Lookup for month-split metadata, used to describe split portions. */
+  splitByTransactionId?: Map<string, MonthSplit>
+  /** Show the account pill — only worth it when more than one account is in view. */
+  showAccount?: boolean
   /** Omit for a display-only row (e.g. the CSV wizard's preview). */
   onClick?: () => void
 }
 
-function categoryName(categories: Category[], categoryId: string | null): string {
-  return categories.find((c) => c.id === categoryId)?.name ?? 'Uncategorized'
+/** 1-based index of a portion's month within its split, e.g. Sep within Sep–Aug = 1. */
+function monthIndexIn(portionDate: string, startMonth: string): number {
+  const [portionYear, portionMonth] = portionDate.split('-').slice(0, 2).map(Number)
+  const [startYear, startMonthNum] = startMonth.split('-').slice(0, 2).map(Number)
+  return portionYear * 12 + portionMonth - (startYear * 12 + startMonthNum) + 1
 }
 
 /**
- * One ledger row, per the "Licence Plates" Figma (node 133:478): the account's
- * card thumbnail, date, description, grey chips only for special handling
- * (month split, reconciliation group), the category chip, and the amount.
+ * One ledger row. Plain rows pass through; month-split portions and
+ * reconciliation nets carry a kind badge, a second metadata line, and the
+ * category pill keeps its fixed slot on every kind. The account pill appears
+ * only when more than one account is in view.
  */
-export function TransactionRow({ row, categories, accounts, onClick }: TransactionRowProps) {
-  const isIncome = row.amount >= 0
-  const category = categoryName(categories, row.categoryId)
-  // A reconciliation net row can span accounts; its first (anchor) account represents it.
-  const rowAccounts = row.accountIds.map((id) => accounts.find((a) => a.id === id)).filter((a): a is Account => !!a)
-  const account = rowAccounts[0]
-  const accountNames = rowAccounts.map((a) => a.name).join(', ')
+export function TransactionRow({
+  row,
+  categories,
+  accounts,
+  splitByTransactionId,
+  showAccount = false,
+  onClick,
+}: TransactionRowProps) {
+  const isSplitPortion = row.kind === 'month_split_portion'
+  const isGroup = row.kind === 'reconciliation_net'
+  const isDerived = isSplitPortion || isGroup
+  const split = isSplitPortion ? splitByTransactionId?.get(row.sourceTransactionIds[0]) : undefined
 
-  const content = (
-    <>
-      <span
-        className="txn-row-card"
-        style={account ? { background: cardBackground(account.cardColor) } : undefined}
-        title={accountNames || undefined}
-      >
-        {account?.cardImageUrl ? (
-          <img src={account.cardImageUrl} alt="" />
-        ) : (
-          // No photo: the account type's initial, e.g. C for Cash, I for Investment.
-          account && (
-            <span className="txn-row-card-initial" aria-hidden="true">
-              {accountTypeLabel(account.type).charAt(0)}
-            </span>
-          )
-        )}
-        {accountNames && <span className="visually-hidden">{accountNames}</span>}
-      </span>
-      <span className="txn-row-date">{formatDate(row.date)}</span>
-      <span className="txn-row-description">{row.description || 'Untitled'}</span>
-      <span className="txn-row-chips">
-        {row.monthSplitId && <span className="txn-chip txn-chip--special">Split</span>}
-        {row.reconciliationGroupId && <span className="txn-chip txn-chip--special">Group</span>}
-        {row.convertedValue == null && (
-          <span className="txn-chip txn-chip--special" title="No exchange rate yet — it fills in automatically on your next sign-in.">
-            Rate pending
-          </span>
-        )}
-        <span className={`txn-chip txn-chip--category${row.categoryId ? '' : ' is-empty'}`}>{category}</span>
-      </span>
-      <span className={`txn-row-amount${isIncome ? ' is-income' : ''}`}>{formatCurrency(row.amount, row.currencyCode)}</span>
-    </>
-  )
+  const account = row.anchorAccountId ? accounts.find((a) => a.id === row.anchorAccountId) : undefined
+  const accountName = account?.name ?? 'No account'
+
+  const category = categories.find((c) => c.id === row.categoryId)
+  const categoryLabel = category?.name ?? 'Uncategorized'
+
+  const meta = isSplitPortion
+    ? split
+      ? `Month ${monthIndexIn(row.date, split.startMonth)} of ${split.numMonths} · from ${formatMonthYear(split.startMonth)}`
+      : 'Split across months'
+    : null
+
+  // Split portions are virtual rows dated on the 1st of each covered month,
+  // so they show a real date like any other row.
+  const dateLabel = formatDate(row.date)
+  const description = row.description || 'No description'
+  const kindLabel = isSplitPortion ? 'Split' : isGroup ? 'Linked' : null
+  const ariaLabel = [dateLabel, description, accountName, categoryLabel, kindLabel, meta, formatCurrency(row.amount, row.currencyCode)]
+    .filter(Boolean)
+    .join(', ')
 
   return (
-    <li>
-      {onClick ? (
-        <button type="button" className="txn-row" onClick={onClick}>
-          {content}
-        </button>
-      ) : (
-        <div className="txn-row is-static">{content}</div>
-      )}
+    <li className="txn-item">
+      <button
+        type="button"
+        className={`txn-row${onClick ? '' : ' is-static'}`}
+        aria-label={ariaLabel}
+        onClick={onClick}
+      >
+        <span className="txn-row-date">{dateLabel}</span>
+
+        <span className="txn-row-description-cell">
+          <span className="txn-row-description">{description}</span>
+          {meta && <span className="txn-row-meta">{meta}</span>}
+        </span>
+
+        <span className="txn-row-chips">
+          {isDerived && (
+            <span className="txn-chip txn-chip--kind">
+              <span className="txn-chip-icon" aria-hidden="true">
+                {isSplitPortion ? <SplitIcon /> : <LinkIcon />}
+              </span>
+              <span className="txn-chip-label">{kindLabel}</span>
+            </span>
+          )}
+          {showAccount && (
+            <span className="txn-chip txn-chip--account">
+              <span className="txn-chip-icon" aria-hidden="true">
+                {account ? accountTypeIcon(account.type) : <AccountIcon />}
+              </span>
+              <span className="txn-chip-label">{accountName}</span>
+            </span>
+          )}
+          <span className={`txn-chip txn-chip--category${row.categoryId ? '' : ' is-empty'}`}>
+            <span className="txn-chip-icon" aria-hidden="true">
+              <CategoryIcon name={category?.icon ?? null} />
+            </span>
+            <span className="txn-chip-label">{categoryLabel}</span>
+          </span>
+        </span>
+
+        <span className={`txn-row-amount${row.amount > 0 ? ' is-income' : ''}${row.amount === 0 ? ' is-zero' : ''}`}>
+          {formatCurrency(row.amount, row.currencyCode)}
+        </span>
+      </button>
     </li>
   )
 }

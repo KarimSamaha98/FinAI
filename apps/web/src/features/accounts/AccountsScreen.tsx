@@ -4,7 +4,9 @@ import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction,
 import { SelectDropdown } from '../../components/SelectDropdown'
 import { SearchInput } from '../../components/SearchInput'
 import { SortControl } from '../../components/SortControl'
-import { DateRangePicker, type DateRange } from '../../components/DateRangePicker'
+import { type DateRange } from '../../components/DateRangePicker'
+import { DateRangePresetPicker } from '../../components/DateRangePresetPicker'
+import { getPresetRange } from '../../lib/dateRangePresets'
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
@@ -76,7 +78,7 @@ export function AccountsScreen() {
       { replace: true },
     )
   }
-  const [dateRange, setDateRange] = useState<DateRange>({})
+  const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('current-month'))
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [view, setView] = useState<TransactionView>('real')
   const [search, setSearch] = useState('')
@@ -146,9 +148,12 @@ export function AccountsScreen() {
     () => sortDisplayRows(filterRowsByDescription(rows, search), sortField, sortDirection, accountNameById),
     [rows, search, sortField, sortDirection, accountNameById],
   )
+  const splitByTransactionId = useMemo(() => new Map(splits.map((s) => [s.transactionId, s])), [splits])
 
   const selectedAccount = singleSelectedId ? accounts.find((a) => a.id === singleSelectedId) : undefined
   const summarizedAccounts = selectedIds.length === 0 ? accounts : accounts.filter((a) => selectedIds.includes(a.id))
+  // Accounts are only ambiguous when more than one is in view (all, or several).
+  const showAccountPerRow = selectedIds.length !== 1
 
   function handleToggleAccount(id: string) {
     setSelectedIds(
@@ -218,10 +223,10 @@ export function AccountsScreen() {
     }
     if (row.kind === 'reconciliation_net' && row.reconciliationGroupId) {
       const groupId = row.reconciliationGroupId
-      actions.push({ label: 'View reconciliation group', onClick: () => setViewingGroupId(groupId) })
+      actions.push({ label: 'Manage linked transactions', onClick: () => setViewingGroupId(groupId) })
     }
     actions.push({ label: 'Split transaction', onClick: () => setSplitTarget(anchorTransaction) })
-    actions.push({ label: 'Reconcile / group', onClick: () => setReconcileAnchor(anchorTransaction) })
+    actions.push({ label: 'Link transactions', onClick: () => setReconcileAnchor(anchorTransaction) })
     if (row.kind === 'plain') {
       actions.push({ label: 'Delete', variant: 'danger', onClick: () => handleDeleteTransaction(anchorTransaction.id) })
     }
@@ -295,7 +300,7 @@ export function AccountsScreen() {
 
       <UncategorizedNotice count={uncategorized.length} onOpen={openCategorizeDeck} />
       <div className="filter-bar" style={{ margin: 'var(--space-4) 0' }}>
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <DateRangePresetPicker value={dateRange} onChange={setDateRange} />
         <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
         <SelectDropdown<TransactionView>
           label="View"
@@ -336,6 +341,8 @@ export function AccountsScreen() {
               row={row}
               categories={categories}
               accounts={accounts}
+              splitByTransactionId={splitByTransactionId}
+              showAccount={showAccountPerRow}
               onClick={() => setActionRow(row)}
             />
           ))}

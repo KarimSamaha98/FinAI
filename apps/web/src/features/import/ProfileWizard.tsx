@@ -205,6 +205,7 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
       description: (descriptionCol !== null && row[descriptionCol]?.trim()) || '',
       categoryId: null,
       accountIds: [accountId],
+      anchorAccountId: accountId,
       sourceTransactionIds: [],
       reconciliationGroupId: null,
       monthSplitId: null,

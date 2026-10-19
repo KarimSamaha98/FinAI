@@ -12,6 +12,7 @@ function toCategory(row: typeof categories.$inferSelect): Category {
     id: row.id,
     userId: row.userId,
     name: row.name,
+    icon: (row.icon as Category['icon']) ?? null,
     isArchived: row.isArchived,
     createdAt: row.createdAt.toISOString(),
   }
@@ -32,7 +33,7 @@ export class CategoriesService {
   async create(userId: string, input: CreateCategoryInput): Promise<Category> {
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
-        const [row] = await tx.insert(categories).values({ userId, name: input.name }).returning()
+        const [row] = await tx.insert(categories).values({ userId, name: input.name, icon: input.icon ?? null }).returning()
         return toCategory(row)
       } catch (error) {
         mapPostgresError(error)
@@ -40,10 +41,14 @@ export class CategoriesService {
     })
   }
 
-  async rename(userId: string, id: string, name: string): Promise<Category> {
+  async rename(userId: string, id: string, name: string, icon: Category['icon'] | undefined): Promise<Category> {
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
-        const [row] = await tx.update(categories).set({ name }).where(eq(categories.id, id)).returning()
+        const [row] = await tx
+          .update(categories)
+          .set({ name, ...(icon !== undefined ? { icon } : {}) })
+          .where(eq(categories.id, id))
+          .returning()
         if (!row) {
           throw new NotFoundException('Category not found')
         }

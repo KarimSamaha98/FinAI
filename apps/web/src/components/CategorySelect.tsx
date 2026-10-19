@@ -1,4 +1,5 @@
 import type { Category } from 'shared-types'
+import { CategoryIcon } from './categoryIcons'
 import { FieldSelect } from './FieldSelect'
 
 interface CategorySelectProps {
@@ -13,7 +14,10 @@ export function CategorySelect({ categories, value, onChange, 'aria-label': aria
     <FieldSelect
       value={value ?? ''}
       aria-label={ariaLabel}
-      options={[{ value: '', label: 'Uncategorized' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]}
+      options={[
+        { value: '', label: 'Uncategorized' },
+        ...categories.map((category) => ({ value: category.id, label: category.name, icon: <CategoryIcon name={category.icon} /> })),
+      ]}
       onChange={(id) => onChange(id || null)}
     />
   )
