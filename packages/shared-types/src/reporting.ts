@@ -84,7 +84,6 @@ export type CategoryChange = z.infer<typeof CategoryChangeSchema>;
 export const TopTransactionSchema = z.object({
   description: z.string(),
   amount: z.number(),
-  totalAmount: z.number(),
   currencyCode: CurrencyCodeSchema,
   categoryId: z.string().uuid().nullable(),
   categoryName: z.string().nullable(),

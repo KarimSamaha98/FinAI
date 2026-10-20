@@ -58,11 +58,6 @@ export function TopExpensesCard({ expenses }: TopExpensesCardProps) {
               <span className="txn-row-date">{expense.occurrenceCount}×</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{expense.description}</span>
-                {expense.occurrenceCount > 1 && (
-                  <span className="txn-row-meta">
-                    Total: {formatCurrency(displayAmount(expense.totalAmount), expense.currencyCode)}
-                  </span>
-                )}
               </span>
               <span className="txn-row-chips">
                 <span className={`txn-chip txn-chip--category${expense.categoryName ? '' : ' is-empty'}`}>
@@ -100,11 +95,6 @@ export function TopIncomeCard({ income }: TopIncomeCardProps) {
               <span className="txn-row-date">{item.occurrenceCount}×</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{item.description}</span>
-                {item.occurrenceCount > 1 && (
-                  <span className="txn-row-meta">
-                    Total: {formatCurrency(item.totalAmount, item.currencyCode)}
-                  </span>
-                )}
               </span>
               <span className="txn-row-chips">
                 <span className={`txn-chip txn-chip--category${item.categoryName ? '' : ' is-empty'}`}>
