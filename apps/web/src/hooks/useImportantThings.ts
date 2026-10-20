@@ -5,6 +5,7 @@ import { apiClient } from '../lib/apiClient'
 const EMPTY_RESPONSE: ImportantThingsResponse = {
   categoryChanges: [],
   topExpenses: [],
+  topIncome: [],
   recurringPayments: [],
 }
 

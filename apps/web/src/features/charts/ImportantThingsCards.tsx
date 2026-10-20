@@ -1,8 +1,7 @@
-import type { CategoryChange, RecurringPayment, TopExpense } from 'shared-types'
+import type { CategoryChange, RecurringPayment, TopTransaction } from 'shared-types'
 import { Card } from '../../components/Card'
 import { CategoryIcon } from '../../components/categoryIcons'
 import { formatCurrency } from '../../lib/formatCurrency'
-import { formatDate } from '../../lib/formatDate'
 
 interface CategoryChangesCardProps {
   changes: CategoryChange[]
@@ -41,7 +40,7 @@ export function CategoryChangesCard({ changes, filterKind, title = 'Category Cha
 }
 
 interface TopExpensesCardProps {
-  expenses: TopExpense[]
+  expenses: TopTransaction[]
 }
 
 export function TopExpensesCard({ expenses }: TopExpensesCardProps) {
@@ -54,9 +53,9 @@ export function TopExpensesCard({ expenses }: TopExpensesCardProps) {
       <h4 style={{ fontSize: '0.95rem', marginBottom: 'var(--space-3)', margin: '0 0 var(--space-3) 0', fontWeight: 600, color: 'var(--text-muted)' }}>Top Expenses</h4>
       <ul className="txn-list">
         {expenses.map((expense) => (
-          <li key={expense.id} className="txn-item">
+          <li key={expense.description} className="txn-item">
             <button type="button" className="txn-row is-static">
-              <span className="txn-row-date">{formatDate(expense.date)}</span>
+              <span className="txn-row-date">{expense.occurrenceCount}×</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{expense.description}</span>
               </span>
@@ -70,6 +69,43 @@ export function TopExpensesCard({ expenses }: TopExpensesCardProps) {
               </span>
               <span className="txn-row-amount">
                 {formatCurrency(displayAmount(expense.amount), expense.currencyCode)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
+interface TopIncomeCardProps {
+  income: TopTransaction[]
+}
+
+export function TopIncomeCard({ income }: TopIncomeCardProps) {
+  if (income.length === 0) return null
+
+  return (
+    <Card style={{ padding: 'var(--space-4)' }}>
+      <h4 style={{ fontSize: '0.95rem', marginBottom: 'var(--space-3)', margin: '0 0 var(--space-3) 0', fontWeight: 600, color: 'var(--text-muted)' }}>Top Income</h4>
+      <ul className="txn-list">
+        {income.map((item) => (
+          <li key={item.description} className="txn-item">
+            <button type="button" className="txn-row is-static">
+              <span className="txn-row-date">{item.occurrenceCount}×</span>
+              <span className="txn-row-description-cell">
+                <span className="txn-row-description">{item.description}</span>
+              </span>
+              <span className="txn-row-chips">
+                <span className={`txn-chip txn-chip--category${item.categoryName ? '' : ' is-empty'}`}>
+                  <span className="txn-chip-icon" aria-hidden="true">
+                    <CategoryIcon name={item.categoryIcon} />
+                  </span>
+                  <span className="txn-chip-label">{item.categoryName ?? 'Uncategorized'}</span>
+                </span>
+              </span>
+              <span className="txn-row-amount is-income">
+                {formatCurrency(item.amount, item.currencyCode)}
               </span>
             </button>
           </li>

@@ -17,7 +17,7 @@ import { CalendarHeatmap } from './CalendarHeatmap'
 import { MonthlyBarChart } from './MonthlyBarChart'
 import { DashboardMetrics } from './DashboardMetrics'
 import { IncomeExpenseChart } from './IncomeExpenseChart'
-import { CategoryChangesCard, TopExpensesCard, RecurringPaymentsCard } from './ImportantThingsCards'
+import { CategoryChangesCard, TopExpensesCard, TopIncomeCard, RecurringPaymentsCard } from './ImportantThingsCards'
 
 const NAV_SECTIONS = [
   { id: 'expense', label: 'Expense' },
@@ -165,6 +165,7 @@ export function ChartsPage() {
               )}
             </Card>
             <CategoryChangesCard changes={importantThings.categoryChanges} filterKind="income" title="Changes" />
+            <TopIncomeCard income={importantThings.topIncome} />
           </div>
         </section>
       )}

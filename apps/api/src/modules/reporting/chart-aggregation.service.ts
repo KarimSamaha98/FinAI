@@ -14,7 +14,7 @@ import type {
   InsightMode,
   RecurringPayment,
   TimeseriesResponse,
-  TopExpense,
+  TopTransaction,
   TransactionView,
   TrendResponse,
 } from 'shared-types'
@@ -179,10 +179,11 @@ export class ChartAggregationService {
     const lookbackRows = await this.getRows(userId, { dateRange: { from: lookbackFrom, to: lookbackTo } }, view)
 
     const categoryChanges = await this.detectCategoryChanges(userId, mode, currentRows, lookbackRows, lookbackPeriods)
-    const topExpenses = await this.detectTopExpenses(userId, currentRows)
+    const topExpenses = await this.detectTopTransactions(userId, currentRows, 'expense')
+    const topIncome = await this.detectTopTransactions(userId, currentRows, 'income')
     const recurringPayments = await this.detectRecurringPayments(userId, currentRange)
 
-    return { categoryChanges, topExpenses, recurringPayments }
+    return { categoryChanges, topExpenses, topIncome, recurringPayments }
   }
 
   async getTrend(
@@ -373,28 +374,62 @@ export class ChartAggregationService {
     })
   }
 
-  private async detectTopExpenses(userId: string, current: DisplayRow[]): Promise<TopExpense[]> {
+  private async detectTopTransactions(
+    userId: string,
+    current: DisplayRow[],
+    kind: AmountKind,
+  ): Promise<TopTransaction[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
       const categoryRows = await tx.select().from(categories)
       const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
 
-      const expenses: TopExpense[] = []
+      interface GroupKey {
+        description: string
+        currencyCode: string
+      }
+
+      const groups = new Map<string, {
+        key: GroupKey
+        total: number
+        count: number
+        categoryId: string | null
+      }>()
+
       for (const row of current) {
-        if (row.convertedValue == null || row.convertedValue >= 0) continue
-        const category = row.categoryId ? categoryById.get(row.categoryId) : null
-        expenses.push({
-          id: row.sourceTransactionIds[0],
-          date: row.date,
-          description: row.description,
-          amount: Math.abs(row.convertedValue),
-          currencyCode: row.currencyCode,
-          categoryId: row.categoryId,
+        if (row.convertedValue == null) continue
+        const isExpense = row.convertedValue < 0
+        if ((kind === 'expense') !== isExpense) continue
+
+        const groupKey = `${row.description.toLowerCase()}|${row.currencyCode}`
+        const existing = groups.get(groupKey)
+        if (existing) {
+          existing.total += Math.abs(row.convertedValue)
+          existing.count++
+        } else {
+          groups.set(groupKey, {
+            key: { description: row.description, currencyCode: row.currencyCode },
+            total: Math.abs(row.convertedValue),
+            count: 1,
+            categoryId: row.categoryId,
+          })
+        }
+      }
+
+      const results: TopTransaction[] = []
+      for (const group of groups.values()) {
+        const category = group.categoryId ? categoryById.get(group.categoryId) : null
+        results.push({
+          description: group.key.description,
+          amount: group.total,
+          currencyCode: group.key.currencyCode,
+          categoryId: group.categoryId,
           categoryName: category?.name ?? null,
           categoryIcon: (category?.icon ?? null) as CategoryIconKey | null,
+          occurrenceCount: group.count,
         })
       }
 
-      return expenses.sort((a, b) => b.amount - a.amount).slice(0, 5)
+      return results.sort((a, b) => b.amount - a.amount).slice(0, 5)
     })
   }
 
