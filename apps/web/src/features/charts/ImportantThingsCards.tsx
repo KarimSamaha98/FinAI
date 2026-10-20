@@ -59,9 +59,6 @@ export function TopExpensesCard({ expenses }: TopExpensesCardProps) {
               <span className="txn-row-date">{formatDate(expense.mostRecentDate)}</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{expense.description}</span>
-                {expense.occurrenceCount > 1 && (
-                  <span className="txn-row-meta">{expense.occurrenceCount}× · Total: {formatCurrency(displayAmount(expense.amount), expense.currencyCode)}</span>
-                )}
               </span>
               <span className="txn-row-chips">
                 <span className={`txn-chip txn-chip--category${expense.categoryName ? '' : ' is-empty'}`}>
@@ -99,9 +96,6 @@ export function TopIncomeCard({ income }: TopIncomeCardProps) {
               <span className="txn-row-date">{formatDate(item.mostRecentDate)}</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{item.description}</span>
-                {item.occurrenceCount > 1 && (
-                  <span className="txn-row-meta">{item.occurrenceCount}× · Total: {formatCurrency(item.amount, item.currencyCode)}</span>
-                )}
               </span>
               <span className="txn-row-chips">
                 <span className={`txn-chip txn-chip--category${item.categoryName ? '' : ' is-empty'}`}>
@@ -141,7 +135,6 @@ export function RecurringPaymentsCard({ payments }: RecurringPaymentsCardProps) 
               <span className="txn-row-date">{formatDate(payment.mostRecentDate)}</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{payment.description}</span>
-                <span className="txn-row-meta">{payment.occurrenceCount}× in {payment.monthCount} mo</span>
               </span>
               <span className="txn-row-chips">
                 <span className={`txn-chip txn-chip--category${payment.categoryName ? '' : ' is-empty'}`}>
