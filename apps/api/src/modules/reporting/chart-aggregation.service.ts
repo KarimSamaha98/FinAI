@@ -383,17 +383,16 @@ export class ChartAggregationService {
       const categoryRows = await tx.select().from(categories)
       const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
 
-      interface GroupKey {
+      interface GroupData {
         description: string
         currencyCode: string
-      }
-
-      const groups = new Map<string, {
-        key: GroupKey
+        individualAmount: number
         total: number
         count: number
         categoryId: string | null
-      }>()
+      }
+
+      const groups = new Map<string, GroupData>()
 
       for (const row of current) {
         if (row.convertedValue == null) continue
@@ -407,7 +406,9 @@ export class ChartAggregationService {
           existing.count++
         } else {
           groups.set(groupKey, {
-            key: { description: row.description, currencyCode: row.currencyCode },
+            description: row.description,
+            currencyCode: row.currencyCode,
+            individualAmount: Math.abs(row.convertedValue),
             total: Math.abs(row.convertedValue),
             count: 1,
             categoryId: row.categoryId,
@@ -419,9 +420,10 @@ export class ChartAggregationService {
       for (const group of groups.values()) {
         const category = group.categoryId ? categoryById.get(group.categoryId) : null
         results.push({
-          description: group.key.description,
-          amount: group.total,
-          currencyCode: group.key.currencyCode,
+          description: group.description,
+          amount: group.individualAmount,
+          totalAmount: group.total,
+          currencyCode: group.currencyCode,
           categoryId: group.categoryId,
           categoryName: category?.name ?? null,
           categoryIcon: (category?.icon ?? null) as CategoryIconKey | null,
