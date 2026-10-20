@@ -393,6 +393,7 @@ export class ChartAggregationService {
         total: number
         count: number
         categoryId: string | null
+        mostRecentDate: string
       }>()
 
       for (const row of current) {
@@ -405,12 +406,16 @@ export class ChartAggregationService {
         if (existing) {
           existing.total += Math.abs(row.convertedValue)
           existing.count++
+          if (row.date > existing.mostRecentDate) {
+            existing.mostRecentDate = row.date
+          }
         } else {
           groups.set(groupKey, {
             key: { description: row.description, currencyCode: row.currencyCode },
             total: Math.abs(row.convertedValue),
             count: 1,
             categoryId: row.categoryId,
+            mostRecentDate: row.date,
           })
         }
       }
@@ -426,6 +431,7 @@ export class ChartAggregationService {
           categoryName: category?.name ?? null,
           categoryIcon: (category?.icon ?? null) as CategoryIconKey | null,
           occurrenceCount: group.count,
+          mostRecentDate: group.mostRecentDate,
         })
       }
 
@@ -459,7 +465,7 @@ export class ChartAggregationService {
       const categoryRows = await tx.select().from(categories)
       const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
 
-      const byDescAmount = new Map<string, { row: typeof rows[0]; count: number; months: Set<string> }[]>()
+      const byDescAmount = new Map<string, { row: typeof rows[0]; count: number; months: Set<string>; mostRecentDate: string }[]>()
       for (const row of rows) {
         const amount = Number(row.amount)
         if (amount >= 0) continue
@@ -476,14 +482,17 @@ export class ChartAggregationService {
         if (existing) {
           existing.count++
           existing.months.add(month)
+          if (row.date > existing.mostRecentDate) {
+            existing.mostRecentDate = row.date
+          }
         } else {
-          entries.push({ row, count: 1, months: new Set([month]) })
+          entries.push({ row, count: 1, months: new Set([month]), mostRecentDate: row.date })
         }
       }
 
       const recurring: RecurringPayment[] = []
       for (const entries of byDescAmount.values()) {
-        for (const { row, count, months } of entries) {
+        for (const { row, count, months, mostRecentDate } of entries) {
           if (count >= 3 && months.size >= 3) {
             const category = row.categoryId ? categoryById.get(row.categoryId) : null
             recurring.push({
@@ -495,6 +504,7 @@ export class ChartAggregationService {
               categoryId: row.categoryId,
               categoryName: category?.name ?? null,
               categoryIcon: (category?.icon ?? null) as CategoryIconKey | null,
+              mostRecentDate,
             })
           }
         }

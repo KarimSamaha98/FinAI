@@ -2,6 +2,7 @@ import type { CategoryChange, RecurringPayment, TopTransaction } from 'shared-ty
 import { Card } from '../../components/Card'
 import { CategoryIcon } from '../../components/categoryIcons'
 import { formatCurrency } from '../../lib/formatCurrency'
+import { formatDate } from '../../lib/formatDate'
 
 interface CategoryChangesCardProps {
   changes: CategoryChange[]
@@ -55,9 +56,12 @@ export function TopExpensesCard({ expenses }: TopExpensesCardProps) {
         {expenses.map((expense) => (
           <li key={expense.description} className="txn-item">
             <button type="button" className="txn-row is-static">
-              <span className="txn-row-date">{expense.occurrenceCount}×</span>
+              <span className="txn-row-date">{formatDate(expense.mostRecentDate)}</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{expense.description}</span>
+                {expense.occurrenceCount > 1 && (
+                  <span className="txn-row-meta">{expense.occurrenceCount}× · Total: {formatCurrency(displayAmount(expense.amount), expense.currencyCode)}</span>
+                )}
               </span>
               <span className="txn-row-chips">
                 <span className={`txn-chip txn-chip--category${expense.categoryName ? '' : ' is-empty'}`}>
@@ -92,9 +96,12 @@ export function TopIncomeCard({ income }: TopIncomeCardProps) {
         {income.map((item) => (
           <li key={item.description} className="txn-item">
             <button type="button" className="txn-row is-static">
-              <span className="txn-row-date">{item.occurrenceCount}×</span>
+              <span className="txn-row-date">{formatDate(item.mostRecentDate)}</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{item.description}</span>
+                {item.occurrenceCount > 1 && (
+                  <span className="txn-row-meta">{item.occurrenceCount}× · Total: {formatCurrency(item.amount, item.currencyCode)}</span>
+                )}
               </span>
               <span className="txn-row-chips">
                 <span className={`txn-chip txn-chip--category${item.categoryName ? '' : ' is-empty'}`}>
@@ -131,9 +138,10 @@ export function RecurringPaymentsCard({ payments }: RecurringPaymentsCardProps) 
         {payments.slice(0, 5).map((payment, index) => (
           <li key={`${payment.description}-${index}`} className="txn-item">
             <button type="button" className="txn-row is-static">
-              <span className="txn-row-date">{payment.monthCount} mo</span>
+              <span className="txn-row-date">{formatDate(payment.mostRecentDate)}</span>
               <span className="txn-row-description-cell">
                 <span className="txn-row-description">{payment.description}</span>
+                <span className="txn-row-meta">{payment.occurrenceCount}× in {payment.monthCount} mo</span>
               </span>
               <span className="txn-row-chips">
                 <span className={`txn-chip txn-chip--category${payment.categoryName ? '' : ' is-empty'}`}>

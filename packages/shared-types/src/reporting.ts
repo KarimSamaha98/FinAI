@@ -89,6 +89,7 @@ export const TopTransactionSchema = z.object({
   categoryName: z.string().nullable(),
   categoryIcon: CategoryIconKeySchema.nullable(),
   occurrenceCount: z.number().int(),
+  mostRecentDate: z.string().date(),
 });
 export type TopTransaction = z.infer<typeof TopTransactionSchema>;
 
@@ -101,6 +102,7 @@ export const RecurringPaymentSchema = z.object({
   categoryId: z.string().uuid().nullable(),
   categoryName: z.string().nullable(),
   categoryIcon: CategoryIconKeySchema.nullable(),
+  mostRecentDate: z.string().date(),
 });
 export type RecurringPayment = z.infer<typeof RecurringPaymentSchema>;
 
