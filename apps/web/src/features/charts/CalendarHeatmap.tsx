@@ -54,7 +54,7 @@ function buildMonthGrid(date: Date, daysByDate: Map<string, HeatmapDay>): DayCel
 function DayCellBlock({ cell, baseColor, maxAmount, onHover, onLeave }: { cell: DayCell; baseColor: string; maxAmount: number; onHover: (e: React.MouseEvent) => void; onLeave: () => void }) {
   const isEmpty = cell.dayNum === 0
   const hasData = cell.day !== null
-  const opacity = hasData ? Math.max(0.15, cell.day!.total / maxAmount) : 1
+  const opacity = hasData ? Math.max(0.15, Math.sqrt(cell.day!.total / maxAmount)) : 1
 
   if (isEmpty) {
     return <div style={{ height: '22px' }} />
@@ -181,7 +181,7 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode 
             week.map(({ date, dayNum, day }, dayIndex) => {
               const isEmpty = dayNum === 0
               const hasData = day !== null
-              const opacity = hasData ? Math.max(0.15, day.total / maxAmount) : 1
+              const opacity = hasData ? Math.max(0.15, Math.sqrt(day.total / maxAmount)) : 1
 
               return (
                 <div

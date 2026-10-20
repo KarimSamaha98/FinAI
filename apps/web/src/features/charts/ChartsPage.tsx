@@ -14,6 +14,7 @@ import { useImportantThings } from '../../hooks/useImportantThings'
 import { useTrend } from '../../hooks/useTrend'
 import { CategoryBarChart } from './CategoryBarChart'
 import { CalendarHeatmap } from './CalendarHeatmap'
+import { MonthlyBarChart } from './MonthlyBarChart'
 import { DashboardMetrics } from './DashboardMetrics'
 import { IncomeExpenseChart } from './IncomeExpenseChart'
 import { CategoryChangesCard, TopExpensesCard, RecurringPaymentsCard } from './ImportantThingsCards'
@@ -108,14 +109,23 @@ export function ChartsPage() {
               />
             </Card>
             <Card style={{ padding: 'var(--space-4)' }}>
-              <CalendarHeatmap
-                title="By Date"
-                days={expenseHeatmap.days}
-                kind="expense"
-                currencyCode={currencyCode}
-                period={period}
-                mode={mode}
-              />
+              {mode === 'yearly' ? (
+                <MonthlyBarChart
+                  title="By Month"
+                  days={expenseHeatmap.days}
+                  kind="expense"
+                  currencyCode={currencyCode}
+                />
+              ) : (
+                <CalendarHeatmap
+                  title="By Date"
+                  days={expenseHeatmap.days}
+                  kind="expense"
+                  currencyCode={currencyCode}
+                  period={period}
+                  mode={mode}
+                />
+              )}
             </Card>
             <CategoryChangesCard changes={importantThings.categoryChanges} filterKind="expense" title="Changes" />
             <TopExpensesCard expenses={importantThings.topExpenses} />
@@ -136,14 +146,23 @@ export function ChartsPage() {
               />
             </Card>
             <Card style={{ padding: 'var(--space-4)' }}>
-              <CalendarHeatmap
-                title="By Date"
-                days={incomeHeatmap.days}
-                kind="income"
-                currencyCode={currencyCode}
-                period={period}
-                mode={mode}
-              />
+              {mode === 'yearly' ? (
+                <MonthlyBarChart
+                  title="By Month"
+                  days={incomeHeatmap.days}
+                  kind="income"
+                  currencyCode={currencyCode}
+                />
+              ) : (
+                <CalendarHeatmap
+                  title="By Date"
+                  days={incomeHeatmap.days}
+                  kind="income"
+                  currencyCode={currencyCode}
+                  period={period}
+                  mode={mode}
+                />
+              )}
             </Card>
             <CategoryChangesCard changes={importantThings.categoryChanges} filterKind="income" title="Changes" />
           </div>
