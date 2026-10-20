@@ -101,15 +101,15 @@ export interface DemoDataset {
   importProfile: DemoImportProfile | null
 }
 
-const GROCERY_DESCRIPTIONS = ['Trader Joe\u2019s run', 'Whole Foods weekly shop', 'Safeway groceries', 'Costco haul'] as const
-const DINING_DESCRIPTIONS = ['Lunch — Sweetgreen', 'Dinner — Ramen Nagi', 'Brunch — Cafe Luna', 'Dinner — Pizzeria Bianco', 'Takeout — Thai', 'Lunch — deli corner'] as const
-const TRANSPORT_DESCRIPTIONS = ['Metro card top-up', 'Uber ride', 'Lyft — airport run', 'Gas station fill-up', 'Parking garage'] as const
-const COFFEE_DESCRIPTIONS = ['Blue Bottle latte', 'Starbucks coffee', 'Corner cafe espresso', 'Drip coffee — office'] as const
-const SHOPPING_DESCRIPTIONS = ['Amazon order', 'Uniqlo haul', 'IKEA trip', 'Best Buy — cables', 'Running shoes — Decathlon'] as const
-const ENTERTAINMENT_DESCRIPTIONS = ['Cinema tickets', 'Concert — local band', 'Board game night', 'Museum entry'] as const
-const HEALTH_DESCRIPTIONS = ['Pharmacy — basics', 'Dentist checkup', 'Physio session'] as const
-const TRAVEL_DESCRIPTIONS = ['Flight — Lisbon', 'Hotel — Lisbon', 'Airbnb — weekend trip', 'Train tickets'] as const
-const GADGET_DESCRIPTIONS = ['Mechanical keyboard', 'USB-C dock', 'Noise-cancelling earbuds', 'Standing-desk mat'] as const
+const GROCERY_DESCRIPTIONS = ['Trader Joe\u2019s Run', 'Whole Foods Weekly Shop', 'Safeway Groceries', 'Costco Haul'] as const
+const DINING_DESCRIPTIONS = ['Lunch \u2014 Sweetgreen', 'Dinner \u2014 Ramen Nagi', 'Brunch \u2014 Cafe Luna', 'Dinner \u2014 Pizzeria Bianco', 'Takeout \u2014 Thai', 'Lunch \u2014 Deli Corner'] as const
+const TRANSPORT_DESCRIPTIONS = ['Metro Card Top-Up', 'Uber Ride', 'Lyft \u2014 Airport Run', 'Gas Station Fill-Up', 'Parking Garage'] as const
+const COFFEE_DESCRIPTIONS = ['Blue Bottle Latte', 'Starbucks Coffee', 'Corner Cafe Espresso', 'Drip Coffee \u2014 Office'] as const
+const SHOPPING_DESCRIPTIONS = ['Amazon Order', 'Uniqlo Haul', 'IKEA Trip', 'Best Buy \u2014 Cables', 'Running Shoes \u2014 Decathlon'] as const
+const ENTERTAINMENT_DESCRIPTIONS = ['Cinema Tickets', 'Concert \u2014 Local Band', 'Board Game Night', 'Museum Entry'] as const
+const HEALTH_DESCRIPTIONS = ['Pharmacy \u2014 Basics', 'Dentist Checkup', 'Physio Session'] as const
+const TRAVEL_DESCRIPTIONS = ['Flight \u2014 Lisbon', 'Hotel \u2014 Lisbon', 'Airbnb \u2014 Weekend Trip', 'Train Tickets'] as const
+const GADGET_DESCRIPTIONS = ['Mechanical Keyboard', 'USB-C Dock', 'Noise-Cancelling Earbuds', 'Standing-Desk Mat'] as const
 const MONTHS_BACK = 12
 
 export function buildDemoDataset(reference = new Date()): DemoDataset {
@@ -216,12 +216,12 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   for (let monthsAgo = MONTHS_BACK - 1; monthsAgo >= 0; monthsAgo--) {
     add(checking, dayInMonth(monthsAgo, 1), 5200, 'Salary — Acme Corp', 'Salary')
     add(checking, dayInMonth(monthsAgo, 2), -1800, 'Rent — 123 Main St', 'Rent')
-    add(checking, dayInMonth(monthsAgo, times(5, 9)), -money(88, 165), 'Electricity bill', 'Utilities')
-    add(checking, dayInMonth(monthsAgo, 8), -59.99, 'Fiber internet', 'Utilities')
-    add(checking, dayInMonth(monthsAgo, 12), -45, 'Mobile plan', 'Utilities')
+    add(checking, dayInMonth(monthsAgo, times(5, 9)), -money(88, 165), 'Electricity Bill', 'Utilities')
+    add(checking, dayInMonth(monthsAgo, 8), -59.99, 'Fiber Internet', 'Utilities')
+    add(checking, dayInMonth(monthsAgo, 12), -45, 'Mobile Plan', 'Utilities')
     add(checking, dayInMonth(monthsAgo, 3), -10.99, 'Spotify', 'Subscriptions')
     add(checking, dayInMonth(monthsAgo, 14), -15.49, 'Netflix', 'Subscriptions')
-    add(checking, dayInMonth(monthsAgo, 18), -85, 'Car insurance', 'Insurance')
+    add(checking, dayInMonth(monthsAgo, 18), -85, 'Car Insurance', 'Insurance')
 
     // Groceries roughly every 10-16 days
     for (let day = times(2, 6); day <= 27; day += times(10, 16)) {
@@ -251,18 +251,18 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
 
     // Monthly savings + brokerage transfers (out of checking, in at the destination)
     const savingsDate = dayInMonth(monthsAgo, 25)
-    add(checking, savingsDate, -500, 'Savings transfer', 'Transfers')
-    add(savings, savingsDate, 500, 'Savings transfer', 'Transfers')
+    add(checking, savingsDate, -500, 'Savings Transfer', 'Transfers')
+    add(savings, savingsDate, 500, 'Savings Transfer', 'Transfers')
     const brokerageDate = dayInMonth(monthsAgo, 27)
-    add(checking, brokerageDate, -500, 'Brokerage transfer', 'Transfers')
-    add(brokerage, brokerageDate, 500, 'Brokerage transfer', 'Transfers')
+    add(checking, brokerageDate, -500, 'Brokerage Transfer', 'Transfers')
+    add(brokerage, brokerageDate, 500, 'Brokerage Transfer', 'Transfers')
 
     // TFSA (CAD) — exists only from 6 months back
     if (monthsAgo <= 6) {
-      add(tfsa, dayInMonth(monthsAgo, 5), 300, 'TFSA contribution', 'Investment')
+      add(tfsa, dayInMonth(monthsAgo, 5), 300, 'TFSA Contribution', 'Investment')
     }
     if (monthsAgo === 5 || monthsAgo === 2) {
-      add(tfsa, dayInMonth(monthsAgo, 20), 45.2, 'Dividend — Wealthsimple', 'Investment')
+      add(tfsa, dayInMonth(monthsAgo, 20), 45.2, 'Dividend \u2014 Wealthsimple', 'Investment')
     }
   }
 
@@ -278,12 +278,12 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   add(visa, dayInMonth(8, times(5, 20)), -189.99, pick(GADGET_DESCRIPTIONS), 'Gadgets')
   add(visa, dayInMonth(2, times(5, 20)), -249, pick(GADGET_DESCRIPTIONS), 'Gadgets')
   // Annual insurance, month-split across 12 months (never reconciled — mutual exclusivity)
-  const insurance = add(checking, dayInMonth(4, 20), -1200, 'Annual travel insurance', 'Insurance')
+  const insurance = add(checking, dayInMonth(4, 20), -1200, 'Annual Travel Insurance', 'Insurance')
   const monthSplits: DemoMonthSplit[] = [
     { transactionId: insurance.id, startMonth: iso(startOfMonth(subMonths(reference, 4))), numMonths: 12 },
   ]
   // Future-dated reimbursement — included in the point-in-time net worth, excluded from the series
-  add(checking, iso(subMonths(reference, -1)), 250, 'Tax refund — expected', 'Reimbursement')
+  add(checking, iso(subMonths(reference, -1)), 250, 'Tax Refund — Expected', 'Reimbursement')
 
   // ── Reconciliation groups ──────────────────────────────────────────────
   const byDescription = (description: string, monthsAgo: number): DemoTransaction[] =>
@@ -294,19 +294,19 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   // Shared dinner, net zero (paid 120, three friends repaid 40 each)
   const dinner = add(checking, dayInMonth(3, 14), -120, 'Dinner with Alex & Sam', 'Dining')
   const repayments = [
-    add(checking, dayInMonth(3, 16), 40, 'Dinner repayment — Alex', 'Reimbursement'),
-    add(checking, dayInMonth(3, 17), 40, 'Dinner repayment — Sam', 'Reimbursement'),
-    add(checking, dayInMonth(3, 19), 40, 'Dinner repayment — Jordan', 'Reimbursement'),
+    add(checking, dayInMonth(3, 16), 40, 'Dinner Repayment — Alex', 'Reimbursement'),
+    add(checking, dayInMonth(3, 17), 40, 'Dinner Repayment — Sam', 'Reimbursement'),
+    add(checking, dayInMonth(3, 19), 40, 'Dinner Repayment — Jordan', 'Reimbursement'),
   ]
   reconciliationGroups.push(group('Dinner with Alex & Sam', [dinner, ...repayments]))
   // Credit-card payment pair (cross-account)
-  const cardPaymentOut = add(checking, dayInMonth(2, 22), -200, 'Visa payment', 'Transfers')
-  const cardPaymentIn = add(visa, dayInMonth(2, 22), 200, 'Visa payment', 'Transfers')
+  const cardPaymentOut = add(checking, dayInMonth(2, 22), -200, 'Visa Payment', 'Transfers')
+  const cardPaymentIn = add(visa, dayInMonth(2, 22), 200, 'Visa Payment', 'Transfers')
   reconciliationGroups.push(group('Credit card payment', [cardPaymentOut, cardPaymentIn]))
   // The two most recent savings + brokerage transfer pairs
   for (const monthsAgo of [1, 0]) {
-    reconciliationGroups.push(group(`Savings transfer — ${monthLabel(monthsAgo)}`, byDescription('Savings transfer', monthsAgo)))
-    reconciliationGroups.push(group(`Brokerage transfer — ${monthLabel(monthsAgo)}`, byDescription('Brokerage transfer', monthsAgo)))
+    reconciliationGroups.push(group(`Savings Transfer — ${monthLabel(monthsAgo)}`, byDescription('Savings Transfer', monthsAgo)))
+    reconciliationGroups.push(group(`Brokerage Transfer — ${monthLabel(monthsAgo)}`, byDescription('Brokerage Transfer', monthsAgo)))
   }
 
   // ── One import profile, on the checking account ────────────────────────

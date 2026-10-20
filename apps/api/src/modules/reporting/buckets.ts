@@ -1,5 +1,19 @@
-import { addDays, differenceInCalendarDays, eachDayOfInterval, eachMonthOfInterval, endOfMonth, format, parseISO, startOfMonth } from 'date-fns'
-import type { BucketGranularity } from 'shared-types'
+import {
+  addDays,
+  differenceInCalendarDays,
+  eachDayOfInterval,
+  eachMonthOfInterval,
+  eachYearOfInterval,
+  endOfMonth,
+  endOfYear,
+  format,
+  parseISO,
+  startOfMonth,
+  startOfYear,
+  subMonths,
+  subYears,
+} from 'date-fns'
+import type { BucketGranularity, InsightMode } from 'shared-types'
 
 export interface Bucket {
   key: string
@@ -13,6 +27,49 @@ export function resolveGranularity(from: string, to: string): BucketGranularity 
   if (days <= 7) return 'daily'
   if (days <= 31) return 'weekly'
   return 'monthly'
+}
+
+export function resolveModeGranularity(mode: InsightMode): BucketGranularity {
+  return mode === 'monthly' ? 'daily' : 'monthly'
+}
+
+export interface PeriodRange {
+  from: string
+  to: string
+}
+
+export function computePeriodRange(mode: InsightMode, period: string): PeriodRange {
+  if (mode === 'monthly') {
+    const [year, month] = period.split('-').map(Number)
+    const date = new Date(year, month - 1, 1)
+    return { from: format(date, 'yyyy-MM-dd'), to: format(endOfMonth(date), 'yyyy-MM-dd') }
+  }
+  const year = Number(period)
+  const date = new Date(year, 0, 1)
+  return { from: format(date, 'yyyy-MM-dd'), to: format(endOfYear(date), 'yyyy-MM-dd') }
+}
+
+export interface ComparisonPeriods {
+  previousPeriod: PeriodRange
+  yearOverYear?: PeriodRange
+}
+
+export function computeComparisonPeriods(mode: InsightMode, period: string): ComparisonPeriods {
+  if (mode === 'monthly') {
+    const date = parseISO(period + '-01')
+    const prev = subMonths(date, 1)
+    const yoy = subYears(date, 1)
+    return {
+      previousPeriod: { from: format(startOfMonth(prev), 'yyyy-MM-dd'), to: format(endOfMonth(prev), 'yyyy-MM-dd') },
+      yearOverYear: { from: format(startOfMonth(yoy), 'yyyy-MM-dd'), to: format(endOfMonth(yoy), 'yyyy-MM-dd') },
+    }
+  }
+  const year = Number(period)
+  const prevYear = year - 1
+  const date = new Date(prevYear, 0, 1)
+  return {
+    previousPeriod: { from: format(startOfYear(date), 'yyyy-MM-dd'), to: format(endOfYear(date), 'yyyy-MM-dd') },
+  }
 }
 
 export function buildBuckets(from: string, to: string, granularity: BucketGranularity): Bucket[] {
@@ -29,9 +86,6 @@ export function buildBuckets(from: string, to: string, granularity: BucketGranul
   }
 
   if (granularity === 'weekly') {
-    // Consecutive 7-day windows anchored at `from` (not ISO-week-aligned) —
-    // the simplest unambiguous definition for an arbitrary custom range; the
-    // final window is truncated at `to`.
     const buckets: Bucket[] = []
     for (let cursor = fromDate; cursor <= toDate; cursor = addDays(cursor, 7)) {
       const naiveEnd = addDays(cursor, 6)
@@ -44,6 +98,15 @@ export function buildBuckets(from: string, to: string, granularity: BucketGranul
       })
     }
     return buckets
+  }
+
+  if (granularity === 'yearly') {
+    return eachYearOfInterval({ start: startOfYear(fromDate), end: startOfYear(toDate) }).map((y) => ({
+      key: format(y, 'yyyy'),
+      start: startOfYear(y),
+      end: endOfYear(y),
+      label: format(y, 'yyyy'),
+    }))
   }
 
   return eachMonthOfInterval({ start: startOfMonth(fromDate), end: startOfMonth(toDate) }).map((m) => ({

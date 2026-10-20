@@ -1,13 +1,10 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AmountKind, CategoryBreakdownPoint } from 'shared-types'
-import { categoryColor } from '../../lib/categoryColor'
 import { formatCurrency } from '../../lib/formatCurrency'
-import type { Category } from 'shared-types'
 
 interface CategoryBarChartProps {
   title: string
   points: CategoryBreakdownPoint[]
-  categories: Category[]
   kind: AmountKind
   currencyCode: string
 }
@@ -45,26 +42,25 @@ const TONE_COLOR: Record<AmountKind, string> = {
 }
 
 const BAR_HEIGHT = 20
-const BAR_GAP = 12
 
-export function CategoryBarChart({ title, points, categories, kind, currencyCode }: CategoryBarChartProps) {
+export function CategoryBarChart({ title, points, kind, currencyCode }: CategoryBarChartProps) {
   if (points.length === 0) {
     return (
       <div>
-        <h2 style={{ fontSize: '1rem' }}>{title}</h2>
+        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
         <p style={{ color: 'var(--text-muted)' }}>No data for this period.</p>
       </div>
     )
   }
 
   const maxTotal = Math.max(...points.map((p) => p.total))
-  const chartHeight = points.length * (BAR_HEIGHT + BAR_GAP) + BAR_GAP + 8
+  const chartHeight = points.length * (BAR_HEIGHT + 12) + 8
 
   return (
     <div>
-      <h2 style={{ fontSize: '1rem' }}>{title}</h2>
+      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart data={points} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 4 }} barSize={BAR_HEIGHT} barGap={BAR_GAP}>
+        <BarChart data={points} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 4 }} barSize={BAR_HEIGHT} barGap={12}>
           <XAxis type="number" hide domain={[0, maxTotal * 1.15]} />
           <YAxis
             type="category"
@@ -79,7 +75,7 @@ export function CategoryBarChart({ title, points, categories, kind, currencyCode
             {points.map((point) => (
               <Cell
                 key={point.categoryId ?? 'uncategorized'}
-                fill={categoryColor(point.categoryId, categories) ?? TONE_COLOR[kind]}
+                fill={TONE_COLOR[kind]}
               />
             ))}
           </Bar>

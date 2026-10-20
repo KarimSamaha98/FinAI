@@ -1,102 +1,154 @@
 import { useState } from 'react'
-import type { TransactionView } from 'shared-types'
-import { SelectDropdown } from '../../components/SelectDropdown'
-import { DateRangePresetPicker } from '../../components/DateRangePresetPicker'
-import { type DateRange } from '../../components/DateRangePicker'
-import { getPresetRange } from '../../lib/dateRangePresets'
-import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
-import { Alert } from '../../components/Alert'
+import { format } from 'date-fns'
+import type { InsightMode } from 'shared-types'
+import { ModeToggle } from '../../components/ModeToggle'
+import { PeriodSelector } from '../../components/PeriodSelector'
+import { SectionNav } from '../../components/SectionNav'
 import { Card } from '../../components/Card'
-import { useCategories } from '../../hooks/useCategories'
+import { Alert } from '../../components/Alert'
 import { useProfile } from '../../hooks/useProfile'
 import { useCategoryBreakdown } from '../../hooks/useCategoryBreakdown'
-import { useTimeseries } from '../../hooks/useTimeseries'
+import { useHeatmap } from '../../hooks/useHeatmap'
 import { useDashboardSummary } from '../../hooks/useDashboardSummary'
-import { CategoryPieChart } from './CategoryPieChart'
-import { TimeseriesChart } from './TimeseriesChart'
+import { useImportantThings } from '../../hooks/useImportantThings'
+import { useTrend } from '../../hooks/useTrend'
+import { CategoryBarChart } from './CategoryBarChart'
+import { CalendarHeatmap } from './CalendarHeatmap'
 import { DashboardMetrics } from './DashboardMetrics'
+import { IncomeExpenseChart } from './IncomeExpenseChart'
+import { CategoryChangesCard, TopExpensesCard, RecurringPaymentsCard } from './ImportantThingsCards'
 
+const NAV_SECTIONS = [
+  { id: 'expense', label: 'Expense' },
+  { id: 'income', label: 'Income' },
+]
 export function ChartsPage() {
-  const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('current-month'))
-  const [categoryIds, setCategoryIds] = useState<string[]>([])
-  const [view, setView] = useState<TransactionView>('real')
-  const { categories, activeCategories } = useCategories()
+  const [mode, setMode] = useState<InsightMode>('monthly')
+  const [period, setPeriod] = useState<string>(() => format(new Date(), 'yyyy-MM'))
+  const [activeSection, setActiveSection] = useState<string>('expense')
   const { profile } = useProfile()
 
-  const expenseByCategory = useCategoryBreakdown(dateRange, categoryIds, view, 'expense')
-  const incomeByCategory = useCategoryBreakdown(dateRange, categoryIds, view, 'income')
-  const expenseTimeseries = useTimeseries(dateRange, categoryIds, view, 'expense')
-  const incomeTimeseries = useTimeseries(dateRange, categoryIds, view, 'income')
-  const summary = useDashboardSummary(dateRange, categoryIds, view)
+  const summary = useDashboardSummary(mode, period)
+  const expenseByCategory = useCategoryBreakdown(mode, period, 'expense')
+  const incomeByCategory = useCategoryBreakdown(mode, period, 'income')
+  const expenseHeatmap = useHeatmap(mode, period, 'expense')
+  const incomeHeatmap = useHeatmap(mode, period, 'income')
+  const importantThings = useImportantThings(mode, period)
+  const trend = useTrend(mode, period)
 
   const loading =
-    expenseByCategory.loading || incomeByCategory.loading || expenseTimeseries.loading || incomeTimeseries.loading || summary.loading
-  const error = expenseByCategory.error ?? incomeByCategory.error ?? expenseTimeseries.error ?? incomeTimeseries.error ?? summary.error
+    summary.loading ||
+    expenseByCategory.loading ||
+    incomeByCategory.loading ||
+    expenseHeatmap.loading ||
+    incomeHeatmap.loading ||
+    importantThings.loading ||
+    trend.loading
+
+  const error =
+    summary.error ??
+    expenseByCategory.error ??
+    incomeByCategory.error ??
+    expenseHeatmap.error ??
+    incomeHeatmap.error ??
+    importantThings.error ??
+    trend.error
+
+  const handleModeChange = (nextMode: InsightMode) => {
+    setMode(nextMode)
+    setPeriod(nextMode === 'monthly' ? format(new Date(), 'yyyy-MM') : format(new Date(), 'yyyy'))
+  }
+
+  const currencyCode = profile?.homeCurrencyCode ?? 'USD'
 
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
-      <h1>Insights</h1>
+      <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Insights</h1>
 
-      <div className="filter-bar" style={{ marginBottom: 'var(--space-4)' }}>
-        <DateRangePresetPicker value={dateRange} onChange={setDateRange} />
-        <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
-        <SelectDropdown<TransactionView>
-          label="View"
-          value={view}
-          options={[
-            { value: 'real', label: 'Real' },
-            { value: 'nominal', label: 'Nominal' },
-          ]}
-          onChange={setView}
-        />
+      <div className="filter-bar" style={{ marginBottom: 'var(--space-5)' }}>
+        <ModeToggle mode={mode} onChange={handleModeChange} />
+        <PeriodSelector mode={mode} period={period} onChange={setPeriod} />
       </div>
 
       {loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
       {error && <Alert variant="error">{error}</Alert>}
 
-      <DashboardMetrics
-        totalExpense={summary.totalExpense}
-        totalIncome={summary.totalIncome}
-        netIncome={summary.netIncome}
-        savingsRate={summary.savingsRate}
-        currencyCode={profile?.homeCurrencyCode ?? 'USD'}
-      />
+      <section style={{ marginBottom: 'var(--space-5)' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 'var(--space-3)' }}>Overview</h2>
+        <DashboardMetrics current={summary} currencyCode={currencyCode} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+          <Card style={{ padding: 'var(--space-4)' }}>
+            <IncomeExpenseChart
+              title={mode === 'monthly' ? 'Income vs Expense (last 12 months)' : 'Income vs Expense (last 5 years)'}
+              points={trend.points}
+              currencyCode={currencyCode}
+              currentPeriod={period}
+            />
+          </Card>
+        </div>
+      </section>
 
-      <h2 style={{ fontSize: '1.1rem', marginTop: 'var(--space-5)' }}>Income</h2>
-      <Card style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <CategoryPieChart
-          title="Income by category"
-          points={incomeByCategory.points}
-          categories={categories}
-          currencyCode={profile?.homeCurrencyCode ?? 'USD'}
+      <div style={{ marginBottom: 'var(--space-5)' }}>
+        <SectionNav
+          sections={NAV_SECTIONS}
+          activeId={activeSection}
+          onChange={setActiveSection}
         />
-        <TimeseriesChart
-          title="Income over time"
-          seriesName="Income"
-          kind="income"
-          granularity={incomeTimeseries.granularity}
-          points={incomeTimeseries.points}
-          currencyCode={profile?.homeCurrencyCode ?? 'USD'}
-        />
-      </Card>
+      </div>
 
-      <h2 style={{ fontSize: '1.1rem', marginTop: 'var(--space-5)' }}>Expense</h2>
-      <Card style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <CategoryPieChart
-          title="Expenses by category"
-          points={expenseByCategory.points}
-          categories={categories}
-          currencyCode={profile?.homeCurrencyCode ?? 'USD'}
-        />
-        <TimeseriesChart
-          title="Expenses over time"
-          seriesName="Expenses"
-          kind="expense"
-          granularity={expenseTimeseries.granularity}
-          points={expenseTimeseries.points}
-          currencyCode={profile?.homeCurrencyCode ?? 'USD'}
-        />
-      </Card>
+      {activeSection === 'expense' && (
+        <section style={{ marginBottom: 'var(--space-5)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <Card style={{ padding: 'var(--space-4)' }}>
+              <CategoryBarChart
+                title="By Category"
+                points={expenseByCategory.points}
+                kind="expense"
+                currencyCode={currencyCode}
+              />
+            </Card>
+            <Card style={{ padding: 'var(--space-4)' }}>
+              <CalendarHeatmap
+                title="By Date"
+                days={expenseHeatmap.days}
+                kind="expense"
+                currencyCode={currencyCode}
+                period={period}
+                mode={mode}
+              />
+            </Card>
+            <CategoryChangesCard changes={importantThings.categoryChanges} filterKind="expense" title="Changes" />
+            <TopExpensesCard expenses={importantThings.topExpenses} />
+            <RecurringPaymentsCard payments={importantThings.recurringPayments} />
+          </div>
+        </section>
+      )}
+
+      {activeSection === 'income' && (
+        <section style={{ marginBottom: 'var(--space-5)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <Card style={{ padding: 'var(--space-4)' }}>
+              <CategoryBarChart
+                title="By Category"
+                points={incomeByCategory.points}
+                kind="income"
+                currencyCode={currencyCode}
+              />
+            </Card>
+            <Card style={{ padding: 'var(--space-4)' }}>
+              <CalendarHeatmap
+                title="By Date"
+                days={incomeHeatmap.days}
+                kind="income"
+                currencyCode={currencyCode}
+                period={period}
+                mode={mode}
+              />
+            </Card>
+            <CategoryChangesCard changes={importantThings.categoryChanges} filterKind="income" title="Changes" />
+          </div>
+        </section>
+      )}
     </main>
   )
 }

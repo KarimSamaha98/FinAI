@@ -112,13 +112,15 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode 
 
   const baseColor = kind === 'expense' ? 'var(--outflow)' : 'var(--accent)'
 
+  const calendarGrid = useMemo(() => buildMonthGrid(parseISO(period + '-01'), daysByDate), [period, daysByDate])
+
   if (mode === 'yearly') {
     const year = Number(period)
     const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1))
 
     return (
       <div style={{ position: 'relative' }}>
-        <h2 style={{ fontSize: '1rem', marginBottom: 'var(--space-3)' }}>{title}</h2>
+        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)' }}>
           {months.map((monthDate, idx) => {
             const grid = buildMonthGrid(monthDate, daysByDate)
@@ -165,11 +167,9 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode 
   }
 
   // Monthly mode
-  const calendarGrid = useMemo(() => buildMonthGrid(parseISO(period + '-01'), daysByDate), [period, daysByDate])
-
   return (
     <div style={{ position: 'relative' }}>
-      <h2 style={{ fontSize: '1rem', marginBottom: 'var(--space-3)' }}>{title}</h2>
+      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
       <div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
           {WEEKDAYS.map((day, i) => (

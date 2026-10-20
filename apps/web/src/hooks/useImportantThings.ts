@@ -3,10 +3,9 @@ import type { ImportantThingsResponse, InsightMode } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
 
 const EMPTY_RESPONSE: ImportantThingsResponse = {
-  spendingSpikes: [],
+  categoryChanges: [],
   topExpenses: [],
   recurringPayments: [],
-  excludedCurrencies: [],
 }
 
 export function useImportantThings(mode: InsightMode, period: string) {

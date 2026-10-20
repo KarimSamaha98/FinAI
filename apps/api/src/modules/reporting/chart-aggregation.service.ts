@@ -1,37 +1,37 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { format, parseISO } from 'date-fns'
+import { and, gte, lte } from 'drizzle-orm'
+import { format, parseISO, subMonths, startOfMonth, endOfMonth, endOfYear } from 'date-fns'
 import type {
   AmountKind,
   BucketGranularity,
   CategoryBreakdownResponse,
+  CategoryChange,
+  CategoryIconKey,
   DashboardSummary,
   DisplayRow,
+  HeatmapResponse,
+  ImportantThingsResponse,
+  InsightMode,
+  RecurringPayment,
   TimeseriesResponse,
+  TopExpense,
   TransactionView,
+  TrendResponse,
 } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { categories } from '../../db/schema.js'
+import { categories, transactions } from '../../db/schema.js'
 import { FxUnavailableError } from '../exchange-rates/fx-unavailable.error.js'
 import { ReportingQueryService, type ListTransactionsFilter } from './reporting-query.service.js'
-import { buildBuckets, resolveGranularity, type Bucket } from './buckets.js'
-
-interface ConversionResult {
-  converted: { row: DisplayRow; convertedAmount: number }[]
-}
+import { buildBuckets, computePeriodRange, resolveModeGranularity, type Bucket } from './buckets.js'
 
 function bucketKeyFor(dateISO: string, granularity: BucketGranularity, buckets: Bucket[]): string | undefined {
   if (granularity === 'monthly') return dateISO.slice(0, 7)
+  if (granularity === 'yearly') return dateISO.slice(0, 4)
   if (granularity === 'daily') return dateISO
   const d = parseISO(dateISO)
   return buckets.find((b) => d >= b.start && d <= b.end)?.key
-}
-
-const MOVING_AVERAGE_WINDOW: Record<BucketGranularity, number> = {
-  daily: 7,
-  weekly: 4,
-  monthly: 3,
 }
 
 @Injectable()
@@ -43,24 +43,27 @@ export class ChartAggregationService {
 
   async getCategoryBreakdown(
     userId: string,
-    filter: ListTransactionsFilter,
+    mode: InsightMode,
+    period: string,
     view: TransactionView,
     kind: AmountKind,
   ): Promise<CategoryBreakdownResponse> {
-    const { converted } = await this.getConvertedRows(userId, filter, view)
+    const range = computePeriodRange(mode, period)
+    const rows = await this.getRows(userId, { dateRange: range }, view)
 
-    return runInTenantContext(this.db, userId, async (tx) => {
+    const categoryPoints = await runInTenantContext(this.db, userId, async (tx) => {
       const categoryRows = await tx.select().from(categories)
       const nameById = new Map(categoryRows.map((c) => [c.id, c.name]))
 
       const totals = new Map<string | null, number>()
-      for (const { row, convertedAmount } of converted) {
-        const isExpense = convertedAmount < 0
+      for (const row of rows) {
+        if (row.convertedValue == null) continue
+        const isExpense = row.convertedValue < 0
         if ((kind === 'expense') !== isExpense) continue
-        totals.set(row.categoryId, (totals.get(row.categoryId) ?? 0) + Math.abs(convertedAmount))
+        totals.set(row.categoryId, (totals.get(row.categoryId) ?? 0) + Math.abs(row.convertedValue))
       }
 
-      const points = [...totals.entries()]
+      return [...totals.entries()]
         .filter(([, total]) => total !== 0)
         .map(([categoryId, total]) => ({
           categoryId,
@@ -68,76 +71,409 @@ export class ChartAggregationService {
           total,
         }))
         .sort((a, b) => b.total - a.total)
-
-      return { points }
     })
+
+    return { points: categoryPoints }
   }
 
   async getTimeseries(
     userId: string,
-    filter: ListTransactionsFilter,
+    mode: InsightMode,
+    period: string,
     view: TransactionView,
     kind: AmountKind,
   ): Promise<TimeseriesResponse> {
-    const { converted } = await this.getConvertedRows(userId, filter, view)
+    const range = computePeriodRange(mode, period)
+    const rows = await this.getRows(userId, { dateRange: range }, view)
 
-    const from = filter.dateRange!.from!
-    const to = filter.dateRange!.to!
-    const granularity = resolveGranularity(from, to)
-    const buckets = buildBuckets(from, to, granularity)
+    const granularity = resolveModeGranularity(mode)
+    const buckets = buildBuckets(range.from, range.to, granularity)
     const totalsByKey = new Map(buckets.map((b) => [b.key, 0]))
 
-    for (const { row, convertedAmount } of converted) {
-      const isExpense = convertedAmount < 0
+    for (const row of rows) {
+      if (row.convertedValue == null) continue
+      const isExpense = row.convertedValue < 0
       if ((kind === 'expense') !== isExpense) continue
       const key = bucketKeyFor(row.date, granularity, buckets)
       if (key === undefined || !totalsByKey.has(key)) continue
-      totalsByKey.set(key, totalsByKey.get(key)! + Math.abs(convertedAmount))
+      totalsByKey.set(key, totalsByKey.get(key)! + Math.abs(row.convertedValue))
     }
 
-    const totals = buckets.map((b) => totalsByKey.get(b.key)!)
-    const windowSize = MOVING_AVERAGE_WINDOW[granularity]
-
-    const points = buckets.map((b, i) => ({
+    const points = buckets.map((b) => ({
       bucketStart: format(b.start, 'yyyy-MM-dd'),
       bucketLabel: b.label,
-      total: totals[i],
-      movingAverage:
-        i < windowSize - 1 ? null : totals.slice(i - windowSize + 1, i + 1).reduce((s, v) => s + v, 0) / windowSize,
+      total: totalsByKey.get(b.key) ?? 0,
     }))
 
     return { granularity, points }
   }
 
-  async getDashboardSummary(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<DashboardSummary> {
-    const { converted } = await this.getConvertedRows(userId, filter, view)
+  async getDashboardSummary(
+    userId: string,
+    mode: InsightMode,
+    period: string,
+    view: TransactionView,
+  ): Promise<DashboardSummary> {
+    const range = computePeriodRange(mode, period)
+    const rows = await this.getRows(userId, { dateRange: range }, view)
 
     let totalExpense = 0
     let totalIncome = 0
-    for (const { convertedAmount } of converted) {
-      if (convertedAmount < 0) totalExpense += Math.abs(convertedAmount)
-      else totalIncome += convertedAmount
+    for (const row of rows) {
+      if (row.convertedValue == null) continue
+      if (row.convertedValue < 0) totalExpense += Math.abs(row.convertedValue)
+      else totalIncome += row.convertedValue
     }
 
     const netIncome = totalIncome - totalExpense
     const savingsRate = totalIncome > 0 ? netIncome / totalIncome : null
-
     return { totalExpense, totalIncome, netIncome, savingsRate }
   }
 
-  /**
-   * Home-currency values are materialized on each transaction at write time
-   * (see ExchangeRatesService), so aggregating is a plain sum of the stored
-   * converted_value. A row with no value means a past conversion failed —
-   * surfaced as FX_UNAVAILABLE rather than silently dropped.
-   */
-  private async getConvertedRows(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<ConversionResult> {
+  async getHeatmap(
+    userId: string,
+    mode: InsightMode,
+    period: string,
+    view: TransactionView,
+    kind: AmountKind,
+  ): Promise<HeatmapResponse> {
+    const range = computePeriodRange(mode, period)
+    const rows = await this.getRows(userId, { dateRange: range }, view)
+
+    const totalsByDate = new Map<string, number>()
+    for (const row of rows) {
+      if (row.convertedValue == null) continue
+      const isExpense = row.convertedValue < 0
+      if ((kind === 'expense') !== isExpense) continue
+      totalsByDate.set(row.date, (totalsByDate.get(row.date) ?? 0) + Math.abs(row.convertedValue))
+    }
+
+    const days = [...totalsByDate.entries()].map(([date, total]) => ({ date, total }))
+    return { days }
+  }
+
+  async getImportantThings(
+    userId: string,
+    mode: InsightMode,
+    period: string,
+    view: TransactionView,
+  ): Promise<ImportantThingsResponse> {
+    const currentRange = computePeriodRange(mode, period)
+
+    const lookbackCount = 6
+    const lookbackPeriods: string[] = []
+    let cursorPeriod = period
+    for (let i = 0; i < lookbackCount; i++) {
+      cursorPeriod = mode === 'monthly'
+        ? format(subMonths(parseISO(cursorPeriod + '-01'), 1), 'yyyy-MM')
+        : String(Number(cursorPeriod) - 1)
+      lookbackPeriods.unshift(cursorPeriod)
+    }
+
+    const lookbackFrom = computePeriodRange(mode, lookbackPeriods[0]).from
+    const lookbackTo = mode === 'monthly'
+      ? format(endOfMonth(subMonths(parseISO(period + '-01'), 1)), 'yyyy-MM-dd')
+      : format(endOfYear(new Date(Number(period) - 1, 0, 1)), 'yyyy-MM-dd')
+
+    const currentRows = await this.getRows(userId, { dateRange: currentRange }, view)
+    const lookbackRows = await this.getRows(userId, { dateRange: { from: lookbackFrom, to: lookbackTo } }, view)
+
+    const categoryChanges = await this.detectCategoryChanges(userId, mode, currentRows, lookbackRows, lookbackPeriods)
+    const topExpenses = await this.detectTopExpenses(userId, currentRows)
+    const recurringPayments = await this.detectRecurringPayments(userId, currentRange)
+
+    return { categoryChanges, topExpenses, recurringPayments }
+  }
+
+  async getTrend(
+    userId: string,
+    mode: InsightMode,
+    period: string,
+    view: TransactionView,
+  ): Promise<TrendResponse> {
+    const periodCount = mode === 'monthly' ? 12 : 5
+    const periods: string[] = []
+    let cursorPeriod = period
+
+    for (let i = 0; i < periodCount; i++) {
+      periods.unshift(cursorPeriod)
+      cursorPeriod = mode === 'monthly'
+        ? format(subMonths(parseISO(cursorPeriod + '-01'), 1), 'yyyy-MM')
+        : String(Number(cursorPeriod) - 1)
+    }
+
+    const points: { period: string; label: string; totalIncome: number; totalExpense: number; savingsRate: number | null }[] = []
+    for (const p of periods) {
+      const range = computePeriodRange(mode, p)
+      const rows = await this.getRows(userId, { dateRange: range }, view)
+
+      let totalExpense = 0
+      let totalIncome = 0
+      for (const row of rows) {
+        if (row.convertedValue == null) continue
+        if (row.convertedValue < 0) totalExpense += Math.abs(row.convertedValue)
+        else totalIncome += row.convertedValue
+      }
+
+      const netIncome = totalIncome - totalExpense
+      const savingsRate = totalIncome > 0 ? netIncome / totalIncome : null
+
+      const label = mode === 'monthly'
+        ? format(parseISO(p + '-01'), 'MMM')
+        : p
+
+      points.push({ period: p, label, totalIncome, totalExpense, savingsRate })
+    }
+
+    return { points }
+  }
+
+  private periodKeyFor(mode: InsightMode, dateISO: string): string {
+    return mode === 'monthly' ? dateISO.slice(0, 7) : dateISO.slice(0, 4)
+  }
+
+  private async detectCategoryChanges(
+    userId: string,
+    mode: InsightMode,
+    current: DisplayRow[],
+    lookback: DisplayRow[],
+    lookbackPeriods: string[],
+  ): Promise<CategoryChange[]> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const categoryRows = await tx.select().from(categories)
+      const nameById = new Map(categoryRows.map((c) => [c.id, c.name]))
+
+      const currentExpenseTotals = new Map<string | null, number>()
+      const currentIncomeTotals = new Map<string | null, number>()
+      for (const row of current) {
+        if (row.convertedValue == null) continue
+        const key = row.categoryId ?? null
+        if (row.convertedValue < 0) {
+          currentExpenseTotals.set(key, (currentExpenseTotals.get(key) ?? 0) + Math.abs(row.convertedValue))
+        } else {
+          currentIncomeTotals.set(key, (currentIncomeTotals.get(key) ?? 0) + row.convertedValue)
+        }
+      }
+
+      const periodExpenseTotals: Map<string | null, number>[] = []
+      const periodIncomeTotals: Map<string | null, number>[] = []
+      for (let i = 0; i < lookbackPeriods.length; i++) {
+        periodExpenseTotals.push(new Map())
+        periodIncomeTotals.push(new Map())
+      }
+
+      for (const row of lookback) {
+        if (row.convertedValue == null) continue
+        const periodKey = this.periodKeyFor(mode, row.date)
+        const periodIndex = lookbackPeriods.indexOf(periodKey)
+        if (periodIndex === -1) continue
+        const key = row.categoryId ?? null
+        if (row.convertedValue < 0) {
+          const m = periodExpenseTotals[periodIndex]
+          m.set(key, (m.get(key) ?? 0) + Math.abs(row.convertedValue))
+        } else {
+          const m = periodIncomeTotals[periodIndex]
+          m.set(key, (m.get(key) ?? 0) + row.convertedValue)
+        }
+      }
+
+      const averageExpenseTotals = new Map<string | null, number>()
+      const averageIncomeTotals = new Map<string | null, number>()
+
+      const allExpenseKeys = new Set<string | null>()
+      const allIncomeKeys = new Set<string | null>()
+      for (const m of periodExpenseTotals) {
+        for (const k of m.keys()) allExpenseKeys.add(k)
+      }
+      for (const m of periodIncomeTotals) {
+        for (const k of m.keys()) allIncomeKeys.add(k)
+      }
+
+      for (const key of allExpenseKeys) {
+        let sum = 0
+        let count = 0
+        for (const m of periodExpenseTotals) {
+          if (m.has(key)) {
+            sum += m.get(key)!
+            count++
+          }
+        }
+        averageExpenseTotals.set(key, count > 0 ? sum / count : 0)
+      }
+
+      for (const key of allIncomeKeys) {
+        let sum = 0
+        let count = 0
+        for (const m of periodIncomeTotals) {
+          if (m.has(key)) {
+            sum += m.get(key)!
+            count++
+          }
+        }
+        averageIncomeTotals.set(key, count > 0 ? sum / count : 0)
+      }
+
+      const changes: CategoryChange[] = []
+
+      for (const [categoryId, currentTotal] of currentExpenseTotals) {
+        const avgTotal = averageExpenseTotals.get(categoryId) ?? 0
+        if (avgTotal === 0) continue
+        const percentChange = ((currentTotal - avgTotal) / avgTotal) * 100
+        if (percentChange >= 30) {
+          changes.push({
+            categoryId,
+            categoryName: categoryId ? (nameById.get(categoryId) ?? 'Unknown category') : 'Uncategorized',
+            kind: 'expense',
+            type: 'expense_spike',
+            currentTotal,
+            previousTotal: avgTotal,
+            percentChange,
+          })
+        } else if (percentChange <= -30) {
+          changes.push({
+            categoryId,
+            categoryName: categoryId ? (nameById.get(categoryId) ?? 'Unknown category') : 'Uncategorized',
+            kind: 'expense',
+            type: 'expense_improvement',
+            currentTotal,
+            previousTotal: avgTotal,
+            percentChange,
+          })
+        }
+      }
+
+      for (const [categoryId, currentTotal] of currentIncomeTotals) {
+        const avgTotal = averageIncomeTotals.get(categoryId) ?? 0
+        if (avgTotal === 0) continue
+        const percentChange = ((currentTotal - avgTotal) / avgTotal) * 100
+        if (percentChange >= 30) {
+          changes.push({
+            categoryId,
+            categoryName: categoryId ? (nameById.get(categoryId) ?? 'Unknown category') : 'Uncategorized',
+            kind: 'income',
+            type: 'income_spike',
+            currentTotal,
+            previousTotal: avgTotal,
+            percentChange,
+          })
+        } else if (percentChange <= -30) {
+          changes.push({
+            categoryId,
+            categoryName: categoryId ? (nameById.get(categoryId) ?? 'Unknown category') : 'Uncategorized',
+            kind: 'income',
+            type: 'income_reduction',
+            currentTotal,
+            previousTotal: avgTotal,
+            percentChange,
+          })
+        }
+      }
+
+      return changes.sort((a, b) => Math.abs(b.percentChange) - Math.abs(a.percentChange))
+    })
+  }
+
+  private async detectTopExpenses(userId: string, current: DisplayRow[]): Promise<TopExpense[]> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const categoryRows = await tx.select().from(categories)
+      const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
+
+      const expenses: TopExpense[] = []
+      for (const row of current) {
+        if (row.convertedValue == null || row.convertedValue >= 0) continue
+        const category = row.categoryId ? categoryById.get(row.categoryId) : null
+        expenses.push({
+          id: row.sourceTransactionIds[0],
+          date: row.date,
+          description: row.description,
+          amount: Math.abs(row.convertedValue),
+          currencyCode: row.currencyCode,
+          categoryId: row.categoryId,
+          categoryName: category?.name ?? null,
+          categoryIcon: (category?.icon ?? null) as CategoryIconKey | null,
+        })
+      }
+
+      return expenses.sort((a, b) => b.amount - a.amount).slice(0, 5)
+    })
+  }
+
+  private async detectRecurringPayments(
+    userId: string,
+    currentRange: { from: string; to: string },
+  ): Promise<RecurringPayment[]> {
+    const lookbackMonths = 3
+    const [year, month] = currentRange.to.split('-').map(Number)
+    const endDate = new Date(year, month - 1, 1)
+    const startDate = subMonths(endDate, lookbackMonths)
+
+    const startDateStr = format(startOfMonth(startDate), 'yyyy-MM-dd')
+    const endDateStr = format(endOfMonth(endDate), 'yyyy-MM-dd')
+
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const rows = await tx
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            gte(transactions.date, startDateStr),
+            lte(transactions.date, endDateStr),
+          ),
+        )
+
+      const categoryRows = await tx.select().from(categories)
+      const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
+
+      const byDescAmount = new Map<string, { row: typeof rows[0]; count: number; months: Set<string> }[]>()
+      for (const row of rows) {
+        const amount = Number(row.amount)
+        if (amount >= 0) continue
+        const absAmount = Math.abs(amount)
+        const roundedAmount = Math.round(absAmount * 100) / 100
+        const key = `${row.description.toLowerCase()}|${roundedAmount}`
+        const month = row.date.slice(0, 7)
+
+        if (!byDescAmount.has(key)) {
+          byDescAmount.set(key, [])
+        }
+        const entries = byDescAmount.get(key)!
+        const existing = entries.find((e) => Math.abs(Number(e.row.amount) - amount) < 0.01)
+        if (existing) {
+          existing.count++
+          existing.months.add(month)
+        } else {
+          entries.push({ row, count: 1, months: new Set([month]) })
+        }
+      }
+
+      const recurring: RecurringPayment[] = []
+      for (const entries of byDescAmount.values()) {
+        for (const { row, count, months } of entries) {
+          if (count >= 3 && months.size >= 3) {
+            const category = row.categoryId ? categoryById.get(row.categoryId) : null
+            recurring.push({
+              description: row.description,
+              amount: Math.abs(Number(row.amount)),
+              currencyCode: row.currencyCode,
+              occurrenceCount: count,
+              monthCount: months.size,
+              categoryId: row.categoryId,
+              categoryName: category?.name ?? null,
+              categoryIcon: (category?.icon ?? null) as CategoryIconKey | null,
+            })
+          }
+        }
+      }
+
+      return recurring.sort((a, b) => b.amount - a.amount)
+    })
+  }
+
+  private async getRows(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<DisplayRow[]> {
     const rows = await this.reportingQueryService.listDisplayRows(userId, filter, view)
-    const converted: ConversionResult['converted'] = []
     for (const row of rows) {
       if (row.convertedValue == null) throw FxUnavailableError.amount(row.currencyCode, row.date)
-      converted.push({ row, convertedAmount: row.convertedValue })
     }
-    return { converted }
+    return rows
   }
 }
