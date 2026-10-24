@@ -37,6 +37,16 @@
   --sys-orange-ic: #c55300;
   --sys-blue-ic: #1e6ef4;
 
+  /* FinAI brand: navy. Apple has no navy system color, so the brand hue gets
+     its own primitive set, built to the same rules as Apple's: a light
+     variant, a brighter dark-mode variant, and increased-contrast twins. */
+  --brand-navy: #1e3a8a;
+  --brand-navy-dark-fill: #3256c8;
+  --brand-navy-dark-text: #8fa8ff;
+  --brand-navy-ic: #142a66;
+  --brand-navy-ic-dark-fill: #2a49b0;
+  --brand-navy-ic-dark-text: #b4c6ff;
+
   --sys-gray: #8e8e93;
   --sys-gray-2: #aeaeb2;
   --sys-gray-3: #c7c7cc;
@@ -71,11 +81,11 @@
   /* Raised thumb of a segmented control / switch. */
   --control-thumb: #ffffff;
 
-  /* Tint (app accent): systemIndigo. --tint-fill backs filled controls with
+  /* Tint (app accent): FinAI Navy. --tint-fill backs filled controls with
      white labels; --tint-text is the same hue tuned for text on surfaces. */
-  --tint-fill: var(--sys-indigo);
-  --tint-text: var(--sys-indigo);
-  --tint-soft: color-mix(in srgb, var(--sys-indigo) 12%, transparent);
+  --tint-fill: var(--brand-navy);
+  --tint-text: var(--brand-navy);
+  --tint-soft: color-mix(in srgb, var(--brand-navy) 10%, transparent);
   --on-tint: #ffffff;
 
   /* Status — money in (green), destructive / below zero (red), warning. */
@@ -151,7 +161,7 @@
 
   /* Categorical chart palette — Apple system hues in a fixed, CVD-aware
      order (assign in sequence; never cycle within a chart's first 8). */
-  --series-1: var(--sys-indigo);
+  --series-1: var(--brand-navy);
   --series-2: var(--sys-orange-ic);
   --series-3: #00a3b0;
   --series-4: #d9a300;
@@ -233,11 +243,12 @@
     --separator-opaque: #38383a;
     --control-thumb: #636366;
 
-    /* Filled controls keep the light indigo (white label stays ≥ 4.5:1);
-       tinted text uses the brighter dark-mode indigo. */
-    --tint-fill: #6155f5;
-    --tint-text: var(--sys-indigo);
-    --tint-soft: color-mix(in srgb, var(--sys-indigo) 22%, transparent);
+    /* Navy is too dark to read on black, so dark mode lifts it: a mid navy
+       for fills (white label ≥ 6:1, still visible on the black page) and a
+       light periwinkle for text and icons. */
+    --tint-fill: var(--brand-navy-dark-fill);
+    --tint-text: var(--brand-navy-dark-text);
+    --tint-soft: color-mix(in srgb, var(--brand-navy-dark-text) 18%, transparent);
 
     --status-positive: var(--sys-green);
     --status-negative: var(--sys-red-ic);
@@ -253,6 +264,7 @@
     --shadow-md: 0 8px 40px rgba(0, 0, 0, 0.45);
     --shadow-lg: 0 18px 60px rgba(0, 0, 0, 0.55);
 
+    --series-1: var(--brand-navy-dark-text);
     --series-3: var(--sys-teal);
     --series-4: var(--sys-yellow);
   }
@@ -263,8 +275,8 @@
   :root {
     --label-secondary: #3c3c43;
     --separator: var(--separator-opaque);
-    --tint-fill: var(--sys-indigo-ic);
-    --tint-text: var(--sys-indigo-ic);
+    --tint-fill: var(--brand-navy-ic);
+    --tint-text: var(--brand-navy-ic);
     --glass-bg: rgba(250, 250, 252, 0.94);
     --glass-bg-strong: rgba(250, 250, 252, 0.98);
   }
@@ -273,8 +285,8 @@
 @media (prefers-contrast: more) and (prefers-color-scheme: dark) {
   :root {
     --label-secondary: #ebebf5;
-    --tint-fill: #564ade;
-    --tint-text: var(--sys-indigo-ic);
+    --tint-fill: var(--brand-navy-ic-dark-fill);
+    --tint-text: var(--brand-navy-ic-dark-text);
     --glass-bg: rgba(44, 44, 48, 0.96);
     --glass-bg-strong: rgba(44, 44, 48, 0.98);
   }

@@ -21,7 +21,7 @@ python3 docs/design-system/build.py --html   # HTML only
 
 The tokens come in three tiers. Each tier only references the one below it.
 
-1. **Primitives:** Apple's system colors (`--sys-indigo`, …), their increased-contrast twins (`--sys-green-ic`, …) and the grays.
+1. **Primitives:** Apple's system colors (`--sys-green`, …), their increased-contrast twins (`--sys-green-ic`, …), the grays, and the FinAI Navy brand set (`--brand-navy`, with dark-mode and increased-contrast variants).
 2. **Semantic:** what a value means.
    - Backgrounds: `--bg-grouped`, `--bg-grouped-secondary`, `--bg-elevated`
    - Labels: `--label-primary` … `--label-quaternary`
@@ -35,7 +35,7 @@ The tokens come in three tiers. Each tier only references the one below it.
 ## Rules
 
 - **Reference tokens, never raw values.** A new color goes into the semantic tier first, with light, dark and increased-contrast values.
-- **Use `--accent` for fills and `--accent-text` for text and icons.** Use `--text-muted` for secondary text and `--separator` for hairlines.
+- **The accent is FinAI Navy (`#1E3A8A`).** Use `--accent` for fills and `--accent-text` for text and icons; dark mode lifts them to `#3256C8` and `#8FA8FF`. Use `--text-muted` for secondary text and `--separator` for hairlines.
 - **One filled (`.btn-primary`) button per view.** Destructive actions use `.btn-danger` and are never the primary button.
 - **Liquid Glass (`--glass-*`) is only for floating controls:** the sidebar, drawer, back button, menus and popovers. Content stays on solid surfaces.
 - **Color carries meaning:** green means money in, red means destructive or below zero, and expenses use the label color.
