@@ -23,11 +23,11 @@ export function DashboardMetrics({ totalExpense, totalIncome, netIncome, savings
     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', margin: '1rem 0' }}>
       <Tile label="Total expense" value={formatCurrency(totalExpense, currencyCode)} />
       <Tile label="Total income" value={formatCurrency(totalIncome, currencyCode)} />
-      <Tile label="Net income" value={formatCurrency(netIncome, currencyCode)} color={netIncome < 0 ? 'var(--danger)' : 'var(--accent)'} />
+      <Tile label="Net income" value={formatCurrency(netIncome, currencyCode)} color={netIncome < 0 ? 'var(--danger)' : 'var(--amount-positive)'} />
       <Tile
         label="Savings rate"
         value={savingsRate === null ? '—' : `${(savingsRate * 100).toFixed(1)}%`}
-        color={savingsRate !== null && savingsRate < 0 ? 'var(--danger)' : 'var(--accent)'}
+        color={savingsRate !== null && savingsRate < 0 ? 'var(--danger)' : 'var(--amount-positive)'}
       />
     </div>
   )

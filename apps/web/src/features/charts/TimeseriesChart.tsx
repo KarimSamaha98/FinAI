@@ -18,7 +18,7 @@ const MOVING_AVERAGE_LABEL: Record<BucketGranularity, string> = {
 }
 
 // Income and expense reuse the same semantic colors as the ledger and account
-// balances (var(--accent) for money in, var(--outflow) for money out) rather
+// balances (var(--accent) for money in, var(--outflow) — red — for money out) rather
 // than a generic categorical hue — this chart plots one metric over time, not
 // category identity, so tying it to the app's existing income/expense color
 // language reads as more consistent than an arbitrary series color.

@@ -42,7 +42,7 @@ export function ImportReview({ rows, categories, choices, onChange, onConfirm, c
                 <span className="import-review-description">{row.description || 'Untitled'}</span>
                 <span className="import-review-date">{formatDate(row.date)}</span>
               </div>
-              <span className="mono import-review-amount" style={{ color: row.amount >= 0 ? 'var(--accent)' : 'var(--outflow)' }}>
+              <span className="mono import-review-amount" style={{ color: row.amount >= 0 ? 'var(--amount-positive)' : 'var(--outflow)' }}>
                 {formatCurrency(row.amount, row.currencyCode)}
               </span>
               <div className="import-review-category">

@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'FinAI',
         short_name: 'FinAI',
         description: 'Personal finance and budgeting tracker',
-        theme_color: '#12111a',
-        background_color: '#12111a',
+        theme_color: '#f2f2f7',
+        background_color: '#f2f2f7',
         display: 'standalone',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },

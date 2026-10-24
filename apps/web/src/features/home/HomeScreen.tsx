@@ -23,11 +23,9 @@ const HOME_BUCKETS: { type: AccountType; label: string }[] = [
   { type: 'other', label: 'Other' },
 ]
 
-/** Negative balances read red (danger), positive green (success); zero stays neutral. */
+/** Negative balances read red; positive and zero keep the regular text color. */
 function signedColor(amount: number): string | undefined {
-  if (amount < 0) return 'var(--danger)'
-  if (amount > 0) return 'var(--success)'
-  return undefined
+  return amount < 0 ? 'var(--danger)' : undefined
 }
 
 function AccountRow({ account }: { account: NetWorthAccount }) {

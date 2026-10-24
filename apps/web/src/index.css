@@ -1,96 +1,310 @@
-:root {
-  /* "Night Ledger" palette — a warm violet-black, not pure gray, with a
-     signature acid-lime accent reserved for primary actions, selection, and
-     money coming in. Expense amounts get a soft coral tint (not alarm-red) —
-     red is reserved for --danger (destructive actions) alone, so it stays
-     meaningful instead of doing double duty as "you spent money". */
-  --text: #f3f1fa;
-  --text-muted: #9c97b5;
-  --bg: #12111a;
-  --surface: #1c1b26;
-  --surface-raised: #242332;
-  --border: #322f42;
-  --accent: #c6ff3d;
-  --accent-contrast: #12111a;
-  --danger: #ff3b5c;
-  --outflow: #ff7a85;
-  /* Positive balances (net worth) — a calmer green than the acid-lime accent,
-     which stays reserved for primary actions and selection; red for negative
-     balances reuses --danger, where "you are below zero" *is* the alarm. */
-  --success: #3ecf8e;
+/* ════════════════════════════════════════════════════════════════════════
+   FinAI Design System — token layer
+   Built on Apple's iOS 26 Human Interface Guidelines and the "iOS and iPadOS
+   26" Figma kit (values below are Apple's published ones), with Wealthsimple-
+   style typography. Three tiers:
+     1. Primitives  — Apple system colors and grays (never used directly by
+                      components except through the semantic tier).
+     2. Semantic    — what a color *means*: backgrounds, labels, fills,
+                      separators, tint, status, materials, type, motion.
+     3. App aliases — the short names the components already use
+                      (--bg, --surface, --text, --accent, …), mapped onto
+                      the semantic tier so every screen inherits the system.
+   Light is the default; dark, increased contrast and reduced transparency
+   are overrides further down. docs/design-system/ (README + PDF) explains every choice.
+   ════════════════════════════════════════════════════════════════════════ */
 
-  /* Spacing scale used by shared components (Button/Card/Badge/Table/etc) —
-     not a mandate to retrofit every existing ad hoc inline-style literal. */
+:root {
+  /* ── 1. Primitives: iOS 26 system colors (HIG > Color > Specifications) ── */
+  --sys-red: #ff383c;
+  --sys-orange: #ff8d28;
+  --sys-yellow: #ffcc00;
+  --sys-green: #34c759;
+  --sys-mint: #00c8b3;
+  --sys-teal: #00c3d0;
+  --sys-cyan: #00c0e8;
+  --sys-blue: #0088ff;
+  --sys-indigo: #6155f5;
+  --sys-purple: #cb30e0;
+  --sys-pink: #ff2d55;
+  --sys-brown: #ac7f5e;
+
+  /* Increased-contrast variants — Apple's accessible versions, used wherever
+     a system color sits on text-size content so it passes WCAG 4.5:1. */
+  --sys-red-ic: #e9152d;
+  --sys-green-ic: #008932;
+  --sys-indigo-ic: #564ade;
+  --sys-orange-ic: #c55300;
+  --sys-blue-ic: #1e6ef4;
+
+  /* FinAI brand: navy. Apple has no navy system color, so the brand hue gets
+     its own primitive set, built to the same rules as Apple's: a light
+     variant, a brighter dark-mode variant, and increased-contrast twins. */
+  --brand-navy: #1e3a8a;
+  --brand-navy-dark-fill: #3256c8;
+  --brand-navy-dark-text: #8fa8ff;
+  --brand-navy-ic: #142a66;
+  --brand-navy-ic-dark-fill: #2a49b0;
+  --brand-navy-ic-dark-text: #b4c6ff;
+
+  --sys-gray: #8e8e93;
+  --sys-gray-2: #aeaeb2;
+  --sys-gray-3: #c7c7cc;
+  --sys-gray-4: #d1d1d6;
+  --sys-gray-5: #e5e5ea;
+  --sys-gray-6: #f2f2f7;
+
+  /* ── 2. Semantic ── */
+
+  /* Backgrounds (grouped set — FinAI is a grouped, card-based app). */
+  --bg-grouped: #f2f2f7;
+  --bg-grouped-secondary: #ffffff;
+  --bg-grouped-tertiary: #f2f2f7;
+  --bg-elevated: #ffffff;
+
+  /* Labels. Secondary is Apple's opaque accessible gray (not the 60% alpha
+     label) so small secondary text still clears 4.5:1 on every background. */
+  --label-primary: #000000;
+  --label-secondary: #6c6c70;
+  --label-tertiary: rgba(60, 60, 67, 0.3);
+  --label-quaternary: rgba(60, 60, 67, 0.18);
+
+  /* Fills — the backgrounds of controls, chips and fields. */
+  --fill-primary: rgba(120, 120, 128, 0.2);
+  --fill-secondary: rgba(120, 120, 128, 0.16);
+  --fill-tertiary: rgba(120, 120, 128, 0.12);
+  --fill-quaternary: rgba(120, 120, 128, 0.08);
+
+  /* Separators. */
+  --separator: rgba(0, 0, 0, 0.12);
+  --separator-opaque: #c6c6c8;
+  /* Raised thumb of a segmented control / switch. */
+  --control-thumb: #ffffff;
+
+  /* Tint (app accent): FinAI Navy. --tint-fill backs filled controls with
+     white labels; --tint-text is the same hue tuned for text on surfaces. */
+  --tint-fill: var(--brand-navy);
+  --tint-text: var(--brand-navy);
+  --tint-soft: color-mix(in srgb, var(--brand-navy) 10%, transparent);
+  --on-tint: #ffffff;
+
+  /* Status — success (green), destructive / negative money (red), warning.
+     Money itself is neutral: positive amounts use the label color and only
+     negative amounts turn red, so color flags what needs attention. */
+  --status-positive: var(--sys-green-ic);
+  --status-negative: var(--sys-red-ic);
+  --status-negative-fill: var(--sys-red);
+  --status-warning: var(--sys-orange-ic);
+
+  /* Materials. Liquid Glass is reserved for the floating control layer
+     (navigation, popovers, sheets); standard materials sit in the content. */
+  --glass-bg: rgba(250, 250, 252, 0.72);
+  /* Text-heavy floating panels (menus, popovers) use the denser regular glass. */
+  --glass-bg-strong: rgba(250, 250, 252, 0.9);
+  --glass-edge: rgba(255, 255, 255, 0.7);
+  --glass-filter: blur(24px) saturate(180%);
+  --glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+  --material-thin: rgba(255, 255, 255, 0.6);
+  --scrim: rgba(0, 0, 0, 0.35);
+
+  /* Shape. Radii nest concentrically: an inner radius = outer − padding. */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 26px;
+  --radius-sheet: 34px;
+  --radius-full: 999px;
+
+  /* Space — a 4pt grid. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --hit-min: 44px;
+  --control-height: 36px;
+  --field-height: 44px;
 
-  --radius-sm: 0.5rem;
-  --radius-md: 0.875rem;
-  --radius-lg: 1.25rem;
-  --radius-full: 999px;
+  /* Elevation. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 40px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 18px 60px rgba(0, 0, 0, 0.18);
+  --focus-ring: 0 0 0 4px color-mix(in srgb, var(--tint-fill) 30%, transparent);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 0 3px rgba(198, 255, 61, 0.25);
+  /* Motion. --spring is a critically damped spring (damping 1.0, response
+     0.35s — Apple's default for UI) sampled into a linear() curve. */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --spring: linear(0, 0.226 10%, 0.536 20%, 0.75 30%, 0.873 40%, 0.938 50%, 0.971 60%, 0.986 70%, 0.994 80%, 0.997 90%, 1);
+  --duration-fast: 120ms;
+  --duration-base: 250ms;
+  --duration-spring: 500ms;
 
-  --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Typography. Figtree (display) stands in for Wealthsimple's The Future,
+     Inter (text) for Wealthsimple Sans; sizes, leading and weights follow
+     Apple's Dynamic Type "Large" scale, tracking follows SF's tables. */
+  --font-display: 'Figtree', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-text: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
-  /* Categorical series palette (dataviz skill, validated against this surface:
-     `node scripts/validate_palette.js "..." --mode light --surface "#ffffff"`).
-     Fixed hue order is the CVD-safety mechanism — assign in sequence, never cycle
-     within a single chart's first 8 series. */
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --series-7: #4a3aa7;
-  --series-8: #e34948;
+  --type-large-title: 700 2.125rem/2.5625rem var(--font-display);
+  --type-title-1: 700 1.75rem/2.125rem var(--font-display);
+  --type-title-2: 700 1.375rem/1.75rem var(--font-display);
+  --type-title-3: 600 1.25rem/1.5625rem var(--font-display);
+  --type-headline: 600 1.0625rem/1.375rem var(--font-text);
+  --type-body: 400 1.0625rem/1.375rem var(--font-text);
+  --type-callout: 400 1rem/1.3125rem var(--font-text);
+  --type-subhead: 400 0.9375rem/1.25rem var(--font-text);
+  --type-footnote: 400 0.8125rem/1.125rem var(--font-text);
+  --type-caption-1: 400 0.75rem/1rem var(--font-text);
+  --type-caption-2: 400 0.6875rem/0.8125rem var(--font-text);
 
-  font: 16px/1.5 var(--font-body);
-  color-scheme: dark light;
+  /* Categorical chart palette — Apple system hues in a fixed, CVD-aware
+     order (assign in sequence; never cycle within a chart's first 8). */
+  --series-1: var(--brand-navy);
+  --series-2: var(--sys-orange-ic);
+  --series-3: #00a3b0;
+  --series-4: #d9a300;
+  --series-5: var(--sys-pink);
+  --series-6: var(--sys-green-ic);
+  --series-7: var(--sys-purple);
+  --series-8: var(--sys-brown);
+
+  /* ── 3. App aliases (what the components reference) ── */
+  --bg: var(--bg-grouped);
+  --surface: var(--bg-grouped-secondary);
+  --surface-raised: var(--bg-elevated);
+  --text: var(--label-primary);
+  --text-muted: var(--label-secondary);
+  --border: var(--separator);
+  --accent: var(--tint-fill);
+  --accent-text: var(--tint-text);
+  --accent-contrast: var(--on-tint);
+  --danger: var(--status-negative);
+  --success: var(--status-positive);
+  /* Amounts: positive in the label color, negative in red. */
+  --amount-positive: var(--label-primary);
+  --outflow: var(--status-negative);
+  --shadow-glow: var(--focus-ring);
+  --font-body: var(--font-text);
+  --transition: var(--duration-fast) var(--ease-out);
+
+  font-family: var(--font-text);
+  color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --text: #1a1826;
-    --text-muted: #6b6680;
-    --bg: #f7f5fb;
-    --surface: #ffffff;
-    --surface-raised: #ffffff;
-    --border: #e4e0f0;
-    --accent: #6e9c00;
-    --accent-contrast: #ffffff;
-    --danger: #d6234a;
-    --outflow: #c7404e;
-    --success: #178a4c;
+    --sys-red: #ff4245;
+    --sys-orange: #ff9230;
+    --sys-yellow: #ffd600;
+    --sys-green: #30d158;
+    --sys-mint: #00dac3;
+    --sys-teal: #00d2e0;
+    --sys-cyan: #3cd3fe;
+    --sys-blue: #0091ff;
+    --sys-indigo: #6d7cff;
+    --sys-purple: #db34f2;
+    --sys-pink: #ff375f;
+    --sys-brown: #b78a66;
 
-    --shadow-sm: 0 1px 2px rgba(26, 24, 38, 0.08);
-    --shadow-md: 0 8px 24px rgba(26, 24, 38, 0.12);
-    --shadow-glow: 0 0 0 3px rgba(110, 156, 0, 0.2);
+    --sys-red-ic: #ff6165;
+    --sys-green-ic: #4ad968;
+    --sys-indigo-ic: #a7aaff;
+    --sys-orange-ic: #ffa056;
+    --sys-blue-ic: #5cb8ff;
 
-    /* Same 8 hues, stepped for the light surface — validated separately
-       against `--surface "#ffffff"`, not an automatic dark-mode flip. */
-    --series-1: #2a78d6;
-    --series-2: #eb6834;
-    --series-3: #1baf7a;
-    --series-4: #eda100;
-    --series-5: #e87ba4;
-    --series-6: #008300;
-    --series-7: #4a3aa7;
-    --series-8: #e34948;
+    --sys-gray-2: #636366;
+    --sys-gray-3: #48484a;
+    --sys-gray-4: #3a3a3c;
+    --sys-gray-5: #2c2c2e;
+    --sys-gray-6: #1c1c1e;
+
+    --bg-grouped: #000000;
+    --bg-grouped-secondary: #1c1c1e;
+    --bg-grouped-tertiary: #2c2c2e;
+    --bg-elevated: #2c2c2e;
+
+    --label-primary: #ffffff;
+    --label-secondary: #aeaeb2;
+    --label-tertiary: rgba(235, 235, 245, 0.3);
+    --label-quaternary: rgba(235, 235, 245, 0.16);
+
+    --fill-primary: rgba(120, 120, 128, 0.36);
+    --fill-secondary: rgba(120, 120, 128, 0.32);
+    --fill-tertiary: rgba(120, 120, 128, 0.24);
+    --fill-quaternary: rgba(120, 120, 128, 0.18);
+
+    --separator: rgba(255, 255, 255, 0.17);
+    --separator-opaque: #38383a;
+    --control-thumb: #636366;
+
+    /* Navy is too dark to read on black, so dark mode lifts it: a mid navy
+       for fills (white label ≥ 6:1, still visible on the black page) and a
+       light periwinkle for text and icons. */
+    --tint-fill: var(--brand-navy-dark-fill);
+    --tint-text: var(--brand-navy-dark-text);
+    --tint-soft: color-mix(in srgb, var(--brand-navy-dark-text) 18%, transparent);
+
+    --status-positive: var(--sys-green);
+    --status-negative: var(--sys-red-ic);
+
+    --glass-bg: rgba(44, 44, 48, 0.62);
+    --glass-bg-strong: rgba(44, 44, 48, 0.88);
+    --glass-edge: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+    --material-thin: rgba(0, 0, 0, 0.41);
+    --scrim: rgba(0, 0, 0, 0.5);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 40px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 18px 60px rgba(0, 0, 0, 0.55);
+
+    --series-1: var(--brand-navy-dark-text);
+    --series-3: var(--sys-teal);
+    --series-4: var(--sys-yellow);
   }
 }
+
+/* Increase Contrast: opaque separators, accessible tints, darker secondary. */
+@media (prefers-contrast: more) {
+  :root {
+    --label-secondary: #3c3c43;
+    --separator: var(--separator-opaque);
+    --tint-fill: var(--brand-navy-ic);
+    --tint-text: var(--brand-navy-ic);
+    --glass-bg: rgba(250, 250, 252, 0.94);
+    --glass-bg-strong: rgba(250, 250, 252, 0.98);
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --label-secondary: #ebebf5;
+    --tint-fill: var(--brand-navy-ic-dark-fill);
+    --tint-text: var(--brand-navy-ic-dark-text);
+    --glass-bg: rgba(44, 44, 48, 0.96);
+    --glass-bg-strong: rgba(44, 44, 48, 0.98);
+  }
+}
+
+/* Reduce Transparency: glass and materials become frosted-solid. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-bg: var(--bg-elevated);
+    --glass-bg-strong: var(--bg-elevated);
+    --glass-filter: none;
+    --material-thin: var(--bg-elevated);
+  }
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
 
 * {
   box-sizing: border-box;
@@ -98,6 +312,8 @@
 
 body {
   margin: 0;
+  font: var(--type-body);
+  letter-spacing: -0.01em;
 }
 
 #root {
@@ -106,21 +322,30 @@ body {
   flex-direction: column;
 }
 
-h1,
-h2,
+/* Headings map onto Apple's text styles: h1 Large Title, h2 Title 3,
+   h3 Headline. Display sizes track tighter as they grow. */
+h1 {
+  font: var(--type-large-title);
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font: var(--type-title-3);
+  letter-spacing: -0.01em;
+}
+
 h3 {
-  font-family: var(--font-display);
-  font-weight: 600;
+  font: var(--type-headline);
   letter-spacing: -0.01em;
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 ::selection {
-  background: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--tint-soft);
+  color: inherit;
 }
 
 ::-webkit-scrollbar {
@@ -129,7 +354,9 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--fill-primary);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   border-radius: var(--radius-full);
 }
 
@@ -143,69 +370,94 @@ a {
   border-radius: var(--radius-sm);
 }
 
+/* Amounts: tabular figures in the text face (not a monospace font), so
+   columns of money line up without looking like code. */
 .mono {
-  font-family: var(--font-mono);
+  font-family: var(--font-text);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
+/* Text-style utilities for one-off use. */
+.type-large-title { font: var(--type-large-title); letter-spacing: -0.02em; }
+.type-title-1 { font: var(--type-title-1); letter-spacing: -0.015em; }
+.type-title-2 { font: var(--type-title-2); letter-spacing: -0.01em; }
+.type-title-3 { font: var(--type-title-3); letter-spacing: -0.01em; }
+.type-headline { font: var(--type-headline); letter-spacing: -0.01em; }
+.type-body { font: var(--type-body); letter-spacing: -0.01em; }
+.type-callout { font: var(--type-callout); }
+.type-subhead { font: var(--type-subhead); }
+.type-footnote { font: var(--type-footnote); }
+.type-caption { font: var(--type-caption-1); }
+
 /* ── Form controls ─────────────────────────────────────────────────────── */
+/* Apple grouped-form fields: a filled field (tertiary fill) with no border,
+   44pt tall, 10pt corners; focus draws the tint ring. */
 
 input,
 select,
 textarea {
-  font: inherit;
+  font: var(--type-body);
+  letter-spacing: -0.01em;
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--fill-tertiary);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  padding: 0.5rem 0.65rem;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  min-height: var(--field-height);
+  padding: 0.55rem 0.8rem;
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+
+textarea {
+  min-height: 6rem;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--label-tertiary);
+}
+
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  background: var(--fill-secondary);
 }
 
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: none;
+  background: var(--surface);
   border-color: var(--accent);
-  box-shadow: var(--shadow-glow);
+  box-shadow: var(--focus-ring);
 }
 
-/* Our own checkbox: same box, border and accent as the rest of the controls
-   (a real checkbox underneath, so keyboard and screen readers work as usual). */
+/* Checkbox: Apple's round selection mark — a real checkbox underneath, so
+   keyboard and screen readers work as usual. */
 input[type='checkbox'] {
   appearance: none;
   flex: 0 0 auto;
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.375rem;
+  height: 1.375rem;
+  min-height: 0;
   margin: 0;
   padding: 0;
-  border: 1.5px solid var(--text-muted);
-  border-radius: 0.3rem;
-  background: var(--surface) center / 0.75rem no-repeat;
+  border: 1.5px solid var(--sys-gray-3);
+  border-radius: 50%;
+  background: transparent center / 0.85rem no-repeat;
   cursor: pointer;
   transition: background-color var(--transition), border-color var(--transition);
 }
 
 input[type='checkbox']:hover {
   border-color: var(--accent);
+  background-color: transparent;
 }
 
 input[type='checkbox']:checked {
   border-color: var(--accent);
   background-color: var(--accent);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='%2312111a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-@media (prefers-color-scheme: light) {
-  /* The light theme's accent is a darker green, so the tick turns white (--accent-contrast). */
-  input[type='checkbox']:checked {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  }
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6l4.4-5' fill='none' stroke='%23fff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 input[type='checkbox']:focus-visible {
@@ -219,11 +471,14 @@ input[type='checkbox']:disabled {
   cursor: not-allowed;
 }
 
+/* Field labels: Apple's footnote style, secondary label color. */
 label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+  gap: 0.375rem;
+  min-width: 0; /* lets fields shrink inside a row instead of overflowing it */
+  font: var(--type-footnote);
+  font-weight: 500;
   color: var(--text-muted);
 }
 
