@@ -61,7 +61,7 @@ export function DashboardMetrics({ current, comparison, currencyCode }: Dashboar
         <Tile label="Total expense" value={formatCurrency(current.totalExpense, currencyCode)} />
         <Tile label="Total income" value={formatCurrency(current.totalIncome, currencyCode)} />
         <Tile label="Net income" value={formatCurrency(current.netIncome, currencyCode)} color={current.netIncome < 0 ? 'var(--danger)' : 'var(--accent)'} />
-        <Tile label="Savings rate" value={current.savingsRate === null ? '—' : `${(current.savingsRate * 100).toFixed(1)}%`} color={current.savingsRate !== null && current.savingsRate < 0 ? 'var(--danger)' : 'var(--accent)'} />
+        <Tile label="Savings rate" value={current.savingsRate === null ? '—' : `${(current.savingsRate * 100).toFixed(1)}%`} color={current.savingsRate !== null && current.savingsRate < 0 ? 'var(--danger)' : 'var(--amount-positive)'} />
       </div>
     )
   }

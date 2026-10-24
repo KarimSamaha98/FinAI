@@ -87,9 +87,9 @@
   --accent-contrast: var(--on-tint);
   --danger: var(--status-negative);
   --success: var(--status-positive);
-  /* Expenses read in the primary label color, Apple Wallet style: color is
-     kept for meaning (green = money in, red = destructive / below zero). */
-  --outflow: var(--label-primary);
+  /* Amounts: positive in the label color, negative in red. */
+  --amount-positive: var(--label-primary);
+  --outflow: var(--status-negative);
   --shadow-glow: var(--focus-ring);
   --font-body: var(--font-text);
   --transition: var(--duration-fast) var(--ease-out);
@@ -221,7 +221,7 @@ svg.spring text { font: 10px Inter; fill: #6c6c70; }
     <thead><tr><th>Decision</th><th>Why</th></tr></thead><tbody>
     <tr><td><b>Grouped, card-based structure</b> (<code>#F2F2F7</code> page, white sections)</td><td>A finance app is lists of accounts and transactions. Apple's inset-grouped pattern (Settings, Wallet) is the most familiar way to scan grouped data, and it separates sections with background steps instead of borders.</td></tr>
     <tr><td><b>FinAI Navy as the accent</b> (<code>#1E3A8A</code>)</td><td>A brand color, not an Apple system color. The HIG supports this: in an app with mostly monochromatic content, a brand accent is "an effective way to tailor your app experience". Navy signals trust and steadiness for money, and stays clearly apart from the green used for money in. Like Apple's own colors it has a dark-mode pair: <code>--tint-fill</code> lifts to <code>#3256C8</code> so filled buttons stay visible on black with a white label ≥ 6:1, and <code>--tint-text</code> lifts to periwinkle <code>#8FA8FF</code> for text and icons. Increased-contrast twins are included.</td></tr>
-    <tr><td><b>Color carries meaning only</b></td><td>Following Apple Wallet: expenses read in the primary label color; <b>green = money in</b>, <b>red = destructive or below zero</b>. The minus sign carries direction, so color is never the only signal (HIG: Inclusive color).</td></tr>
+    <tr><td><b>Color flags what needs attention</b></td><td>Money is neutral: <b>positive amounts and balances use the primary label color</b>, and <b>only negative amounts turn red</b> (<code>--outflow</code> = <code>--status-negative</code>). A screen full of green income read as noise. Keeping it plain lets the red stand out where it matters: spending, debt and below-zero balances. Green is reserved for success messages. The minus sign still carries direction, so color is never the only signal (HIG: Inclusive color).</td></tr>
     <tr><td><b>Accessible secondary label</b></td><td>Apple's 60%-alpha secondary label is about 3.5:1 on white, below the 4.5:1 HIG minimum for text up to 17pt. FinAI uses Apple's opaque increased-contrast gray (<code>#6C6C70</code> / <code>#AEAEB2</code>) so footnotes and dates pass everywhere.</td></tr>
     <tr><td><b>Liquid Glass only in the control layer</b></td><td>HIG: "Don't use Liquid Glass in the content layer." The sidebar, phone drawer, back button, menu button and popovers float in glass; cards, lists and fields stay solid.</td></tr>
     <tr><td><b>Capsules for controls, concentric radii for containers</b></td><td>iOS 26 makes buttons, chips and search bars capsules. Containers nest their radii concentrically (inner radius = outer radius − padding), so the corners never fight.</td></tr>
@@ -339,9 +339,9 @@ svg.spring text { font: 10px Inter; fill: #6c6c70; }
           <td><span class="dot" style="background:#1e3a8a"></span><code>#1e3a8a</code></td>
           <td><span class="dot dot-dark" style="background:#3256c8"></span><code>#3256c8</code></td></tr><tr><td><code>--tint-text</code></td><td>Links, tinted text and icons (alias --accent-text)</td>
           <td><span class="dot" style="background:#1e3a8a"></span><code>#1e3a8a</code></td>
-          <td><span class="dot dot-dark" style="background:#8fa8ff"></span><code>#8fa8ff</code></td></tr><tr><td><code>--status-positive</code></td><td>Money in, positive balances (alias --success)</td>
+          <td><span class="dot dot-dark" style="background:#8fa8ff"></span><code>#8fa8ff</code></td></tr><tr><td><code>--status-positive</code></td><td>Success messages only (alias --success)</td>
           <td><span class="dot" style="background:#008932"></span><code>#008932</code></td>
-          <td><span class="dot dot-dark" style="background:#30d158"></span><code>#30d158</code></td></tr><tr><td><code>--status-negative</code></td><td>Destructive, below zero (alias --danger)</td>
+          <td><span class="dot dot-dark" style="background:#30d158"></span><code>#30d158</code></td></tr><tr><td><code>--status-negative</code></td><td>Negative amounts, destructive, below zero (alias --danger, --outflow)</td>
           <td><span class="dot" style="background:#e9152d"></span><code>#e9152d</code></td>
           <td><span class="dot dot-dark" style="background:#ff6165"></span><code>#ff6165</code></td></tr></tbody></table>
 </section>
@@ -349,7 +349,7 @@ svg.spring text { font: 10px Inter; fill: #6c6c70; }
 <section>
   <h3 class="doc" style="margin-top:0">Contrast, measured</h3>
   <p>Computed from the shipped tokens (WCAG 2.x relative luminance). HIG minimum: 4.5:1 for text up to 17pt, 3:1 for 18pt+ or bold.</p>
-  <table class="spec"><thead><tr><th>Pair</th><th>Light</th><th>Dark</th><th>Needs</th></tr></thead><tbody><tr><td>Primary text on a card<br><code>--label-primary</code> on <code>--bg-grouped-secondary</code></td><td class="pass">21.0:1</td><td class="pass">17.0:1</td><td>4.5:1</td></tr><tr><td>Secondary text on a card<br><code>--label-secondary</code> on <code>--bg-grouped-secondary</code></td><td class="pass">5.2:1</td><td class="pass">7.7:1</td><td>4.5:1</td></tr><tr><td>Secondary text on the page<br><code>--label-secondary</code> on <code>--bg-grouped</code></td><td class="pass">4.7:1</td><td class="pass">9.5:1</td><td>4.5:1</td></tr><tr><td>Tint text / links on a card<br><code>--tint-text</code> on <code>--bg-grouped-secondary</code></td><td class="pass">10.4:1</td><td class="pass">7.5:1</td><td>4.5:1</td></tr><tr><td>White label on a filled button<br><code>--on-tint</code> on <code>--tint-fill</code></td><td class="pass">10.4:1</td><td class="pass">6.4:1</td><td>4.5:1</td></tr><tr><td>Money in (green) on a card<br><code>--status-positive</code> on <code>--bg-grouped-secondary</code></td><td class="pass">4.5:1</td><td class="pass">8.4:1</td><td>4.5:1</td></tr><tr><td>Negative / destructive (red) on a card<br><code>--status-negative</code> on <code>--bg-grouped-secondary</code></td><td class="pass">4.6:1</td><td class="pass">5.8:1</td><td>4.5:1</td></tr></tbody></table>
+  <table class="spec"><thead><tr><th>Pair</th><th>Light</th><th>Dark</th><th>Needs</th></tr></thead><tbody><tr><td>Primary text on a card<br><code>--label-primary</code> on <code>--bg-grouped-secondary</code></td><td class="pass">21.0:1</td><td class="pass">17.0:1</td><td>4.5:1</td></tr><tr><td>Secondary text on a card<br><code>--label-secondary</code> on <code>--bg-grouped-secondary</code></td><td class="pass">5.2:1</td><td class="pass">7.7:1</td><td>4.5:1</td></tr><tr><td>Secondary text on the page<br><code>--label-secondary</code> on <code>--bg-grouped</code></td><td class="pass">4.7:1</td><td class="pass">9.5:1</td><td>4.5:1</td></tr><tr><td>Tint text / links on a card<br><code>--tint-text</code> on <code>--bg-grouped-secondary</code></td><td class="pass">10.4:1</td><td class="pass">7.5:1</td><td>4.5:1</td></tr><tr><td>White label on a filled button<br><code>--on-tint</code> on <code>--tint-fill</code></td><td class="pass">10.4:1</td><td class="pass">6.4:1</td><td>4.5:1</td></tr><tr><td>Success (green) on a card<br><code>--status-positive</code> on <code>--bg-grouped-secondary</code></td><td class="pass">4.5:1</td><td class="pass">8.4:1</td><td>4.5:1</td></tr><tr><td>Negative amount / destructive (red) on a card<br><code>--status-negative</code> on <code>--bg-grouped-secondary</code></td><td class="pass">4.6:1</td><td class="pass">5.8:1</td><td>4.5:1</td></tr></tbody></table>
   <div class="callout avoid"><p><b>Why two tints?</b> Filled controls need a white label at ≥ 4.5:1 on the fill, while text needs the fill color at ≥ 4.5:1 on a dark card. Navy can't do either on a black page, so dark mode lifts it twice: <code>--tint-fill</code> to a mid navy <code>#3256C8</code> (white label 6.4:1, and still visible against black) and <code>--tint-text</code> to periwinkle <code>#8FA8FF</code> (7:1 on a card). In light mode one navy, <code>#1E3A8A</code>, does both (10:1 on white).</p></div>
   <h3 class="doc">Charts</h3>
   <p>The categorical series leads with FinAI Navy, then Apple hues in a fixed order (navy, orange, teal, gold, pink, green, purple, brown). Assign them in sequence and never cycle within a chart's first eight series, so neighbouring categories stay distinguishable for common color-vision differences.</p>
@@ -575,14 +575,14 @@ svg.spring text { font: 10px Inter; fill: #6c6c70; }
           <span class="txn-row-date">Oct 12, 2026</span>
           <span class="txn-row-description-cell"><span class="txn-row-description">Payroll — Acme Inc.</span></span>
           <span class="txn-row-chips"><span class="txn-chip"><span class="txn-chip-label">Everyday Checking</span></span><span class="txn-chip"><span class="txn-chip-label">Salary</span></span></span>
-          <span class="txn-row-amount is-income">+$3,200.00</span></div></li><li class="txn-item"><div class="txn-row is-static">
+          <span class="txn-row-amount is-income">$3,200.00</span></div></li><li class="txn-item"><div class="txn-row is-static">
           <span class="txn-row-date">Oct 11, 2026</span>
           <span class="txn-row-description-cell"><span class="txn-row-description">Whole Foods weekly shop</span></span>
           <span class="txn-row-chips"><span class="txn-chip"><span class="txn-chip-label">Visa Platinum</span></span><span class="txn-chip txn-chip--category is-empty"><span class="txn-chip-label">Uncategorized</span></span></span>
           <span class="txn-row-amount">−$54.71</span></div></li></ul></div>
     <ul><li>An inset grouped list: one section with 22pt corners and rows separated by inset half-pixel hairlines. No per-row tiles.</li>
       <li>Row: date (Footnote, tabular), description (Body/500), chips (Caption, gray capsules), amount (Headline, tabular).</li>
-      <li>Expense amounts use the label color; money in uses <code>--status-positive</code> with a "+".</li>
+      <li>Positive amounts use the label color (<code>--amount-positive</code>); negative amounts are red (<code>--outflow</code>).</li>
       <li>Uncategorized: an outlined capsule. Hover: quaternary fill. 44px minimum row height.</li></ul>
   </div>
 
@@ -682,7 +682,7 @@ svg.spring text { font: 10px Inter; fill: #6c6c70; }
         <tr><td><b>Lists</b></td><td>Per-row tiles → one inset grouped list with hairlines. Monospace dates and amounts → tabular Inter.</td></tr>
         <tr><td><b>Controls</b></td><td>8px bordered buttons → capsules in four Apple styles. Bordered fields → filled 44px fields. Square checkboxes → round checkmarks.</td></tr>
         <tr><td><b>Overlays</b></td><td>Bordered modals → 34pt sheets with a scrim and a close circle. Opaque menus → glass popovers.</td></tr>
-        <tr><td><b>Color</b></td><td>Acid-lime accent on violet-black → FinAI Navy on Apple grouped backgrounds. Coral expenses → label-colored expenses, green money in.</td></tr>
+        <tr><td><b>Color</b></td><td>Acid-lime accent on violet-black → FinAI Navy on Apple grouped backgrounds. Coral expenses and green balances → plain positive amounts, red only for negatives.</td></tr>
         <tr><td><b>Type</b></td><td>Bricolage Grotesque + Inter at mixed sizes → Figtree + Inter on Apple's Dynamic Type scale.</td></tr>
       </tbody></table>
     </div>

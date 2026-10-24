@@ -89,7 +89,7 @@ export function CategorizationDeck({ rows, categories, onDone, onProgress, showS
       </div>
 
       <Card style={{ padding: 'var(--space-5)', textAlign: 'center' }}>
-        <div className="mono" style={{ fontSize: '2rem', fontWeight: 700, color: isIncome ? 'var(--accent)' : 'var(--outflow)' }}>
+        <div className="mono" style={{ fontSize: '2rem', fontWeight: 700, color: isIncome ? 'var(--amount-positive)' : 'var(--outflow)' }}>
           {formatCurrency(currentRow.amount, currentRow.currencyCode)}
         </div>
         <div style={{ color: 'var(--text-muted)', marginTop: 'var(--space-2)' }}>{formatDate(currentRow.date)}</div>

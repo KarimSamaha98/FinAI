@@ -1600,7 +1600,7 @@ dialog::backdrop {
 /* An inset grouped list: one rounded section, rows separated by inset
    hairlines (no per-row tiles), a quaternary fill on hover. Text-first rows
    per HIG: description (body), date + meta (footnote), chips, amount
-   (headline, tabular). Expenses use the label color; money in is green. */
+   (headline, tabular). Positive amounts use the label color; negative are red. */
 
 .txn-list {
   --txn-bg: transparent;
@@ -1609,7 +1609,7 @@ dialog::backdrop {
   --txn-muted: var(--text-muted);
   --txn-meta: var(--text-muted);
   --txn-expense: var(--outflow);
-  --txn-income: var(--success);
+  --txn-income: var(--amount-positive);
 
   list-style: none;
   margin: 0;

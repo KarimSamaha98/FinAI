@@ -53,7 +53,7 @@ function ChartTooltip({ active, payload, label, currencyCode }: { active?: boole
         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Expense</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px solid var(--border)' }}>
-        <span className="mono" style={{ fontWeight: 700, color: savings >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+        <span className="mono" style={{ fontWeight: 700, color: savings >= 0 ? 'var(--amount-positive)' : 'var(--danger)' }}>
           {savings >= 0 ? '+' : ''}{((savings / income) * 100).toFixed(1)}%
         </span>
         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Savings</span>
