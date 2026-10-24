@@ -88,7 +88,9 @@
   --tint-soft: color-mix(in srgb, var(--brand-navy) 10%, transparent);
   --on-tint: #ffffff;
 
-  /* Status — money in (green), destructive / below zero (red), warning. */
+  /* Status — success (green), destructive / negative money (red), warning.
+     Money itself is neutral: positive amounts use the label color and only
+     negative amounts turn red, so color flags what needs attention. */
   --status-positive: var(--sys-green-ic);
   --status-negative: var(--sys-red-ic);
   --status-negative-fill: var(--sys-red);
@@ -182,9 +184,9 @@
   --accent-contrast: var(--on-tint);
   --danger: var(--status-negative);
   --success: var(--status-positive);
-  /* Expenses read in the primary label color, Apple Wallet style: color is
-     kept for meaning (green = money in, red = destructive / below zero). */
-  --outflow: var(--label-primary);
+  /* Amounts: positive in the label color, negative in red. */
+  --amount-positive: var(--label-primary);
+  --outflow: var(--status-negative);
   --shadow-glow: var(--focus-ring);
   --font-body: var(--font-text);
   --transition: var(--duration-fast) var(--ease-out);

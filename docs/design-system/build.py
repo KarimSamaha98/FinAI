@@ -130,8 +130,8 @@ def contrast_table() -> str:
         ('--label-secondary', '--bg-grouped', 'Secondary text on the page'),
         ('--tint-text', '--bg-grouped-secondary', 'Tint text / links on a card'),
         ('--on-tint', '--tint-fill', 'White label on a filled button'),
-        ('--status-positive', '--bg-grouped-secondary', 'Money in (green) on a card'),
-        ('--status-negative', '--bg-grouped-secondary', 'Negative / destructive (red) on a card'),
+        ('--status-positive', '--bg-grouped-secondary', 'Success (green) on a card'),
+        ('--status-negative', '--bg-grouped-secondary', 'Negative amount / destructive (red) on a card'),
     ]
     out = ['<table class="spec"><thead><tr><th>Pair</th><th>Light</th><th>Dark</th><th>Needs</th></tr></thead><tbody>']
     for fg, bg, label in pairs:
@@ -217,7 +217,7 @@ ICON_CLOSE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke
 
 def txn_list() -> str:
     rows = [('Oct 12, 2026', 'Uber ride', [('Everyday Checking', ''), ('Transport', '')], '−$26.80', ''),
-            ('Oct 12, 2026', 'Payroll — Acme Inc.', [('Everyday Checking', ''), ('Salary', '')], '+$3,200.00', ' is-income'),
+            ('Oct 12, 2026', 'Payroll — Acme Inc.', [('Everyday Checking', ''), ('Salary', '')], '$3,200.00', ' is-income'),
             ('Oct 11, 2026', 'Whole Foods weekly shop', [('Visa Platinum', ''), ('Uncategorized', ' txn-chip--category is-empty')], '−$54.71', '')]
     items = []
     for date, desc, chips, amt, cls in rows:
@@ -384,7 +384,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
     <thead><tr><th>Decision</th><th>Why</th></tr></thead><tbody>
     <tr><td><b>Grouped, card-based structure</b> (<code>#F2F2F7</code> page, white sections)</td><td>A finance app is lists of accounts and transactions. Apple's inset-grouped pattern (Settings, Wallet) is the most familiar way to scan grouped data, and it separates sections with background steps instead of borders.</td></tr>
     <tr><td><b>FinAI Navy as the accent</b> (<code>#1E3A8A</code>)</td><td>A brand color, not an Apple system color. The HIG supports this: in an app with mostly monochromatic content, a brand accent is "an effective way to tailor your app experience". Navy signals trust and steadiness for money, and stays clearly apart from the green used for money in. Like Apple's own colors it has a dark-mode pair: <code>--tint-fill</code> lifts to <code>#3256C8</code> so filled buttons stay visible on black with a white label ≥ 6:1, and <code>--tint-text</code> lifts to periwinkle <code>#8FA8FF</code> for text and icons. Increased-contrast twins are included.</td></tr>
-    <tr><td><b>Color carries meaning only</b></td><td>Following Apple Wallet: expenses read in the primary label color; <b>green = money in</b>, <b>red = destructive or below zero</b>. The minus sign carries direction, so color is never the only signal (HIG: Inclusive color).</td></tr>
+    <tr><td><b>Color flags what needs attention</b></td><td>Money is neutral: <b>positive amounts and balances use the primary label color</b>, and <b>only negative amounts turn red</b> (<code>--outflow</code> = <code>--status-negative</code>). A screen full of green income read as noise. Keeping it plain lets the red stand out where it matters: spending, debt and below-zero balances. Green is reserved for success messages. The minus sign still carries direction, so color is never the only signal (HIG: Inclusive color).</td></tr>
     <tr><td><b>Accessible secondary label</b></td><td>Apple's 60%-alpha secondary label is about 3.5:1 on white, below the 4.5:1 HIG minimum for text up to 17pt. FinAI uses Apple's opaque increased-contrast gray (<code>#6C6C70</code> / <code>#AEAEB2</code>) so footnotes and dates pass everywhere.</td></tr>
     <tr><td><b>Liquid Glass only in the control layer</b></td><td>HIG: "Don't use Liquid Glass in the content layer." The sidebar, phone drawer, back button, menu button and popovers float in glass; cards, lists and fields stay solid.</td></tr>
     <tr><td><b>Capsules for controls, concentric radii for containers</b></td><td>iOS 26 makes buttons, chips and search bars capsules. Containers nest their radii concentrically (inner radius = outer radius − padding), so the corners never fight.</td></tr>
@@ -431,8 +431,8 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
     ('--separator-opaque', 'Dashed or high-contrast outlines'),
     ('--tint-fill', 'Filled buttons, selection, checkboxes (alias --accent)'),
     ('--tint-text', 'Links, tinted text and icons (alias --accent-text)'),
-    ('--status-positive', 'Money in, positive balances (alias --success)'),
-    ('--status-negative', 'Destructive, below zero (alias --danger)'),
+    ('--status-positive', 'Success messages only (alias --success)'),
+    ('--status-negative', 'Negative amounts, destructive, below zero (alias --danger, --outflow)'),
   ])}
 </section>
 
@@ -576,7 +576,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
     <div class="stage">{txn_list()}</div>
     <ul><li>An inset grouped list: one section with 22pt corners and rows separated by inset half-pixel hairlines. No per-row tiles.</li>
       <li>Row: date (Footnote, tabular), description (Body/500), chips (Caption, gray capsules), amount (Headline, tabular).</li>
-      <li>Expense amounts use the label color; money in uses <code>--status-positive</code> with a "+".</li>
+      <li>Positive amounts use the label color (<code>--amount-positive</code>); negative amounts are red (<code>--outflow</code>).</li>
       <li>Uncategorized: an outlined capsule. Hover: quaternary fill. 44px minimum row height.</li></ul>
   </div>
 
@@ -676,7 +676,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
         <tr><td><b>Lists</b></td><td>Per-row tiles → one inset grouped list with hairlines. Monospace dates and amounts → tabular Inter.</td></tr>
         <tr><td><b>Controls</b></td><td>8px bordered buttons → capsules in four Apple styles. Bordered fields → filled 44px fields. Square checkboxes → round checkmarks.</td></tr>
         <tr><td><b>Overlays</b></td><td>Bordered modals → 34pt sheets with a scrim and a close circle. Opaque menus → glass popovers.</td></tr>
-        <tr><td><b>Color</b></td><td>Acid-lime accent on violet-black → FinAI Navy on Apple grouped backgrounds. Coral expenses → label-colored expenses, green money in.</td></tr>
+        <tr><td><b>Color</b></td><td>Acid-lime accent on violet-black → FinAI Navy on Apple grouped backgrounds. Coral expenses and green balances → plain positive amounts, red only for negatives.</td></tr>
         <tr><td><b>Type</b></td><td>Bricolage Grotesque + Inter at mixed sizes → Figtree + Inter on Apple's Dynamic Type scale.</td></tr>
       </tbody></table>
     </div>

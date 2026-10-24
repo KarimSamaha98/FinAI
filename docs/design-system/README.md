@@ -38,7 +38,7 @@ The tokens come in three tiers. Each tier only references the one below it.
 - **The accent is FinAI Navy (`#1E3A8A`).** Use `--accent` for fills and `--accent-text` for text and icons; dark mode lifts them to `#3256C8` and `#8FA8FF`. Use `--text-muted` for secondary text and `--separator` for hairlines.
 - **One filled (`.btn-primary`) button per view.** Destructive actions use `.btn-danger` and are never the primary button.
 - **Liquid Glass (`--glass-*`) is only for floating controls:** the sidebar, drawer, back button, menus and popovers. Content stays on solid surfaces.
-- **Color carries meaning:** green means money in, red means destructive or below zero, and expenses use the label color.
+- **Money is neutral; red flags negatives.** Positive amounts and balances use the label color (`--amount-positive`), and only negative amounts are red (`--outflow`). Green (`--success`) is for success messages only.
 - **No native form controls.**
   - In forms, use `FieldSelect`, `FieldDatePicker` and `SuggestInput`.
   - In filter bars, use `SelectDropdown`, `MultiSelectDropdown` and `DatePickerDropdown`.
