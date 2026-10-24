@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { CloseIcon } from './icons'
 
 interface ModalProps {
   open: boolean
@@ -25,38 +26,12 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
   }, [open])
 
   return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      onCancel={onClose}
-      style={{
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 0,
-        color: 'var(--text)',
-        background: 'var(--surface-raised)',
-        boxShadow: 'var(--shadow-md)',
-        width: 'min(32rem, 90vw)',
-      }}
-    >
-      <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-muted)',
-              fontSize: '1.25rem',
-              lineHeight: 1,
-              cursor: 'pointer',
-              padding: '0.25rem',
-            }}
-          >
-            ×
+    <dialog ref={ref} onClose={onClose} onCancel={onClose} className="sheet">
+      <div className="sheet-body">
+        <div className="sheet-header">
+          <h2 className="sheet-title">{title}</h2>
+          <button type="button" className="sheet-close" onClick={onClose} aria-label="Close">
+            <CloseIcon />
           </button>
         </div>
         {children}
