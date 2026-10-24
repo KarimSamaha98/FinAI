@@ -11,7 +11,7 @@
                       (--bg, --surface, --text, --accent, …), mapped onto
                       the semantic tier so every screen inherits the system.
    Light is the default; dark, increased contrast and reduced transparency
-   are overrides further down. docs/design-system.md explains every choice.
+   are overrides further down. docs/design-system/ (README + PDF) explains every choice.
    ════════════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -68,6 +68,8 @@
   /* Separators. */
   --separator: rgba(0, 0, 0, 0.12);
   --separator-opaque: #c6c6c8;
+  /* Raised thumb of a segmented control / switch. */
+  --control-thumb: #ffffff;
 
   /* Tint (app accent): systemIndigo. --tint-fill backs filled controls with
      white labels; --tint-text is the same hue tuned for text on surfaces. */
@@ -229,6 +231,7 @@
 
     --separator: rgba(255, 255, 255, 0.17);
     --separator-opaque: #38383a;
+    --control-thumb: #636366;
 
     /* Filled controls keep the light indigo (white label stays ≥ 4.5:1);
        tinted text uses the brighter dark-mode indigo. */

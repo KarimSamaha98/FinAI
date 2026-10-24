@@ -1,6 +1,6 @@
 /* Shared component classes — the "how things look" layer of the FinAI design
    system, built on the tokens in index.css (Apple iOS 26 semantics). Every
-   value here references a token; see docs/design-system.md for the rules
+   value here references a token; see docs/design-system/ for the rules
    behind each component. */
 
 /* ── Buttons ───────────────────────────────────────────────────────────── */
@@ -2681,15 +2681,9 @@ dialog::backdrop {
 }
 
 .segmented-option.is-selected {
-  background: var(--segment-thumb, #ffffff);
+  background: var(--control-thumb);
   font-weight: 600;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04);
-}
-
-@media (prefers-color-scheme: dark) {
-  .segmented-option.is-selected {
-    --segment-thumb: #636366;
-  }
 }
 
 .segmented-option:focus-visible {
