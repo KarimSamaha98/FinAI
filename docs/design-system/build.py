@@ -276,7 +276,7 @@ section {{ break-before: page; }}
 .avoid {{ break-inside: avoid; }}
 code {{ font-family: var(--font-mono); font-size: .78em; background: #f2f2f7; padding: .05em .3em; border-radius: 4px; }}
 .cover {{ height: 9.6in; display: flex; flex-direction: column; justify-content: space-between; padding: .2in 0; }}
-.cover-art {{ position: relative; height: 3.6in; border-radius: 34px; overflow: hidden; background: radial-gradient(circle at 20% 30%, #6155f5 0, transparent 45%), radial-gradient(circle at 80% 20%, #00c3d0 0, transparent 40%), radial-gradient(circle at 60% 85%, #ff2d55 0, transparent 45%), radial-gradient(circle at 15% 90%, #ffcc00 0, transparent 35%), #e9e7ff; }}
+.cover-art {{ position: relative; height: 3.6in; border-radius: 34px; overflow: hidden; background: radial-gradient(circle at 20% 30%, #1e3a8a 0, transparent 48%), radial-gradient(circle at 80% 20%, #00c3d0 0, transparent 40%), radial-gradient(circle at 60% 85%, #ff2d55 0, transparent 45%), radial-gradient(circle at 15% 90%, #ffcc00 0, transparent 35%), #e6ebf7; }}
 .cover-glass {{ position: absolute; inset: 22% 14%; border-radius: 34px; background: rgba(250,250,252,.55); backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 8px 40px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; font: var(--type-large-title); font-size: 3.2rem; letter-spacing: -0.03em; color: #111; }}
 .cover-meta {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; font: var(--type-footnote); color: #555; }}
 .cover-meta b {{ display: block; color: #111; font: var(--type-headline); }}
@@ -306,13 +306,13 @@ td.pass {{ color: #008932; font-weight: 600; }} td.pass-large {{ color: #c55300;
 .type-meta {{ font: var(--type-caption-1); color: #555; }} .type-meta span {{ color: #111; }}
 .space-grid {{ display: flex; flex-direction: column; gap: .35rem; }}
 .space-item {{ display: grid; grid-template-columns: 60px 100px 1fr; align-items: center; gap: .6rem; font: var(--type-footnote); }}
-.space-bar {{ height: 14px; border-radius: 4px; background: var(--sys-indigo); }}
+.space-bar {{ height: 14px; border-radius: 4px; background: var(--brand-navy); }}
 .radius-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; }}
 .radius-item {{ display: flex; flex-direction: column; gap: .2rem; font: var(--type-caption-1); color: #555; }}
-.radius-box {{ height: 70px; background: #f2f2f7; box-shadow: inset 0 0 0 1.5px var(--sys-indigo); }}
+.radius-box {{ height: 70px; background: #f2f2f7; box-shadow: inset 0 0 0 1.5px var(--brand-navy); }}
 .concentric {{ position: relative; width: 220px; height: 130px; border-radius: 26px; background: #f2f2f7; padding: 12px; box-shadow: inset 0 0 0 1px #c6c6c8; }}
-.concentric div {{ height: 100%; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1.5px var(--sys-indigo); display: flex; align-items: center; justify-content: center; font: var(--type-footnote); color: #555; }}
-.glass-stage {{ position: relative; height: 230px; border-radius: 26px; overflow: hidden; background: radial-gradient(circle at 15% 35%, #6155f5 0, transparent 38%), radial-gradient(circle at 75% 30%, #00c3d0 0, transparent 35%), radial-gradient(circle at 55% 95%, #ff8d28 0, transparent 40%), #f2f2f7; }}
+.concentric div {{ height: 100%; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1.5px var(--brand-navy); display: flex; align-items: center; justify-content: center; font: var(--type-footnote); color: #555; }}
+.glass-stage {{ position: relative; height: 230px; border-radius: 26px; overflow: hidden; background: radial-gradient(circle at 15% 35%, #1e3a8a 0, transparent 40%), radial-gradient(circle at 75% 30%, #00c3d0 0, transparent 35%), radial-gradient(circle at 55% 95%, #ff8d28 0, transparent 40%), #f2f2f7; }}
 .glass-stage .stripe {{ position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 46px, rgba(0,0,0,.18) 46px 52px); }}
 .glass-card {{ position: absolute; top: 30px; height: 170px; width: 30%; border-radius: 34px; display: flex; align-items: flex-end; padding: 14px; font: var(--type-footnote); font-weight: 600; }}
 .specimen-pane {{ border-radius: var(--radius-xl); padding: 1rem; background: var(--bg); display: flex; flex-direction: column; gap: .8rem; }}
@@ -327,7 +327,7 @@ td.pass {{ color: #008932; font-weight: 600; }} td.pass-large {{ color: #c55300;
 .shot-phone {{ width: 2.3in; border-radius: 26px; box-shadow: 0 8px 30px rgba(0,0,0,.14), 0 0 0 .5px rgba(0,0,0,.12); }}
 figure {{ margin: .6rem 0 1rem; break-inside: avoid; }} figcaption {{ font: var(--type-footnote); color: #666; margin-top: .4rem; }}
 svg.spring {{ width: 100%; max-width: 320px; }} svg.spring .axis {{ stroke: #c6c6c8; }} svg.spring .target {{ stroke: #c6c6c8; stroke-dasharray: 4 4; }}
-svg.spring .curve-spring {{ fill: none; stroke: #6155f5; stroke-width: 3; }} svg.spring .curve-ease {{ fill: none; stroke: #aeaeb2; stroke-width: 2; stroke-dasharray: 5 4; }}
+svg.spring .curve-spring {{ fill: none; stroke: #1e3a8a; stroke-width: 3; }} svg.spring .curve-ease {{ fill: none; stroke: #aeaeb2; stroke-width: 2; stroke-dasharray: 5 4; }}
 svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
 .footer-note {{ font: var(--type-caption-1); color: #888; }}
 </style></head>
@@ -383,7 +383,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
   <table class="spec">
     <thead><tr><th>Decision</th><th>Why</th></tr></thead><tbody>
     <tr><td><b>Grouped, card-based structure</b> (<code>#F2F2F7</code> page, white sections)</td><td>A finance app is lists of accounts and transactions. Apple's inset-grouped pattern (Settings, Wallet) is the most familiar way to scan grouped data, and it separates sections with background steps instead of borders.</td></tr>
-    <tr><td><b>systemIndigo as the accent</b></td><td>Distinctive for a money product, and clearly different from the green used for money in. Split into <code>--tint-fill</code> (keeps the light indigo in dark mode so white labels stay ≥ 4.5:1) and <code>--tint-text</code> (the brighter dark-mode indigo for text and icons).</td></tr>
+    <tr><td><b>FinAI Navy as the accent</b> (<code>#1E3A8A</code>)</td><td>A brand color, not an Apple system color. The HIG supports this: in an app with mostly monochromatic content, a brand accent is "an effective way to tailor your app experience". Navy signals trust and steadiness for money, and stays clearly apart from the green used for money in. Like Apple's own colors it has a dark-mode pair: <code>--tint-fill</code> lifts to <code>#3256C8</code> so filled buttons stay visible on black with a white label ≥ 6:1, and <code>--tint-text</code> lifts to periwinkle <code>#8FA8FF</code> for text and icons. Increased-contrast twins are included.</td></tr>
     <tr><td><b>Color carries meaning only</b></td><td>Following Apple Wallet: expenses read in the primary label color; <b>green = money in</b>, <b>red = destructive or below zero</b>. The minus sign carries direction, so color is never the only signal (HIG: Inclusive color).</td></tr>
     <tr><td><b>Accessible secondary label</b></td><td>Apple's 60%-alpha secondary label is about 3.5:1 on white, below the 4.5:1 HIG minimum for text up to 17pt. FinAI uses Apple's opaque increased-contrast gray (<code>#6C6C70</code> / <code>#AEAEB2</code>) so footnotes and dates pass everywhere.</td></tr>
     <tr><td><b>Liquid Glass only in the control layer</b></td><td>HIG: "Don't use Liquid Glass in the content layer." The sidebar, phone drawer, back button, menu button and popovers float in glass; cards, lists and fields stay solid.</td></tr>
@@ -414,6 +414,9 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
   <h3 class="doc">System palette (primitives)</h3>
   <p>Apple's iOS 26 system colors. Each chip is split into light and dark. Increased-contrast twins (<code>-ic</code>) are used wherever a hue becomes text.</p>
   {system_swatches()}
+  <h3 class="doc">Brand: FinAI Navy</h3>
+  <p>The one color that isn't Apple's. Built to Apple's rules, with a light value, dark-mode lifts and increased-contrast twins.</p>
+  <div class="sw-grid">{''.join(f'<div class="sw"><div class="sw-chip" style="background:{v}"></div><div class="sw-name">{n}</div><div class="sw-val">{v}</div></div>' for n, v in [('Navy', '#1e3a8a'), ('Dark fill', '#3256c8'), ('Dark text', '#8fa8ff'), ('IC navy', '#142a66'), ('IC dark fill', '#2a49b0'), ('IC dark text', '#b4c6ff')])}</div>
   <h3 class="doc">Semantic tokens</h3>
   {semantic_table([
     ('--bg-grouped', 'Page background'),
@@ -437,9 +440,9 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
   <h3 class="doc" style="margin-top:0">Contrast, measured</h3>
   <p>Computed from the shipped tokens (WCAG 2.x relative luminance). HIG minimum: 4.5:1 for text up to 17pt, 3:1 for 18pt+ or bold.</p>
   {contrast_table()}
-  <div class="callout avoid"><p><b>Why two tints?</b> Filled controls need a white label at ≥ 4.5:1 on the fill, while text needs the fill color at ≥ 4.5:1 on a dark card. One indigo can't do both in dark mode, so the system keeps <code>--tint-fill</code> at <code>#6155F5</code> and lifts <code>--tint-text</code> to Apple's dark indigo <code>#6D7CFF</code>.</p></div>
+  <div class="callout avoid"><p><b>Why two tints?</b> Filled controls need a white label at ≥ 4.5:1 on the fill, while text needs the fill color at ≥ 4.5:1 on a dark card. Navy can't do either on a black page, so dark mode lifts it twice: <code>--tint-fill</code> to a mid navy <code>#3256C8</code> (white label 6.4:1, and still visible against black) and <code>--tint-text</code> to periwinkle <code>#8FA8FF</code> (7:1 on a card). In light mode one navy, <code>#1E3A8A</code>, does both (10:1 on white).</p></div>
   <h3 class="doc">Charts</h3>
-  <p>The categorical series uses Apple hues in a fixed order (indigo, orange, teal, gold, pink, green, purple, brown). Assign them in sequence and never cycle within a chart's first eight series, so neighbouring categories stay distinguishable for common color-vision differences.</p>
+  <p>The categorical series leads with FinAI Navy, then Apple hues in a fixed order (navy, orange, teal, gold, pink, green, purple, brown). Assign them in sequence and never cycle within a chart's first eight series, so neighbouring categories stay distinguishable for common color-vision differences.</p>
   <div class="row" style="display:flex;gap:.5rem">{''.join(f'<div style="flex:1;height:28px;border-radius:8px;background:var(--series-{i})"></div>' for i in range(1, 9))}</div>
 </section>
 
@@ -497,7 +500,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
         <tr><td><code>--ease-out</code></td><td colspan="2">cubic-bezier(.2,.8,.2,1) for small state changes</td></tr>
       </tbody></table>
     </div>
-    <div>{spring_svg()}<p class="footer-note">Indigo: <code>--spring</code> (critically damped). Gray dashed: a typical ease curve for comparison. The spring arrives fast and settles without overshoot.</p></div>
+    <div>{spring_svg()}<p class="footer-note">Navy: <code>--spring</code> (critically damped). Gray dashed: a typical ease curve for comparison. The spring arrives fast and settles without overshoot.</p></div>
   </div>
   <h3 class="doc">Choreography</h3>
   <ul>
@@ -644,7 +647,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
   <h2 class="doc">Accessibility</h2>
   <div class="grid-2">
     <div class="principle"><b>Contrast</b><p>All text pairs measured in section 04 pass 4.5:1 in light and dark. Secondary text uses Apple's accessible gray, and colored text uses the increased-contrast twins.</p></div>
-    <div class="principle"><b>Increase Contrast</b><p><code>prefers-contrast: more</code> switches separators to opaque, darkens secondary labels, moves the tint to the accessible indigo and makes glass nearly solid.</p></div>
+    <div class="principle"><b>Increase Contrast</b><p><code>prefers-contrast: more</code> switches separators to opaque, darkens secondary labels, deepens the navy tint (<code>#142A66</code>, or <code>#B4C6FF</code> text in dark mode) and makes glass nearly solid.</p></div>
     <div class="principle"><b>Reduce Transparency</b><p><code>prefers-reduced-transparency</code> replaces every glass and material surface with the solid elevated background.</p></div>
     <div class="principle"><b>Reduce Motion</b><p>All transitions and animations become instant. No information is conveyed by motion alone.</p></div>
     <div class="principle"><b>Targets &amp; input</b><p>44pt minimum on touch. Every control is a real button or input with a visible 2px tint focus ring. Custom selects use the select-only combobox pattern with full keyboard support.</p></div>
@@ -656,7 +659,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
   <p class="kicker">11</p>
   <h2 class="doc">Applied to FinAI</h2>
   <figure><img class="shot" src="img/transactions-light.jpg"><figcaption>Transaction: glass sidebar with tint selection, Large Title, capsule actions, account cards, grouped summary card, tinted notice, gray filter chips and capsule search, inset grouped list with tabular amounts.</figcaption></figure>
-  <figure><img class="shot" src="img/transactions-dark.jpg"><figcaption>The same screen in dark mode: true-black page, #1C1C1E sections, brighter tint text, the light indigo kept for filled buttons.</figcaption></figure>
+  <figure><img class="shot" src="img/transactions-dark.jpg"><figcaption>The same screen in dark mode: true-black page, #1C1C1E sections, the navy lifted to a mid navy for buttons and periwinkle for tinted text.</figcaption></figure>
 </section>
 
 <section>
@@ -673,7 +676,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
         <tr><td><b>Lists</b></td><td>Per-row tiles → one inset grouped list with hairlines. Monospace dates and amounts → tabular Inter.</td></tr>
         <tr><td><b>Controls</b></td><td>8px bordered buttons → capsules in four Apple styles. Bordered fields → filled 44px fields. Square checkboxes → round checkmarks.</td></tr>
         <tr><td><b>Overlays</b></td><td>Bordered modals → 34pt sheets with a scrim and a close circle. Opaque menus → glass popovers.</td></tr>
-        <tr><td><b>Color</b></td><td>Acid-lime accent on violet-black → systemIndigo on Apple grouped backgrounds. Coral expenses → label-colored expenses, green money in.</td></tr>
+        <tr><td><b>Color</b></td><td>Acid-lime accent on violet-black → FinAI Navy on Apple grouped backgrounds. Coral expenses → label-colored expenses, green money in.</td></tr>
         <tr><td><b>Type</b></td><td>Bricolage Grotesque + Inter at mixed sizes → Figtree + Inter on Apple's Dynamic Type scale.</td></tr>
       </tbody></table>
     </div>
