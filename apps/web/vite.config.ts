@@ -9,8 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'FinAI',
-        short_name: 'FinAI',
+        name: 'Frugal AI',
+        short_name: 'Frugal AI',
         description: 'Personal finance and budgeting tracker',
         theme_color: '#f2f2f7',
         background_color: '#f2f2f7',

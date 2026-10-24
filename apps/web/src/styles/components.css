@@ -241,11 +241,23 @@
 }
 
 .app-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font: var(--type-title-2);
   letter-spacing: -0.02em;
+  white-space: nowrap;
   color: var(--text);
   text-decoration: none;
   padding-left: 0.75rem;
+}
+
+/* The piggy-bank mark beside the wordmark: sized to the cap height of
+   Title 2 so mark and name read as one lock-up. */
+.app-logo-mark {
+  flex: 0 0 auto;
+  width: auto;
+  height: 1.875rem;
 }
 
 .app-rail-nav {
@@ -1086,8 +1098,8 @@ dialog::backdrop {
 }
 
 .auth-brand-icon {
-  width: 32px;
-  height: 31px; /* favicon.svg is 48×46 */
+  width: 44px;
+  height: auto; /* the piggy-bank mark, 901×983 */
 }
 
 .auth-form {
