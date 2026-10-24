@@ -230,6 +230,25 @@ def txn_list() -> str:
     return '<ul class="txn-list">' + ''.join(items) + '</ul>'
 
 
+CARD_FINISHES = [('Black', '#1c1c1e', 'Checking'), ('Navy', '#1e3a5f', 'Credit'), ('Maroon', '#6b1d2a', 'Credit'), ('Forest', '#1f4d3a', 'Savings'),
+                 ('Graphite', '#48484a', 'Investment'), ('Slate', '#2f4858', 'Checking'), ('Bronze', '#7a5c3a', 'Cash'), ('Platinum', '#6e7781', 'Other')]
+
+
+def card_bg(color: str) -> str:
+    # Mirrors apps/web/src/lib/cardBackground.ts.
+    sheen = 'radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%)'
+    body = f'linear-gradient(to bottom left, color-mix(in srgb, {color} 84%, #ffffff) 0%, {color} 50%, color-mix(in srgb, {color} 70%, #000000) 100%)'
+    return f'{sheen}, {body}'
+
+
+def account_cards() -> str:
+    cards = ''.join(
+        f'<div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:{card_bg(c)};cursor:default;opacity:1;font-size:15px">'
+        f'<span class="account-card-type">{t}</span><span class="account-card-name">{n}</span></span><code>{c}</code></div>'
+        for n, c, t in CARD_FINISHES)
+    return f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;font-size:15px">{cards}</div>'
+
+
 def component_gallery(theme: str) -> str:
     return f'''
 <div class="{theme} specimen-pane">
@@ -571,6 +590,15 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
 </section>
 
 <section>
+  <h3 class="doc" style="margin-top:0">Account cards <code>.account-card</code></h3>
+  <div class="spec-card" style="grid-template-columns:1fr">
+    <div class="stage">{account_cards()}</div>
+    <ul><li>Eight sober finishes, the tones real bank cards use: black, navy, maroon, forest, graphite, slate, bronze and platinum (<code>CARD_COLOR_PALETTE</code>). All carry white text at ≥ 4.5:1. People can still pick a custom colour or upload a photo.</li>
+      <li>Drawn like a real card: a soft sheen top-right, the colour through the middle, darker bottom-left under the name.</li>
+      <li>An EMV chip (gold contact plate, CSS only) sits left of centre, as on a real card. Photo cards skip it because the photo already shows one.</li>
+      <li>ID-1 proportions (1.586:1) in the large preview. Selected cards lift with a navy ring only when the selection is narrowed.</li></ul>
+  </div>
+
   <h3 class="doc" style="margin-top:0">Lists <code>.txn-list</code></h3>
   <div class="spec-card" style="grid-template-columns:1.6fr 1fr">
     <div class="stage">{txn_list()}</div>
@@ -633,6 +661,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
     <tr><td>Checkbox</td><td><code>input[type=checkbox]</code></td><td>Toggles (checkmark style)</td></tr>
     <tr><td>Segmented control</td><td><code>.segmented</code> · SegmentedControl.tsx</td><td>Segmented controls</td></tr>
     <tr><td>Card / section</td><td><code>.card</code> · Card.tsx</td><td>Lists (inset grouped)</td></tr>
+    <tr><td>Account card</td><td><code>.account-card</code>, <code>.account-card-face</code> · AccountCarousel, AccountCardFace</td><td>Wallet passes (card art)</td></tr>
     <tr><td>Transaction list</td><td><code>.txn-list</code> · TransactionRow.tsx</td><td>Lists and tables</td></tr>
     <tr><td>Chip / badge</td><td><code>.txn-chip</code>, <code>.badge</code></td><td>Tokens / labels</td></tr>
     <tr><td>Notice / banner</td><td><code>.notice-box</code>, <code>.alert</code></td><td>Alerts (non-modal guidance)</td></tr>
@@ -677,6 +706,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
         <tr><td><b>Controls</b></td><td>8px bordered buttons → capsules in four Apple styles. Bordered fields → filled 44px fields. Square checkboxes → round checkmarks.</td></tr>
         <tr><td><b>Overlays</b></td><td>Bordered modals → 34pt sheets with a scrim and a close circle. Opaque menus → glass popovers.</td></tr>
         <tr><td><b>Color</b></td><td>Acid-lime accent on violet-black → FinAI Navy on Apple grouped backgrounds. Coral expenses and green balances → plain positive amounts, red only for negatives.</td></tr>
+        <tr><td><b>Cards</b></td><td>Bright UI colours (indigo, violet, teal…) → bank-card finishes (black, navy, maroon, forest…) with a sheen and an EMV chip.</td></tr>
         <tr><td><b>Type</b></td><td>Bricolage Grotesque + Inter at mixed sizes → Figtree + Inter on Apple's Dynamic Type scale.</td></tr>
       </tbody></table>
     </div>
