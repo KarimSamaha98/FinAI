@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { and, gte, lte } from 'drizzle-orm'
+import { and, gte, lte, max, min } from 'drizzle-orm'
 import { format, parseISO, subMonths, startOfMonth, endOfMonth, endOfYear } from 'date-fns'
 import type {
   AmountKind,
@@ -226,7 +226,14 @@ export class ChartAggregationService {
       points.push({ period: p, label, totalIncome, totalExpense, savingsRate })
     }
 
-    return { points }
+    // Lets the chart page through history without showing empty columns outside the data.
+    const [bounds] = await runInTenantContext(this.db, userId, (tx) =>
+      tx.select({ earliest: min(transactions.date), latest: max(transactions.date) }).from(transactions),
+    )
+    const earliestPeriod = bounds?.earliest ? this.periodKeyFor(mode, bounds.earliest) : null
+    const latestPeriod = bounds?.latest ? this.periodKeyFor(mode, bounds.latest) : null
+
+    return { points, earliestPeriod, latestPeriod }
   }
 
   private periodKeyFor(mode: InsightMode, dateISO: string): string {

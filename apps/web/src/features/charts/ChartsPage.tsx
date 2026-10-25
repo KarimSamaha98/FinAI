@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import type { InsightMode } from 'shared-types'
 import { ModeToggle } from '../../components/ModeToggle'
 import { PeriodSelector } from '../../components/PeriodSelector'
-import { formatPeriod } from '../../lib/formatPeriod'
+import { formatPeriod, shiftPeriod } from '../../lib/period'
 import { SectionNav } from '../../components/SectionNav'
 import { Card } from '../../components/Card'
 import { Alert } from '../../components/Alert'
@@ -19,6 +19,10 @@ import { MonthlyBarChart } from './MonthlyBarChart'
 import { DashboardMetrics } from './DashboardMetrics'
 import { IncomeExpenseChart } from './IncomeExpenseChart'
 import { CategoryChangesCard, TopExpensesCard, TopIncomeCard, RecurringPaymentsCard } from './ImportantThingsCards'
+
+// The trend chart shows 12 months (or 5 years) and pages 4 months (or 1 year) at a time.
+const TREND_WINDOW = { monthly: 12, yearly: 5 } as const
+const TREND_STEP = { monthly: 4, yearly: 1 } as const
 
 const NAV_SECTIONS = [
   { id: 'expense', label: 'Expense' },
@@ -73,6 +77,33 @@ export function ChartsPage() {
 
   const currencyCode = profile?.homeCurrencyCode ?? 'USD'
 
+  // Columns outside the user's data are dropped rather than drawn empty, and the
+  // arrows stop at the first/last period that has transactions.
+  const { earliestPeriod, latestPeriod } = trend
+  const trendPoints = trend.points.filter(
+    (p) => (!earliestPeriod || p.period >= earliestPeriod) && (!latestPeriod || p.period <= latestPeriod),
+  )
+  const windowStart = shiftPeriod(mode, trendAnchor, -(TREND_WINDOW[mode] - 1))
+  const canPageBack = earliestPeriod !== null && windowStart > earliestPeriod
+  const canPageForward = latestPeriod !== null && trendAnchor < latestPeriod
+
+  const pageBack = () => {
+    if (!earliestPeriod) return
+    const stepped = shiftPeriod(mode, trendAnchor, -TREND_STEP[mode])
+    const fullWindowFromStart = shiftPeriod(mode, earliestPeriod, TREND_WINDOW[mode] - 1)
+    setTrendAnchor(stepped > fullWindowFromStart ? stepped : fullWindowFromStart)
+  }
+
+  const pageForward = () => {
+    if (!latestPeriod) return
+    const stepped = shiftPeriod(mode, trendAnchor, TREND_STEP[mode])
+    setTrendAnchor(stepped < latestPeriod ? stepped : latestPeriod)
+  }
+
+  const trendRange = trendPoints.length > 0
+    ? `${trendPoints[0].label} ${trendPoints[0].period.slice(0, 4)} – ${trendPoints[trendPoints.length - 1].label} ${trendPoints[trendPoints.length - 1].period.slice(0, 4)}`
+    : ''
+
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
       <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Insights</h1>
@@ -88,11 +119,15 @@ export function ChartsPage() {
       <section style={{ marginBottom: 'var(--space-5)' }}>
         <Card style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
           <IncomeExpenseChart
-            title={mode === 'monthly' ? 'Income vs Expense (last 12 months)' : 'Income vs Expense (last 5 years)'}
-            points={trend.points}
+            title="Income vs Expense"
+            subtitle={mode === 'monthly' ? trendRange : trendPoints.length > 0 ? `${trendPoints[0].period} – ${trendPoints[trendPoints.length - 1].period}` : ''}
+            points={trendPoints}
             currencyCode={currencyCode}
             currentPeriod={period}
             onSelectPeriod={setPeriod}
+            onPageBack={canPageBack ? pageBack : undefined}
+            onPageForward={canPageForward ? pageForward : undefined}
+            stepLabel={mode === 'monthly' ? '4 months' : '1 year'}
           />
         </Card>
         <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 'var(--space-3)' }}>{formatPeriod(mode, period)}</h2>

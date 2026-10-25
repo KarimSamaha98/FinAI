@@ -125,6 +125,9 @@ export type TrendPoint = z.infer<typeof TrendPointSchema>;
 
 export const TrendResponseSchema = z.object({
   points: z.array(TrendPointSchema),
+  /** First and last periods (same format as `period`) that have any transactions; null when there are none. */
+  earliestPeriod: z.string().nullable(),
+  latestPeriod: z.string().nullable(),
 });
 export type TrendResponse = z.infer<typeof TrendResponseSchema>;
 

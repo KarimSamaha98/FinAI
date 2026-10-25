@@ -1,14 +1,44 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TrendPoint } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
+import { ChevronLeftIcon, ChevronRightIcon } from '../../components/icons'
 
 interface IncomeExpenseChartProps {
   title: string
+  /** Shown beside the title, e.g. the visible date range. */
+  subtitle?: string
   points: TrendPoint[]
   currencyCode: string
   currentPeriod?: string
   /** Called with a point's period ('yyyy-MM' or 'yyyy') when its bar is clicked. */
   onSelectPeriod?: (period: string) => void
+  /** Page the window; an omitted handler disables that arrow (no data further that way). */
+  onPageBack?: () => void
+  onPageForward?: () => void
+  /** How far one arrow press moves, for the buttons' accessible labels. */
+  stepLabel?: string
+}
+
+function ChartHeader({ title, subtitle, onPageBack, onPageForward, stepLabel }: Pick<IncomeExpenseChartProps, 'title' | 'subtitle' | 'onPageBack' | 'onPageForward' | 'stepLabel'>) {
+  const showArrows = Boolean(stepLabel)
+  return (
+    <div className="chart-header">
+      <h4 className="chart-header-title">
+        {title}
+        {subtitle && <span className="chart-header-subtitle">{subtitle}</span>}
+      </h4>
+      {showArrows && (
+        <div className="chart-header-arrows">
+          <button type="button" className="icon-button icon-button--small" onClick={onPageBack} disabled={!onPageBack} aria-label={`Back ${stepLabel}`}>
+            <ChevronLeftIcon />
+          </button>
+          <button type="button" className="icon-button icon-button--small" onClick={onPageForward} disabled={!onPageForward} aria-label={`Forward ${stepLabel}`}>
+            <ChevronRightIcon />
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 interface TooltipPayloadEntry {
@@ -64,11 +94,12 @@ function ChartTooltip({ active, payload, label, currencyCode }: { active?: boole
   )
 }
 
-export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod, onSelectPeriod }: IncomeExpenseChartProps) {
+export function IncomeExpenseChart({ title, subtitle, points, currencyCode, currentPeriod, onSelectPeriod, onPageBack, onPageForward, stepLabel }: IncomeExpenseChartProps) {
+  const header = <ChartHeader title={title} subtitle={subtitle} onPageBack={onPageBack} onPageForward={onPageForward} stepLabel={stepLabel} />
   if (points.length === 0) {
     return (
       <div>
-        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
+        {header}
         <p style={{ color: 'var(--text-muted)' }}>No data for this period.</p>
       </div>
     )
@@ -98,7 +129,7 @@ export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod,
 
   return (
     <div>
-      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
+      {header}
       <ResponsiveContainer width="100%" height={320}>
         <BarChart
           data={data}
