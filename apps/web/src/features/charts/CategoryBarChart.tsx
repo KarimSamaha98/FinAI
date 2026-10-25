@@ -37,7 +37,7 @@ function CategoryBarTooltip({ active, payload, currencyCode }: { active?: boolea
 }
 
 const TONE_COLOR: Record<AmountKind, string> = {
-  income: 'var(--accent)',
+  income: 'var(--amount-positive)',
   expense: 'var(--outflow)',
 }
 

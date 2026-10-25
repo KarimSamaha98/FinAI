@@ -622,7 +622,7 @@ svg.spring text {{ font: 10px Inter; fill: #6c6c70; }}
     <div class="stage">{txn_list()}</div>
     <ul><li>An inset grouped list: one section with 22pt corners and rows separated by inset half-pixel hairlines. No per-row tiles.</li>
       <li>Row: date (Footnote, tabular), description (Body/500), chips (Caption, gray capsules), amount (Headline, tabular).</li>
-      <li>Positive amounts use the label color (<code>--amount-positive</code>); negative amounts are red (<code>--outflow</code>).</li>
+      <li>Positive amounts and income use money-in green #358C15 (<code>--amount-positive</code>); negative amounts are red (<code>--outflow</code>). Net worth stays neutral.</li>
       <li>Uncategorized: an outlined capsule. Hover: quaternary fill. 44px minimum row height.</li></ul>
   </div>
 

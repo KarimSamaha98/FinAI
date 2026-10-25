@@ -24,7 +24,7 @@ function computeDelta(current: number, previous: number): Delta {
 
 function deltaColor(delta: number, positiveIsGood: boolean): string | undefined {
   if (delta === 0) return undefined
-  return (delta > 0) === positiveIsGood ? 'var(--accent)' : 'var(--danger)'
+  return (delta > 0) === positiveIsGood ? 'var(--amount-positive)' : 'var(--danger)'
 }
 
 function formatDeltaPercent(delta: Delta): string {
@@ -59,7 +59,7 @@ export function DashboardMetrics({ current, comparison, currencyCode }: Dashboar
     return (
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <Tile label="Total expense" value={formatCurrency(current.totalExpense, currencyCode)} />
-        <Tile label="Total income" value={formatCurrency(current.totalIncome, currencyCode)} />
+        <Tile label="Total income" value={formatCurrency(current.totalIncome, currencyCode)} color={current.totalIncome > 0 ? 'var(--amount-positive)' : undefined} />
         <Tile label="Net income" value={formatCurrency(current.netIncome, currencyCode)} color={current.netIncome < 0 ? 'var(--danger)' : 'var(--amount-positive)'} />
         <Tile label="Savings rate" value={current.savingsRate === null ? '—' : `${(current.savingsRate * 100).toFixed(1)}%`} color={current.savingsRate !== null && current.savingsRate < 0 ? 'var(--danger)' : 'var(--amount-positive)'} />
       </div>

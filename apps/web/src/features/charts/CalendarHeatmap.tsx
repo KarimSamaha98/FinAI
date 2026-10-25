@@ -110,7 +110,7 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode 
     return map
   }, [days])
 
-  const baseColor = kind === 'expense' ? 'var(--outflow)' : 'var(--accent)'
+  const baseColor = kind === 'expense' ? 'var(--outflow)' : 'var(--amount-positive)'
 
   const calendarGrid = useMemo(() => buildMonthGrid(parseISO(period + '-01'), daysByDate), [period, daysByDate])
 

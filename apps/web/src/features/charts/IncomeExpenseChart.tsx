@@ -39,7 +39,7 @@ function ChartTooltip({ active, payload, label, currencyCode }: { active?: boole
     >
       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <span style={{ width: 10, height: 2, background: 'var(--accent)', flex: '0 0 auto' }} />
+        <span style={{ width: 10, height: 2, background: 'var(--amount-positive)', flex: '0 0 auto' }} />
         <span className="mono" style={{ fontWeight: 700 }}>
           {formatCurrency(income, currencyCode)}
         </span>
@@ -113,7 +113,7 @@ export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod 
           </Bar>
           <Bar dataKey="incomePct" stackId="stack" radius={[4, 4, 0, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
-              <Cell key={i} fill="var(--accent)" opacity={entry.isCurrent ? 1 : 0.35} />
+              <Cell key={i} fill="var(--amount-positive)" opacity={entry.isCurrent ? 1 : 0.35} />
             ))}
           </Bar>
         </BarChart>

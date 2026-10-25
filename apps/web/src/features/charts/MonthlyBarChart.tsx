@@ -61,7 +61,7 @@ export function MonthlyBarChart({ title, days, kind, currencyCode }: MonthlyBarC
     )
   }
 
-  const barColor = kind === 'expense' ? 'var(--outflow)' : 'var(--accent)'
+  const barColor = kind === 'expense' ? 'var(--outflow)' : 'var(--amount-positive)'
 
   return (
     <div>
