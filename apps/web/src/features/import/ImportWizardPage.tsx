@@ -225,7 +225,7 @@ export function ImportWizardPage() {
         <section className="wizard-question">
           <h2>{accountOf(step.accountId)?.name ?? 'This account'} doesn’t have a CSV profile yet</h2>
           <p className="wizard-hint">
-            A profile tells FinAI how to read this bank’s files — which column is the date, the description and the amount. It takes a few quick questions,
+            A profile tells Frugal AI how to read this bank’s files — which column is the date, the description and the amount. It takes a few quick questions,
             using the file you just uploaded, and is reused for every future import into this account.
           </p>
           <div className="wizard-nav">

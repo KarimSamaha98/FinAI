@@ -1,12 +1,44 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TrendPoint } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
+import { ChevronLeftIcon, ChevronRightIcon } from '../../components/icons'
 
 interface IncomeExpenseChartProps {
   title: string
+  /** Shown beside the title, e.g. the visible date range. */
+  subtitle?: string
   points: TrendPoint[]
   currencyCode: string
   currentPeriod?: string
+  /** Called with a point's period ('yyyy-MM' or 'yyyy') when its bar is clicked. */
+  onSelectPeriod?: (period: string) => void
+  /** Page the window; an omitted handler disables that arrow (no data further that way). */
+  onPageBack?: () => void
+  onPageForward?: () => void
+  /** How far one arrow press moves, for the buttons' accessible labels. */
+  stepLabel?: string
+}
+
+function ChartHeader({ title, subtitle, onPageBack, onPageForward, stepLabel }: Pick<IncomeExpenseChartProps, 'title' | 'subtitle' | 'onPageBack' | 'onPageForward' | 'stepLabel'>) {
+  const showArrows = Boolean(stepLabel)
+  return (
+    <div className="chart-header">
+      <h4 className="chart-header-title">
+        {title}
+        {subtitle && <span className="chart-header-subtitle">{subtitle}</span>}
+      </h4>
+      {showArrows && (
+        <div className="chart-header-arrows">
+          <button type="button" className="icon-button icon-button--small" onClick={onPageBack} disabled={!onPageBack} aria-label={`Back ${stepLabel}`}>
+            <ChevronLeftIcon />
+          </button>
+          <button type="button" className="icon-button icon-button--small" onClick={onPageForward} disabled={!onPageForward} aria-label={`Forward ${stepLabel}`}>
+            <ChevronRightIcon />
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 interface TooltipPayloadEntry {
@@ -39,7 +71,7 @@ function ChartTooltip({ active, payload, label, currencyCode }: { active?: boole
     >
       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <span style={{ width: 10, height: 2, background: 'var(--accent)', flex: '0 0 auto' }} />
+        <span style={{ width: 10, height: 2, background: 'var(--amount-positive)', flex: '0 0 auto' }} />
         <span className="mono" style={{ fontWeight: 700 }}>
           {formatCurrency(income, currencyCode)}
         </span>
@@ -53,7 +85,7 @@ function ChartTooltip({ active, payload, label, currencyCode }: { active?: boole
         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Expense</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px solid var(--border)' }}>
-        <span className="mono" style={{ fontWeight: 700, color: savings >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+        <span className="mono" style={{ fontWeight: 700, color: savings >= 0 ? 'var(--amount-positive)' : 'var(--danger)' }}>
           {savings >= 0 ? '+' : ''}{((savings / income) * 100).toFixed(1)}%
         </span>
         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Savings</span>
@@ -62,11 +94,12 @@ function ChartTooltip({ active, payload, label, currencyCode }: { active?: boole
   )
 }
 
-export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod }: IncomeExpenseChartProps) {
+export function IncomeExpenseChart({ title, subtitle, points, currencyCode, currentPeriod, onSelectPeriod, onPageBack, onPageForward, stepLabel }: IncomeExpenseChartProps) {
+  const header = <ChartHeader title={title} subtitle={subtitle} onPageBack={onPageBack} onPageForward={onPageForward} stepLabel={stepLabel} />
   if (points.length === 0) {
     return (
       <div>
-        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
+        {header}
         <p style={{ color: 'var(--text-muted)' }}>No data for this period.</p>
       </div>
     )
@@ -86,16 +119,29 @@ export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod 
     }
   })
 
+  // Bars are stacked to 100%, so each column is fully covered by its two bars.
+  const handleBarClick = onSelectPeriod
+    ? (_: unknown, index: number) => {
+        const point = data[index]
+        if (point) onSelectPeriod(point.period)
+      }
+    : undefined
+
   return (
     <div>
-      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
+      {header}
       <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={data} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
+        <BarChart
+          data={data}
+          margin={{ top: 16, right: 16, left: 0, bottom: 0 }}
+          style={onSelectPeriod ? { cursor: 'pointer' } : undefined}
+        >
           <XAxis
             dataKey="label"
             stroke="var(--border)"
             tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
             tickLine={false}
+            interval={0}
           />
           <YAxis
             stroke="var(--border)"
@@ -103,17 +149,18 @@ export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod 
             tickLine={false}
             tickFormatter={(v: number) => `${v}%`}
             domain={[0, 100]}
+            ticks={[0, 25, 50, 75, 100]}
             width={48}
           />
           <Tooltip content={<ChartTooltip currencyCode={currencyCode} />} cursor={{ fill: 'var(--border)', opacity: 0.2 }} isAnimationActive={false} />
-          <Bar dataKey="expensePct" stackId="stack" radius={[0, 0, 0, 0]} maxBarSize={20}>
+          <Bar dataKey="expensePct" stackId="stack" onClick={handleBarClick} radius={[0, 0, 0, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
               <Cell key={i} fill="var(--outflow)" opacity={entry.isCurrent ? 1 : 0.35} />
             ))}
           </Bar>
-          <Bar dataKey="incomePct" stackId="stack" radius={[4, 4, 0, 0]} maxBarSize={20}>
+          <Bar dataKey="incomePct" stackId="stack" onClick={handleBarClick} radius={[4, 4, 0, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
-              <Cell key={i} fill="var(--accent)" opacity={entry.isCurrent ? 1 : 0.35} />
+              <Cell key={i} fill="var(--amount-positive)" opacity={entry.isCurrent ? 1 : 0.35} />
             ))}
           </Bar>
         </BarChart>

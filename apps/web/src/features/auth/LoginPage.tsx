@@ -147,8 +147,8 @@ export function LoginPage() {
     <div className="auth-shell">
       <div className={`auth-panel${isSignup ? ' auth-panel-wide' : ''}`}>
         <div className="auth-brand">
-          <img src="/favicon.svg" alt="" aria-hidden="true" className="auth-brand-icon" />
-          <span className="app-logo">FinAI</span>
+          <img src="/logo.png" alt="" aria-hidden="true" className="auth-brand-icon" />
+          <span className="app-logo">Frugal AI</span>
         </div>
         <h1 className="auth-title">{isSignup ? 'Create your account' : 'Welcome back'}</h1>
         <p className="auth-subtitle">{isSignup ? 'Track every account in one place.' : 'Log in to see where your money went.'}</p>

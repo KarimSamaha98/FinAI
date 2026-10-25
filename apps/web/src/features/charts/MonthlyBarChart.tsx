@@ -3,8 +3,9 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import type { AmountKind, HeatmapDay } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { format, parseISO } from 'date-fns'
+import type { DrillableProps } from './drillDown'
 
-interface MonthlyBarChartProps {
+interface MonthlyBarChartProps extends DrillableProps {
   title: string
   days: HeatmapDay[]
   kind: AmountKind
@@ -36,7 +37,7 @@ function ChartTooltip({ active, payload, currencyCode }: { active?: boolean; pay
   )
 }
 
-export function MonthlyBarChart({ title, days, kind, currencyCode }: MonthlyBarChartProps) {
+export function MonthlyBarChart({ title, days, kind, currencyCode, selectedKey, onSelect }: MonthlyBarChartProps) {
   const monthlyData = useMemo(() => {
     const totals = new Map<string, number>()
     for (const day of days) {
@@ -61,7 +62,7 @@ export function MonthlyBarChart({ title, days, kind, currencyCode }: MonthlyBarC
     )
   }
 
-  const barColor = kind === 'expense' ? 'var(--outflow)' : 'var(--accent)'
+  const barColor = kind === 'expense' ? 'var(--outflow)' : 'var(--amount-positive)'
 
   return (
     <div>
@@ -89,9 +90,15 @@ export function MonthlyBarChart({ title, days, kind, currencyCode }: MonthlyBarC
             cursor={{ fill: 'var(--border)', opacity: 0.2 }}
             isAnimationActive={false}
           />
-          <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-            {monthlyData.map((_, i) => (
-              <Cell key={i} fill={barColor} />
+          <Bar
+            dataKey="total"
+            radius={[4, 4, 0, 0]}
+            background={onSelect ? { fill: 'transparent', cursor: 'pointer' } : undefined}
+            style={onSelect ? { cursor: 'pointer' } : undefined}
+            onClick={onSelect ? (_: unknown, index: number) => { const m = monthlyData[index]; if (m) onSelect(m.monthKey) } : undefined}
+          >
+            {monthlyData.map((m, i) => (
+              <Cell key={i} fill={barColor} opacity={selectedKey && selectedKey !== m.monthKey ? 0.35 : 1} />
             ))}
           </Bar>
         </BarChart>

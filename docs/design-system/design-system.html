@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Frugal AI Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500..800&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../apps/web/src/index.css">
+<link rel="stylesheet" href="../../apps/web/src/styles/components.css">
+<style>
+.theme-dark {
+  --sys-red: #ff4245;
+  --sys-orange: #ff9230;
+  --sys-yellow: #ffd600;
+  --sys-green: #30d158;
+  --sys-mint: #00dac3;
+  --sys-teal: #00d2e0;
+  --sys-cyan: #3cd3fe;
+  --sys-blue: #0091ff;
+  --sys-indigo: #6d7cff;
+  --sys-purple: #db34f2;
+  --sys-pink: #ff375f;
+  --sys-brown: #b78a66;
+
+  --sys-red-ic: #ff6165;
+  --sys-green-ic: #4ad968;
+  --sys-indigo-ic: #a7aaff;
+  --sys-orange-ic: #ffa056;
+  --sys-blue-ic: #5cb8ff;
+
+  --sys-gray-2: #636366;
+  --sys-gray-3: #48484a;
+  --sys-gray-4: #3a3a3c;
+  --sys-gray-5: #2c2c2e;
+  --sys-gray-6: #1c1c1e;
+
+  --bg-grouped: #000000;
+  --bg-grouped-secondary: #1c1c1e;
+  --bg-grouped-tertiary: #2c2c2e;
+  --bg-elevated: #2c2c2e;
+
+  --label-primary: #ffffff;
+  --label-secondary: #aeaeb2;
+  --label-tertiary: rgba(235, 235, 245, 0.3);
+  --label-quaternary: rgba(235, 235, 245, 0.16);
+
+  --fill-primary: rgba(120, 120, 128, 0.36);
+  --fill-secondary: rgba(120, 120, 128, 0.32);
+  --fill-tertiary: rgba(120, 120, 128, 0.24);
+  --fill-quaternary: rgba(120, 120, 128, 0.18);
+
+  --separator: rgba(255, 255, 255, 0.17);
+  --separator-opaque: #38383a;
+  --control-thumb: #636366;
+
+  /* Navy is too dark to read on black, so dark mode lifts it: a mid navy
+     for fills (white label ≥ 6:1, still visible on the black page) and a
+     light periwinkle for text and icons. */
+  --tint-fill: var(--brand-navy-dark-fill);
+  --tint-text: var(--brand-navy-dark-text);
+  --tint-soft: color-mix(in srgb, var(--brand-navy-dark-text) 18%, transparent);
+
+  --status-positive: var(--sys-green);
+  --status-negative: var(--sys-red-ic);
+  --amount-positive: var(--brand-green-dark);
+
+  --glass-bg: rgba(44, 44, 48, 0.62);
+  --glass-bg-strong: rgba(44, 44, 48, 0.88);
+  --glass-edge: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+  --material-thin: rgba(0, 0, 0, 0.41);
+  --scrim: rgba(0, 0, 0, 0.5);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 40px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 60px rgba(0, 0, 0, 0.55);
+
+  --series-1: var(--brand-navy-dark-text);
+  --series-3: var(--sys-teal);
+  --series-4: var(--sys-yellow);
+  /* ── 3. App aliases (what the components reference) ── */
+  --bg: var(--bg-grouped);
+  --surface: var(--bg-grouped-secondary);
+  --surface-raised: var(--bg-elevated);
+  --text: var(--label-primary);
+  --text-muted: var(--label-secondary);
+  --border: var(--separator);
+  --accent: var(--tint-fill);
+  --accent-text: var(--tint-text);
+  --accent-contrast: var(--on-tint);
+  --danger: var(--status-negative);
+  --success: var(--status-positive);
+  /* Amounts: positive in money-in green, negative in red. Net worth stays neutral. */
+  --amount-positive: var(--brand-green);
+  --outflow: var(--status-negative);
+  --shadow-glow: var(--focus-ring);
+  --font-body: var(--font-text);
+  --transition: var(--duration-fast) var(--ease-out);
+  color: var(--text);
+  background: var(--bg);
+}
+
+@page { size: Letter; margin: 0.55in 0.6in 0.65in; }
+* { animation: none !important; transition: none !important; }
+html:root, body { background: #ffffff; }
+body { font: var(--type-body); color: #111; letter-spacing: -0.01em; }
+h1.doc { font: var(--type-large-title); font-size: 2.6rem; letter-spacing: -0.03em; margin: 0 0 .4rem; }
+h2.doc { font: var(--type-title-1); letter-spacing: -0.02em; margin: 0 0 .35rem; padding-top: .2rem; }
+h3.doc { font: var(--type-title-3); margin: 1.3rem 0 .4rem; break-after: avoid; }
+h4.doc { font: var(--type-headline); margin: 1rem 0 .3rem; break-after: avoid; }
+.doc-rail { position: static !important; transform: none !important; visibility: visible !important; height: auto !important; margin: 0 !important; width: 12rem !important; }
+p, li { font: var(--type-callout); color: #222; }
+p.lede { font: var(--type-title-3); font-weight: 400; color: #444; letter-spacing: -0.01em; }
+.kicker { font: var(--type-footnote); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--accent-text); margin: 0 0 .3rem; }
+section { break-before: page; }
+.avoid { break-inside: avoid; }
+code { font-family: var(--font-mono); font-size: .78em; background: #f2f2f7; padding: .05em .3em; border-radius: 4px; }
+.cover { height: 9.6in; display: flex; flex-direction: column; justify-content: space-between; padding: .2in 0; }
+.cover-art { position: relative; height: 3.6in; border-radius: 34px; overflow: hidden; background: radial-gradient(circle at 20% 30%, #1e3a8a 0, transparent 48%), radial-gradient(circle at 80% 20%, #00c3d0 0, transparent 40%), radial-gradient(circle at 60% 85%, #ff2d55 0, transparent 45%), radial-gradient(circle at 15% 90%, #ffcc00 0, transparent 35%), #e6ebf7; }
+.cover-glass { position: absolute; inset: 22% 14%; border-radius: 34px; background: rgba(250,250,252,.55); backdrop-filter: blur(24px) saturate(180%); box-shadow: 0 8px 40px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; font: var(--type-large-title); font-size: 3.2rem; letter-spacing: -0.03em; color: #111; }
+.cover-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; font: var(--type-footnote); color: #555; }
+.cover-meta b { display: block; color: #111; font: var(--type-headline); }
+.toc { columns: 2; column-gap: 2rem; padding: 0; list-style: none; }
+.toc li { display: flex; gap: .6rem; padding: .35rem 0; border-bottom: 1px solid #e5e5ea; break-inside: avoid; }
+.toc li b { color: var(--accent-text); width: 1.6rem; }
+.callout { background: var(--tint-soft); border-radius: var(--radius-lg); padding: .8rem 1rem; margin: .8rem 0; }
+.callout p { margin: .2rem 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; }
+.principle { background: #f5f5f7; border-radius: var(--radius-md); padding: .7rem .85rem; break-inside: avoid; }
+.principle b { font: var(--type-headline); display: block; margin-bottom: .2rem; }
+.principle p { margin: 0; font: var(--type-subhead); color: #333; }
+.sw-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: .7rem; }
+.sw-chip { height: 54px; border-radius: 14px; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.12); }
+.sw-name { font: var(--type-subhead); font-weight: 600; margin-top: .3rem; }
+.sw-val { font: var(--type-caption-2); color: #666; font-family: var(--font-mono); }
+table.spec { width: 100%; border-collapse: collapse; margin: .5rem 0 1rem; font: var(--type-footnote); }
+table.spec th { text-align: left; font-weight: 600; color: #6c6c70; border-bottom: 1px solid #c6c6c8; padding: .35rem .4rem; }
+table.spec td { border-bottom: 1px solid #e5e5ea; padding: .35rem .4rem; vertical-align: middle; }
+table.spec tr { break-inside: avoid; }
+.dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -3px; margin-right: .4rem; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.25); background-color: #fff; }
+.dot-dark { outline: 3px solid #000; outline-offset: -3px; }
+td.pass { color: #008932; font-weight: 600; } td.pass-large { color: #c55300; font-weight: 600; } td.fail { color: #e9152d; font-weight: 600; }
+.type-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem; align-items: center; padding: .45rem 0; border-bottom: 1px solid #e5e5ea; break-inside: avoid; }
+.type-sample { color: #000; }
+.type-meta { font: var(--type-caption-1); color: #555; } .type-meta span { color: #111; }
+.space-grid { display: flex; flex-direction: column; gap: .35rem; }
+.space-item { display: grid; grid-template-columns: 60px 100px 1fr; align-items: center; gap: .6rem; font: var(--type-footnote); }
+.space-bar { height: 14px; border-radius: 4px; background: var(--brand-navy); }
+.radius-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; }
+.radius-item { display: flex; flex-direction: column; gap: .2rem; font: var(--type-caption-1); color: #555; }
+.radius-box { height: 70px; background: #f2f2f7; box-shadow: inset 0 0 0 1.5px var(--brand-navy); }
+.concentric { position: relative; width: 220px; height: 130px; border-radius: 26px; background: #f2f2f7; padding: 12px; box-shadow: inset 0 0 0 1px #c6c6c8; }
+.concentric div { height: 100%; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 1.5px var(--brand-navy); display: flex; align-items: center; justify-content: center; font: var(--type-footnote); color: #555; }
+.glass-stage { position: relative; height: 230px; border-radius: 26px; overflow: hidden; background: radial-gradient(circle at 15% 35%, #1e3a8a 0, transparent 40%), radial-gradient(circle at 75% 30%, #00c3d0 0, transparent 35%), radial-gradient(circle at 55% 95%, #ff8d28 0, transparent 40%), #f2f2f7; }
+.glass-stage .stripe { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 46px, rgba(0,0,0,.18) 46px 52px); }
+.glass-card { position: absolute; top: 30px; height: 170px; width: 30%; border-radius: 34px; display: flex; align-items: flex-end; padding: 14px; font: var(--type-footnote); font-weight: 600; }
+.specimen-pane { border-radius: var(--radius-xl); padding: 1rem; background: var(--bg); display: flex; flex-direction: column; gap: .8rem; }
+.specimen-pane .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.theme-light { background: var(--bg); }
+.spec-card { display: grid; grid-template-columns: 1.15fr 1fr; gap: 1rem; align-items: start; margin: .4rem 0 1.1rem; break-inside: avoid; }
+.spec-card .stage { border-radius: var(--radius-xl); background: var(--bg); padding: 1rem; }
+.spec-card ul { margin: .2rem 0; padding-left: 1.1rem; }
+.spec-card li { font: var(--type-footnote); color: #333; margin: .15rem 0; }
+.static-panel { position: static !important; animation: none !important; width: 100%; }
+.shot { width: 100%; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.14), 0 0 0 .5px rgba(0,0,0,.12); }
+.shot-phone { width: 2.3in; border-radius: 26px; box-shadow: 0 8px 30px rgba(0,0,0,.14), 0 0 0 .5px rgba(0,0,0,.12); }
+figure { margin: .6rem 0 1rem; break-inside: avoid; } figcaption { font: var(--type-footnote); color: #666; margin-top: .4rem; }
+svg.spring { width: 100%; max-width: 320px; } svg.spring .axis { stroke: #c6c6c8; } svg.spring .target { stroke: #c6c6c8; stroke-dasharray: 4 4; }
+svg.spring .curve-spring { fill: none; stroke: #1e3a8a; stroke-width: 3; } svg.spring .curve-ease { fill: none; stroke: #aeaeb2; stroke-width: 2; stroke-dasharray: 5 4; }
+svg.spring text { font: 10px Inter; fill: #6c6c70; }
+.footer-note { font: var(--type-caption-1); color: #888; }
+</style></head>
+<body>
+
+<div class="cover">
+  <div>
+    <p class="kicker">Frugal AI · Design System · v1.0</p>
+    <h1 class="doc">A calm, Apple-grade ledger.</h1>
+    <p class="lede">The design system behind Frugal AI's look and feel: the research, the decisions, every token and every component, and how they were applied to the product.</p>
+  </div>
+  <div class="cover-art"><div class="cover-glass"><img src="../../apps/web/public/logo.png" alt="" style="height:1.15em;margin-right:.3em">Frugal AI</div></div>
+  <div class="cover-meta">
+    <div><b>Foundation</b>Apple iOS 26 Human Interface Guidelines, UIKit, iOS &amp; iPadOS 26 Figma kit</div>
+    <div><b>Typography</b>Figtree + Inter, a Wealthsimple-style pairing on Apple's Dynamic Type scale</div>
+    <div><b>Shipped in</b>apps/web/src/index.css (tokens) and styles/components.css (components). October 2026</div>
+  </div>
+</div>
+
+<section>
+  <p class="kicker">Contents</p>
+  <h2 class="doc">What's inside</h2>
+  <ol class="toc">
+    <li><b>01</b>Research &amp; sources</li><li><b>02</b>Design system thinking</li><li><b>03</b>Principles</li>
+    <li><b>04</b>Color</li><li><b>05</b>Typography</li><li><b>06</b>Layout, spacing &amp; shape</li>
+    <li><b>07</b>Materials &amp; Liquid Glass</li><li><b>08</b>Motion</li><li><b>09</b>Components</li>
+    <li><b>10</b>Accessibility</li><li><b>11</b>Applied to Frugal AI</li><li><b>12</b>Implementation &amp; governance</li>
+  </ol>
+  <div class="callout avoid"><p><b>How to read this document.</b> Every color swatch, type sample and component specimen here is rendered by the product's own stylesheets. Nothing was redrawn. If the CSS changes, rebuild this PDF with <code>python3 docs/design-system/build.py</code> and the document updates with it.</p></div>
+
+  <p class="kicker" style="margin-top:1.4rem">01</p>
+  <h2 class="doc">Research &amp; sources</h2>
+  <p>The system started with three primary sources and one reference brand:</p>
+  <div class="grid-2">
+    <div class="principle"><b>Apple Human Interface Guidelines</b><p>Read from Apple's own documentation data: Color, Typography, Materials, Layout, Dark Mode, Accessibility, Motion, Buttons, Lists &amp; tables, Sheets, Toggles, Segmented controls, Tab bars, Sidebars, Text fields, Menus, Alerts, SF Symbols, Writing, Inclusion and Charting data. The system colors and type tables come from the HIG's specification tables (June 2025 iOS 26 values, updated Dec 2025 for Liquid Glass).</p></div>
+    <div class="principle"><b>UIKit documentation</b><p>The semantic color API names (<code>label</code>, <code>secondaryLabel</code>, <code>systemGroupedBackground</code>, <code>systemFill</code>, <code>separator</code>…) became Frugal AI's token names, so a designer can say "secondary label" and mean exactly one thing.</p></div>
+    <div class="principle"><b>iOS &amp; iPadOS 26 Figma kit</b><p>Apple's community kit, copied into the team's drafts and read through the Figma API: Colors (node 0:1746), Materials (215:105157), Buttons (507:24673), Lists (507:24675), Segmented controls (507:24683) and Sidebars (507:26013). It supplied the iOS 26 label, separator and background values and the Liquid Glass recipes.</p></div>
+    <div class="principle"><b>Wealthsimple (typography reference)</b><p>wealthsimple.com uses The Future (headings), Wealthsimple Sans (interface) and Tiempos Text (editorial), all commercial or proprietary. Frugal AI uses the closest open equivalents: <b>Figtree</b> for display and <b>Inter</b> for text.</p></div>
+  </div>
+  <p>Apple's WWDC design sessions (<i>Designing Fluid Interfaces</i>, <i>The Details of UI Typography</i>, <i>Principles of Great Design</i>) informed the motion, tracking and principle sections.</p>
+</section>
+
+<section>
+  <p class="kicker">02</p>
+  <h2 class="doc">Design system thinking</h2>
+  <p>Frugal AI's previous look as FinAI ("Night Ledger") had a strong personality but only a handful of loosely named colors, and those names did double duty: <code>--accent</code> was both a button fill and a text color, and <code>--border</code> was both a hairline and a field outline. The redesign replaces that with a <b>three-tier token architecture</b>. Each tier only talks to the one below it:</p>
+  <div class="grid-3">
+    <div class="principle"><b>1 · Primitives</b><p>Raw values Apple publishes: 12 system colors, their increased-contrast twins and six grays (<code>--sys-indigo</code>, <code>--sys-green-ic</code>, <code>--sys-gray-3</code>). Components never use these directly.</p></div>
+    <div class="principle"><b>2 · Semantic</b><p>What a value means: <code>--bg-grouped</code>, <code>--label-secondary</code>, <code>--fill-tertiary</code>, <code>--separator</code>, <code>--tint-fill</code> vs <code>--tint-text</code>, <code>--status-positive</code>, <code>--glass-bg</code>, <code>--type-headline</code>, <code>--spring</code>.</p></div>
+    <div class="principle"><b>3 · App aliases</b><p>The short names the components already used (<code>--bg</code>, <code>--surface</code>, <code>--text</code>, <code>--accent</code>, <code>--outflow</code>), now pointing at the semantic tier. The whole product changed without rewriting 190 inline styles.</p></div>
+  </div>
+  <h3 class="doc">Decisions that shaped the system</h3>
+  <table class="spec">
+    <thead><tr><th>Decision</th><th>Why</th></tr></thead><tbody>
+    <tr><td><b>Grouped, card-based structure</b> (<code>#F2F2F7</code> page, white sections)</td><td>A finance app is lists of accounts and transactions. Apple's inset-grouped pattern (Settings, Wallet) is the most familiar way to scan grouped data, and it separates sections with background steps instead of borders.</td></tr>
+    <tr><td><b>Frugal AI Navy as the accent</b> (<code>#1E3A8A</code>)</td><td>A brand color, not an Apple system color. The HIG supports this: in an app with mostly monochromatic content, a brand accent is "an effective way to tailor your app experience". Navy signals trust and steadiness for money, and stays clearly apart from the green used for money in. Like Apple's own colors it has a dark-mode pair: <code>--tint-fill</code> lifts to <code>#3256C8</code> so filled buttons stay visible on black with a white label ≥ 6:1, and <code>--tint-text</code> lifts to periwinkle <code>#8FA8FF</code> for text and icons. Increased-contrast twins are included.</td></tr>
+    <tr><td><b>Color flags what needs attention</b></td><td>Money is neutral: <b>positive amounts and balances use the primary label color</b>, and <b>only negative amounts turn red</b> (<code>--outflow</code> = <code>--status-negative</code>). A screen full of green income read as noise. Keeping it plain lets the red stand out where it matters: spending, debt and below-zero balances. Green is reserved for success messages. The minus sign still carries direction, so color is never the only signal (HIG: Inclusive color).</td></tr>
+    <tr><td><b>Accessible secondary label</b></td><td>Apple's 60%-alpha secondary label is about 3.5:1 on white, below the 4.5:1 HIG minimum for text up to 17pt. Frugal AI uses Apple's opaque increased-contrast gray (<code>#6C6C70</code> / <code>#AEAEB2</code>) so footnotes and dates pass everywhere.</td></tr>
+    <tr><td><b>Liquid Glass only in the control layer</b></td><td>HIG: "Don't use Liquid Glass in the content layer." The sidebar, phone drawer, back button, menu button and popovers float in glass; cards, lists and fields stay solid.</td></tr>
+    <tr><td><b>Capsules for controls, concentric radii for containers</b></td><td>iOS 26 makes buttons, chips and search bars capsules. Containers nest their radii concentrically (inner radius = outer radius − padding), so the corners never fight.</td></tr>
+    <tr><td><b>Web-safe Apple typography</b></td><td>SF Pro can't be licensed for the web. Figtree and Inter follow Apple's Dynamic Type sizes, leading and size-specific tracking, and amounts use tabular figures instead of a monospace font.</td></tr>
+    </tbody></table>
+</section>
+
+<section>
+  <p class="kicker">03</p>
+  <h2 class="doc">Principles</h2>
+  <p>Apple's eight principles, translated into rules a Frugal AI designer can apply on a Tuesday afternoon.</p>
+  <div class="grid-2">
+    <div class="principle"><b>Purpose</b><p>Every screen answers one money question: how much do I have, where did it go, what needs attention. Anything that doesn't serve that answer doesn't ship.</p></div>
+    <div class="principle"><b>Agency</b><p>People stay in control: imports always end on a review step, deletions offer Archive before Remove, and nothing is categorized without being shown.</p></div>
+    <div class="principle"><b>Responsibility</b><p>Financial data is private and consequential. Destructive actions are red, never the primary button, and state their impact ("takes it off 49 transactions").</p></div>
+    <div class="principle"><b>Familiarity</b><p>Use the patterns people already know from iOS: grouped lists, capsule buttons, sheets with a close control, a sidebar with tinted selection, a segmented control.</p></div>
+    <div class="principle"><b>Flexibility</b><p>Light and dark follow the system setting (no in-app toggle). Increase Contrast, Reduce Transparency and Reduce Motion are honored. The layout reflows from a 1280px desktop to a 375px phone.</p></div>
+    <div class="principle"><b>Simplicity</b><p>Hierarchy comes from weight, size and space, not from borders and boxes. One filled button per view; everything else is gray or plain.</p></div>
+    <div class="principle"><b>Craft</b><p>Every value is a token, every token has a reason, and every reason is in this document. Tabular figures line up, hairlines are half-pixel, corners nest.</p></div>
+    <div class="principle"><b>Delight</b><p>The result, not a layer on top: a glass sidebar that lets color drift beneath it, sheets that rise on a spring, a calm ledger that feels in control.</p></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">04</p>
+  <h2 class="doc">Color</h2>
+  <h3 class="doc">System palette (primitives)</h3>
+  <p>Apple's iOS 26 system colors. Each chip is split into light and dark. Increased-contrast twins (<code>-ic</code>) are used wherever a hue becomes text.</p>
+  <div class="sw-grid">
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#ff383c 50%,#ff4245 50%)"></div>
+        <div class="sw-name">Red</div>
+        <div class="sw-val">#ff383c · #ff4245</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#ff8d28 50%,#ff9230 50%)"></div>
+        <div class="sw-name">Orange</div>
+        <div class="sw-val">#ff8d28 · #ff9230</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#ffcc00 50%,#ffd600 50%)"></div>
+        <div class="sw-name">Yellow</div>
+        <div class="sw-val">#ffcc00 · #ffd600</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#34c759 50%,#30d158 50%)"></div>
+        <div class="sw-name">Green</div>
+        <div class="sw-val">#34c759 · #30d158</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#00c8b3 50%,#00dac3 50%)"></div>
+        <div class="sw-name">Mint</div>
+        <div class="sw-val">#00c8b3 · #00dac3</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#00c3d0 50%,#00d2e0 50%)"></div>
+        <div class="sw-name">Teal</div>
+        <div class="sw-val">#00c3d0 · #00d2e0</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#00c0e8 50%,#3cd3fe 50%)"></div>
+        <div class="sw-name">Cyan</div>
+        <div class="sw-val">#00c0e8 · #3cd3fe</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#0088ff 50%,#0091ff 50%)"></div>
+        <div class="sw-name">Blue</div>
+        <div class="sw-val">#0088ff · #0091ff</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#6155f5 50%,#6d7cff 50%)"></div>
+        <div class="sw-name">Indigo</div>
+        <div class="sw-val">#6155f5 · #6d7cff</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#cb30e0 50%,#db34f2 50%)"></div>
+        <div class="sw-name">Purple</div>
+        <div class="sw-val">#cb30e0 · #db34f2</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#ff2d55 50%,#ff375f 50%)"></div>
+        <div class="sw-name">Pink</div>
+        <div class="sw-val">#ff2d55 · #ff375f</div>
+      </div>
+      <div class="sw">
+        <div class="sw-chip" style="background:linear-gradient(90deg,#ac7f5e 50%,#b78a66 50%)"></div>
+        <div class="sw-name">Brown</div>
+        <div class="sw-val">#ac7f5e · #b78a66</div>
+      </div></div>
+  <h3 class="doc">Brand: Frugal AI Navy</h3>
+  <p>The one color that isn't Apple's. Built to Apple's rules, with a light value, dark-mode lifts and increased-contrast twins.</p>
+  <div class="sw-grid"><div class="sw"><div class="sw-chip" style="background:#1e3a8a"></div><div class="sw-name">Navy</div><div class="sw-val">#1e3a8a</div></div><div class="sw"><div class="sw-chip" style="background:#3256c8"></div><div class="sw-name">Dark fill</div><div class="sw-val">#3256c8</div></div><div class="sw"><div class="sw-chip" style="background:#8fa8ff"></div><div class="sw-name">Dark text</div><div class="sw-val">#8fa8ff</div></div><div class="sw"><div class="sw-chip" style="background:#142a66"></div><div class="sw-name">IC navy</div><div class="sw-val">#142a66</div></div><div class="sw"><div class="sw-chip" style="background:#2a49b0"></div><div class="sw-name">IC dark fill</div><div class="sw-val">#2a49b0</div></div><div class="sw"><div class="sw-chip" style="background:#b4c6ff"></div><div class="sw-name">IC dark text</div><div class="sw-val">#b4c6ff</div></div></div>
+  <h3 class="doc">Logo</h3>
+  <div class="spec-card" style="grid-template-columns:1.1fr 1fr">
+    <div class="stage" style="display:flex;flex-direction:column;gap:.9rem">
+      <div style="display:flex;align-items:center;gap:1.4rem">
+        <img src="../../apps/web/public/logo.png" alt="" style="height:88px">
+        <span class="app-logo" style="padding:0"><img src="../../apps/web/public/logo.png" alt="" class="app-logo-mark">Frugal AI</span>
+      </div>
+      <div class="theme-dark" style="border-radius:var(--radius-lg);padding:.8rem 1rem;display:flex;align-items:center;gap:1.2rem">
+        <span class="app-logo" style="padding:0"><img src="../../apps/web/public/logo.png" alt="" class="app-logo-mark">Frugal AI</span>
+        <img src="../../apps/web/public/icons/icon-192.png" alt="" style="height:44px;border-radius:10px">
+        <img src="../../apps/web/public/favicon-32.png" alt="" style="height:16px">
+      </div>
+    </div>
+    <ul><li><b>Mark:</b> the navy piggy bank with a gold coin. Its blues sit in the Frugal AI Navy family, and the coin's gold echoes the card chip.</li>
+      <li><b>Lock-up:</b> the mark sits left of the Title 2 wordmark, at 30px tall with an 8px gap (<code>.app-logo</code>, <code>.app-logo-mark</code>), in the sidebar and phone top bar. Sign-in stacks the mark (44px) above the name.</li>
+      <li><b>Files</b> (<code>apps/web/public/</code>): <code>logo.png</code> (UI), <code>favicon.ico</code> plus 16/32/48 PNGs, <code>apple-touch-icon.png</code> (180), and <code>icons/icon-192.png</code> / <code>icon-512.png</code> (PWA, on a <code>#F2F2F7</code> tile).</li>
+      <li>Works on light and dark without a variant. Don't recolor or stretch it, and keep at least a quarter of its width as clear space.</li></ul>
+  </div>
+  <h3 class="doc">Semantic tokens</h3>
+  <table class="spec"><thead><tr><th>Token</th><th>Role</th><th>Light</th><th>Dark</th></tr></thead><tbody><tr><td><code>--bg-grouped</code></td><td>Page background</td>
+          <td><span class="dot" style="background:#f2f2f7"></span><code>#f2f2f7</code></td>
+          <td><span class="dot dot-dark" style="background:#000000"></span><code>#000000</code></td></tr><tr><td><code>--bg-grouped-secondary</code></td><td>Cards, lists, sections (alias --surface)</td>
+          <td><span class="dot" style="background:#ffffff"></span><code>#ffffff</code></td>
+          <td><span class="dot dot-dark" style="background:#1c1c1e"></span><code>#1c1c1e</code></td></tr><tr><td><code>--bg-elevated</code></td><td>Sheets and raised surfaces (alias --surface-raised)</td>
+          <td><span class="dot" style="background:#ffffff"></span><code>#ffffff</code></td>
+          <td><span class="dot dot-dark" style="background:#2c2c2e"></span><code>#2c2c2e</code></td></tr><tr><td><code>--label-primary</code></td><td>Primary text (alias --text)</td>
+          <td><span class="dot" style="background:#000000"></span><code>#000000</code></td>
+          <td><span class="dot dot-dark" style="background:#ffffff"></span><code>#ffffff</code></td></tr><tr><td><code>--label-secondary</code></td><td>Secondary text; accessible opaque gray (alias --text-muted)</td>
+          <td><span class="dot" style="background:#6c6c70"></span><code>#6c6c70</code></td>
+          <td><span class="dot dot-dark" style="background:#aeaeb2"></span><code>#aeaeb2</code></td></tr><tr><td><code>--label-tertiary</code></td><td>Placeholders, disabled, chevrons</td>
+          <td><span class="dot" style="background:rgba(60, 60, 67, 0.3)"></span><code>rgba(60, 60, 67, 0.3)</code></td>
+          <td><span class="dot dot-dark" style="background:rgba(235, 235, 245, 0.3)"></span><code>rgba(235, 235, 245, 0.3)</code></td></tr><tr><td><code>--fill-tertiary</code></td><td>Field, chip and gray-button fill</td>
+          <td><span class="dot" style="background:rgba(120, 120, 128, 0.12)"></span><code>rgba(120, 120, 128, 0.12)</code></td>
+          <td><span class="dot dot-dark" style="background:rgba(120, 120, 128, 0.24)"></span><code>rgba(120, 120, 128, 0.24)</code></td></tr><tr><td><code>--fill-quaternary</code></td><td>Row hover, choice backgrounds</td>
+          <td><span class="dot" style="background:rgba(120, 120, 128, 0.08)"></span><code>rgba(120, 120, 128, 0.08)</code></td>
+          <td><span class="dot dot-dark" style="background:rgba(120, 120, 128, 0.18)"></span><code>rgba(120, 120, 128, 0.18)</code></td></tr><tr><td><code>--separator</code></td><td>Hairlines between rows</td>
+          <td><span class="dot" style="background:rgba(0, 0, 0, 0.12)"></span><code>rgba(0, 0, 0, 0.12)</code></td>
+          <td><span class="dot dot-dark" style="background:rgba(255, 255, 255, 0.17)"></span><code>rgba(255, 255, 255, 0.17)</code></td></tr><tr><td><code>--separator-opaque</code></td><td>Dashed or high-contrast outlines</td>
+          <td><span class="dot" style="background:#c6c6c8"></span><code>#c6c6c8</code></td>
+          <td><span class="dot dot-dark" style="background:#38383a"></span><code>#38383a</code></td></tr><tr><td><code>--tint-fill</code></td><td>Filled buttons, selection, checkboxes (alias --accent)</td>
+          <td><span class="dot" style="background:#1e3a8a"></span><code>#1e3a8a</code></td>
+          <td><span class="dot dot-dark" style="background:#3256c8"></span><code>#3256c8</code></td></tr><tr><td><code>--tint-text</code></td><td>Links, tinted text and icons (alias --accent-text)</td>
+          <td><span class="dot" style="background:#1e3a8a"></span><code>#1e3a8a</code></td>
+          <td><span class="dot dot-dark" style="background:#8fa8ff"></span><code>#8fa8ff</code></td></tr><tr><td><code>--status-positive</code></td><td>Success messages only (alias --success)</td>
+          <td><span class="dot" style="background:#008932"></span><code>#008932</code></td>
+          <td><span class="dot dot-dark" style="background:#30d158"></span><code>#30d158</code></td></tr><tr><td><code>--status-negative</code></td><td>Negative amounts, destructive, below zero (alias --danger, --outflow)</td>
+          <td><span class="dot" style="background:#e9152d"></span><code>#e9152d</code></td>
+          <td><span class="dot dot-dark" style="background:#ff6165"></span><code>#ff6165</code></td></tr></tbody></table>
+</section>
+
+<section>
+  <h3 class="doc" style="margin-top:0">Contrast, measured</h3>
+  <p>Computed from the shipped tokens (WCAG 2.x relative luminance). HIG minimum: 4.5:1 for text up to 17pt, 3:1 for 18pt+ or bold.</p>
+  <table class="spec"><thead><tr><th>Pair</th><th>Light</th><th>Dark</th><th>Needs</th></tr></thead><tbody><tr><td>Primary text on a card<br><code>--label-primary</code> on <code>--bg-grouped-secondary</code></td><td class="pass">21.0:1</td><td class="pass">17.0:1</td><td>4.5:1</td></tr><tr><td>Secondary text on a card<br><code>--label-secondary</code> on <code>--bg-grouped-secondary</code></td><td class="pass">5.2:1</td><td class="pass">7.7:1</td><td>4.5:1</td></tr><tr><td>Secondary text on the page<br><code>--label-secondary</code> on <code>--bg-grouped</code></td><td class="pass">4.7:1</td><td class="pass">9.5:1</td><td>4.5:1</td></tr><tr><td>Tint text / links on a card<br><code>--tint-text</code> on <code>--bg-grouped-secondary</code></td><td class="pass">10.4:1</td><td class="pass">7.5:1</td><td>4.5:1</td></tr><tr><td>White label on a filled button<br><code>--on-tint</code> on <code>--tint-fill</code></td><td class="pass">10.4:1</td><td class="pass">6.4:1</td><td>4.5:1</td></tr><tr><td>Success (green) on a card<br><code>--status-positive</code> on <code>--bg-grouped-secondary</code></td><td class="pass">4.5:1</td><td class="pass">8.4:1</td><td>4.5:1</td></tr><tr><td>Negative amount / destructive (red) on a card<br><code>--status-negative</code> on <code>--bg-grouped-secondary</code></td><td class="pass">4.6:1</td><td class="pass">5.8:1</td><td>4.5:1</td></tr></tbody></table>
+  <div class="callout avoid"><p><b>Why two tints?</b> Filled controls need a white label at ≥ 4.5:1 on the fill, while text needs the fill color at ≥ 4.5:1 on a dark card. Navy can't do either on a black page, so dark mode lifts it twice: <code>--tint-fill</code> to a mid navy <code>#3256C8</code> (white label 6.4:1, and still visible against black) and <code>--tint-text</code> to periwinkle <code>#8FA8FF</code> (7:1 on a card). In light mode one navy, <code>#1E3A8A</code>, does both (10:1 on white).</p></div>
+  <h3 class="doc">Charts</h3>
+  <p>The categorical series leads with Frugal AI Navy, then Apple hues in a fixed order (navy, orange, teal, gold, pink, green, purple, brown). Assign them in sequence and never cycle within a chart's first eight series, so neighbouring categories stay distinguishable for common color-vision differences.</p>
+  <div class="row" style="display:flex;gap:.5rem"><div style="flex:1;height:28px;border-radius:8px;background:var(--series-1)"></div><div style="flex:1;height:28px;border-radius:8px;background:var(--series-2)"></div><div style="flex:1;height:28px;border-radius:8px;background:var(--series-3)"></div><div style="flex:1;height:28px;border-radius:8px;background:var(--series-4)"></div><div style="flex:1;height:28px;border-radius:8px;background:var(--series-5)"></div><div style="flex:1;height:28px;border-radius:8px;background:var(--series-6)"></div><div style="flex:1;height:28px;border-radius:8px;background:var(--series-7)"></div><div style="flex:1;height:28px;border-radius:8px;background:var(--series-8)"></div></div>
+</section>
+
+<section>
+  <p class="kicker">05</p>
+  <h2 class="doc">Typography</h2>
+  <p><b>Figtree</b> (display), a geometric sans close to Wealthsimple's The Future, sets titles. <b>Inter</b> (text), the open neo-grotesque nearest Wealthsimple Sans and Apple's SF Pro, sets everything else. Sizes, leading and weights are Apple's Dynamic Type "Large" defaults (17pt body, 11pt minimum). Tracking tightens as display sizes grow and stays near zero for text, following SF's tracking tables. Money uses <code>font-variant-numeric: tabular-nums</code> so columns align without a monospace font.</p>
+  
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-large-title)">Large Title</div>
+        <div class="type-meta"><b>34 / 41</b> pt/px · Bold 700 · Figtree<br>tracking −0.02em · <code>--type-large-title</code><br><span>Page titles (h1), the net-worth hero</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-title-1)">Title 1</div>
+        <div class="type-meta"><b>28 / 34</b> pt/px · Bold 700 · Figtree<br>tracking −0.015em · <code>--type-title-1</code><br><span>Sign-in headline</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-title-2)">Title 2</div>
+        <div class="type-meta"><b>22 / 28</b> pt/px · Bold 700 · Figtree<br>tracking −0.01em · <code>--type-title-2</code><br><span>Wordmark, large section titles</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-title-3)">Title 3</div>
+        <div class="type-meta"><b>20 / 25</b> pt/px · Semibold 600 · Figtree<br>tracking −0.01em · <code>--type-title-3</code><br><span>Card and sheet titles (h2)</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-headline)">Headline</div>
+        <div class="type-meta"><b>17 / 22</b> pt/px · Semibold 600 · Inter<br>tracking −0.01em · <code>--type-headline</code><br><span>Row titles, amounts, emphasis (h3)</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-body)">Body</div>
+        <div class="type-meta"><b>17 / 22</b> pt/px · Regular 400 · Inter<br>tracking −0.01em · <code>--type-body</code><br><span>Default text, fields, list rows</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-callout)">Callout</div>
+        <div class="type-meta"><b>16 / 21</b> pt/px · Regular 400 · Inter<br>tracking −0.008em · <code>--type-callout</code><br><span>Sidebar links</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-subhead)">Subhead</div>
+        <div class="type-meta"><b>15 / 20</b> pt/px · Regular 400 · Inter<br>tracking −0.006em · <code>--type-subhead</code><br><span>Buttons, chips, menu rows, banners</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-footnote)">Footnote</div>
+        <div class="type-meta"><b>13 / 18</b> pt/px · Regular 400 · Inter<br>tracking 0 · <code>--type-footnote</code><br><span>Field labels, dates, section headers</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-caption-1)">Caption 1</div>
+        <div class="type-meta"><b>12 / 16</b> pt/px · Regular 400 · Inter<br>tracking 0 · <code>--type-caption-1</code><br><span>Chips, badges, weekday labels</span></div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font:var(--type-caption-2)">Caption 2</div>
+        <div class="type-meta"><b>11 / 13</b> pt/px · Regular 400 · Inter<br>tracking +0.005em · <code>--type-caption-2</code><br><span>Smallest legal size (11pt minimum)</span></div>
+      </div>
+</section>
+
+<section>
+  <p class="kicker">06</p>
+  <h2 class="doc">Layout, spacing &amp; shape</h2>
+  <div class="grid-2">
+    <div><h3 class="doc" style="margin-top:0">4-point spacing grid</h3><div class="space-grid"><div class="space-item"><div class="space-bar" style="width:4px"></div><code>--space-1</code><span>4px</span></div><div class="space-item"><div class="space-bar" style="width:8px"></div><code>--space-2</code><span>8px</span></div><div class="space-item"><div class="space-bar" style="width:12px"></div><code>--space-3</code><span>12px</span></div><div class="space-item"><div class="space-bar" style="width:16px"></div><code>--space-4</code><span>16px</span></div><div class="space-item"><div class="space-bar" style="width:24px"></div><code>--space-5</code><span>24px</span></div><div class="space-item"><div class="space-bar" style="width:32px"></div><code>--space-6</code><span>32px</span></div><div class="space-item"><div class="space-bar" style="width:48px"></div><code>--space-7</code><span>48px</span></div></div>
+      <p style="margin-top:.8rem">Hit targets: <b>44 × 44pt minimum</b> (<code>--hit-min</code>). Controls are 36px on desktop and grow to 44px on touch screens (<code>@media (pointer: coarse)</code>). Fields are 44px everywhere.</p></div>
+    <div><h3 class="doc" style="margin-top:0">Concentric corners</h3>
+      <div class="concentric"><div>inner 14 = 26 − 12</div></div>
+      <p>An inner radius equals the outer radius minus the padding between them, so nested shapes share a center (iOS 26). Example: the sidebar (26) with 12px padding holds links at 14.</p></div>
+  </div>
+  <h3 class="doc">Radius scale</h3>
+  <div class="radius-grid"><div class="radius-item"><div class="radius-box" style="border-radius:var(--radius-xs)"></div><code>--radius-xs</code><span>6px · Card thumbnails</span></div><div class="radius-item"><div class="radius-box" style="border-radius:var(--radius-sm)"></div><code>--radius-sm</code><span>10px · Fields, icon cells</span></div><div class="radius-item"><div class="radius-box" style="border-radius:var(--radius-md)"></div><code>--radius-md</code><span>14px · List rows, menu rows, choices</span></div><div class="radius-item"><div class="radius-box" style="border-radius:var(--radius-lg)"></div><code>--radius-lg</code><span>22px · Cards, lists, menus</span></div><div class="radius-item"><div class="radius-box" style="border-radius:var(--radius-xl)"></div><code>--radius-xl</code><span>26px · Sidebar, auth panel, dropzone</span></div><div class="radius-item"><div class="radius-box" style="border-radius:var(--radius-sheet)"></div><code>--radius-sheet</code><span>34px · Sheets (modals)</span></div><div class="radius-item"><div class="radius-box" style="border-radius:var(--radius-full)"></div><code>--radius-full</code><span>capsule · Buttons, chips, search, toggles</span></div></div>
+  <h3 class="doc">Structure</h3>
+  <p>A floating sidebar (15rem) on the left, page content on the grouped background with a Large Title, cards (<code>.card</code>) for sections, and inset grouped lists for data. Below 768px the sidebar becomes a glass drawer opened from a 44pt menu button, and filter chips wrap.</p>
+</section>
+
+<section>
+  <p class="kicker">07</p>
+  <h2 class="doc">Materials &amp; Liquid Glass</h2>
+  <p>Two families, used for different layers (HIG &gt; Materials):</p>
+  <div class="glass-stage avoid"><div class="stripe"></div>
+    <div class="glass-card" style="left:4%;background:var(--glass-bg);backdrop-filter:var(--glass-filter);box-shadow:var(--glass-shadow), inset 0 1px 0 var(--glass-edge)">Liquid Glass · regular<br>72% · blur 24 · sat 180%</div>
+    <div class="glass-card" style="left:36%;background:var(--glass-bg-strong);backdrop-filter:var(--glass-filter);box-shadow:var(--glass-shadow), inset 0 1px 0 var(--glass-edge)">Glass · strong (menus)<br>90% for text legibility</div>
+    <div class="glass-card" style="left:68%;color:#fff;background:rgba(44,44,48,.62);backdrop-filter:var(--glass-filter);box-shadow:0 8px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.1)">Glass · dark<br>62% · same filter</div>
+  </div>
+  <table class="spec avoid"><thead><tr><th>Material</th><th>Recipe (from the Figma kit)</th><th>Frugal AI uses it for</th></tr></thead><tbody>
+    <tr><td><b>Liquid Glass, regular</b></td><td>Light: <code>rgba(245,245,245,.6)</code> over a color-dodge layer, shadow <code>0 8 40 rgba(0,0,0,.12)</code>. Dark: 67% of a <code>rgba(0,0,0,.6)</code> stack. Web: <code>--glass-bg</code> + <code>blur(24px) saturate(180%)</code> + a bright inner top edge.</td><td>Sidebar, phone drawer, back button, menu button</td></tr>
+    <tr><td><b>Glass, strong</b></td><td>The regular variant at ~90% opacity. The HIG says to use the regular, more opaque variant for components with a lot of text (popovers, sidebars).</td><td>Menus, pickers, calendar popovers</td></tr>
+    <tr><td><b>Standard material, regular</b></td><td>Light: <code>blur 50 + rgba(255,255,255,.6)</code>. Dark: <code>blur 50 + rgba(0,0,0,.41)</code>.</td><td><code>--material-thin</code> (content-layer overlays)</td></tr>
+    <tr><td><b>Scrim</b></td><td>HIG: dim bright content 35% behind clear glass and modals.</td><td>Sheet backdrop, drawer backdrop</td></tr>
+  </tbody></table>
+  <p><b>Rules.</b> Never stack glass on glass. Never use glass for content (cards, rows, fields). With <code>prefers-reduced-transparency</code>, glass becomes the solid elevated background. With <code>prefers-contrast: more</code>, glass rises to 94–98% opacity. The phone top bar uses a scroll-edge hairline instead of a hard divider.</p>
+</section>
+
+<section>
+  <p class="kicker">08</p>
+  <h2 class="doc">Motion</h2>
+  <div class="grid-2">
+    <div>
+      <p>Apple's fluid-interface guidance: respond on press, keep motion brief and interruptible, and prefer springs to fixed curves. CSS can't run a live spring, so Frugal AI samples Apple's default UI spring (<b>damping 1.0, response 0.35s</b>, critically damped, no overshoot) into a <code>linear()</code> curve: <code>--spring</code>.</p>
+      <table class="spec"><tbody>
+        <tr><td><code>--duration-fast</code></td><td>120ms</td><td>Hover, press, color changes</td></tr>
+        <tr><td><code>--duration-base</code></td><td>250ms</td><td>Popovers, chevrons, segmented thumb</td></tr>
+        <tr><td><code>--duration-spring</code></td><td>500ms</td><td>Sheets, drawer, progress bars</td></tr>
+        <tr><td><code>--ease-out</code></td><td colspan="2">cubic-bezier(.2,.8,.2,1) for small state changes</td></tr>
+      </tbody></table>
+    </div>
+    <div><svg viewBox="0 0 300 160" class="spring">
+      <line x1="20" y1="140" x2="280" y2="140" class="axis"/><line x1="20" y1="20" x2="20" y2="140" class="axis"/>
+      <line x1="20" y1="20" x2="280" y2="20" class="target"/>
+      <path d="M20,140 C74,28 68,20 280,20" class="curve-ease"/>
+      <path d="M20.0,140.0 L46.0,112.9 L72.0,75.7 L98.0,50.0 L124.0,35.2 L150.0,27.4 L176.0,23.5 L202.0,21.7 L228.0,20.7 L254.0,20.4 L280.0,20.0" class="curve-spring"/>
+      <text x="284" y="24">target</text><text x="200" y="156">time →</text>
+    </svg><p class="footer-note">Navy: <code>--spring</code> (critically damped). Gray dashed: a typical ease curve for comparison. The spring arrives fast and settles without overshoot.</p></div>
+  </div>
+  <h3 class="doc">Choreography</h3>
+  <ul>
+    <li><b>Press:</b> buttons, chips and choices scale to 0.97 on <code>:active</code>, giving feedback on pointer-down rather than on release.</li>
+    <li><b>Popovers materialize</b> from their trigger: scale 0.96 → 1 with a fade, transform origin at the source edge.</li>
+    <li><b>Sheets rise</b> 24px and fade in on <code>--spring</code>. The drawer enters and leaves along the same edge (spatial consistency).</li>
+    <li><b>Reduce Motion:</b> every animation and transition collapses to an instant change (<code>prefers-reduced-motion</code>), and nothing depends on motion to communicate.</li>
+  </ul>
+</section>
+
+<section>
+  <p class="kicker">09</p>
+  <h2 class="doc">Components</h2>
+  <p>Live specimens rendered by <code>components.css</code>, in light and dark.</p>
+  
+<div class="theme-light specimen-pane">
+  <div class="row">
+    <button class="btn btn-primary">Save</button>
+    <button class="btn btn-secondary">Cancel</button>
+    <button class="btn btn-tinted">Add CSV profile</button>
+    <button class="btn btn-danger">Delete</button>
+    <button class="btn btn-primary" disabled>Disabled</button>
+    <button class="text-button">Previous</button>
+  </div>
+  <div class="row">
+    <button class="dropdown-trigger" aria-expanded="false">Range: Current month <span class="dropdown-trigger-chevron" aria-hidden="true">▾</span></button>
+    <button class="dropdown-trigger" aria-expanded="true">Category: Dining <span class="dropdown-trigger-chevron" aria-hidden="true">▾</span></button>
+    <div class="segmented"><button class="segmented-option is-selected">Real</button><button class="segmented-option">Nominal</button></div>
+    <span class="badge badge-accent">Auto</span><span class="badge badge-neutral">Linked</span>
+    <input type="checkbox" checked aria-label="Checked"><input type="checkbox" aria-label="Unchecked">
+  </div>
+</div>
+  <div style="height:.8rem"></div>
+  
+<div class="theme-dark specimen-pane">
+  <div class="row">
+    <button class="btn btn-primary">Save</button>
+    <button class="btn btn-secondary">Cancel</button>
+    <button class="btn btn-tinted">Add CSV profile</button>
+    <button class="btn btn-danger">Delete</button>
+    <button class="btn btn-primary" disabled>Disabled</button>
+    <button class="text-button">Previous</button>
+  </div>
+  <div class="row">
+    <button class="dropdown-trigger" aria-expanded="false">Range: Current month <span class="dropdown-trigger-chevron" aria-hidden="true">▾</span></button>
+    <button class="dropdown-trigger" aria-expanded="true">Category: Dining <span class="dropdown-trigger-chevron" aria-hidden="true">▾</span></button>
+    <div class="segmented"><button class="segmented-option is-selected">Real</button><button class="segmented-option">Nominal</button></div>
+    <span class="badge badge-accent">Auto</span><span class="badge badge-neutral">Linked</span>
+    <input type="checkbox" checked aria-label="Checked"><input type="checkbox" aria-label="Unchecked">
+  </div>
+</div>
+
+  <h3 class="doc">Buttons <code>.btn</code></h3>
+  <div class="spec-card">
+    <div class="stage"><div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="btn btn-primary">Import 9 transactions</button><button class="btn btn-secondary">Back</button><button class="btn btn-tinted">Add CSV profile</button><button class="btn btn-danger">Remove permanently</button></div></div>
+    <ul><li><b>Filled</b> <code>.btn-primary</code>: the one most likely action per view (HIG: use style, not size, to rank choices).</li>
+      <li><b>Gray</b> <code>.btn-secondary</code>: default and Cancel. <b>Tinted</b> <code>.btn-tinted</code>: emphasis without competing with Filled.</li>
+      <li><b>Destructive</b> <code>.btn-danger</code>: red tint, solid red on hover. Never the primary role.</li>
+      <li>Capsule, Subhead 15/600, 36px tall (44px on touch), press scale 0.97, disabled 40%.</li></ul>
+  </div>
+
+  <h3 class="doc">Fields <code>input</code> · <code>.field-select</code> · date</h3>
+  <div class="spec-card">
+    <div class="stage" style="display:flex;flex-direction:column;gap:.6rem">
+      <label>Description<input type="text" value="Whole Foods weekly shop"></label>
+      <label>Category<div class="field-select"><button class="field-select-trigger"><span class="field-select-value">Groceries</span><span class="field-select-chevron" aria-hidden="true">▾</span></button></div></label>
+      <label>Account<div class="field-select"><button class="field-select-trigger is-empty"><span class="field-select-value">Select an account</span><span class="field-select-chevron" aria-hidden="true">▾</span></button></div></label>
+    </div>
+    <ul><li>Apple grouped-form fields: <code>--fill-tertiary</code> background, no border, 10pt corners, 44px tall, Body 17.</li>
+      <li>Focus: the field turns to the surface color with a tint border and a 4px tint ring (<code>--focus-ring</code>).</li>
+      <li>Labels sit above in Footnote/500, secondary label color. Placeholder text uses <code>--label-tertiary</code>.</li>
+      <li>Select and date fields share the trigger and open glass popovers (no native controls anywhere).</li></ul>
+  </div>
+
+  <h3 class="doc">Menus &amp; filter chips <code>.dropdown</code></h3>
+  <div class="spec-card">
+    <div class="stage" style="min-height:220px">
+      <button class="dropdown-trigger" aria-expanded="true">Category: Dining <span class="dropdown-trigger-chevron" aria-hidden="true">▾</span></button>
+      <div class="dropdown-panel static-panel" style="margin-top:.4rem;max-width:15rem">
+        <label class="dropdown-item"><input type="checkbox">Coffee</label>
+        <label class="dropdown-item"><input type="checkbox" checked>Dining</label>
+        <label class="dropdown-item"><input type="checkbox">Groceries</label>
+        <div class="dropdown-footer"><button>Clear</button><button>Done</button></div>
+      </div>
+    </div>
+    <ul><li>Triggers are gray capsules (Apple's pop-up button) reading "Label: Value".</li>
+      <li>Panels are strong-glass popovers, 22pt corners, 6px inset, rows highlighting on <code>--fill-tertiary</code> at 14pt (concentric).</li>
+      <li>Selection uses Apple's round checkmark. Footer actions are plain tint buttons.</li>
+      <li>Keyboard: arrows, Home/End, Enter/Space, type-ahead, Escape (closes only the menu, never the sheet around it).</li></ul>
+  </div>
+
+  <h3 class="doc">Calendar <code>.date-panel</code></h3>
+  <div class="spec-card">
+    <div class="stage">
+      <div class="dropdown-panel date-panel static-panel" style="max-width:18rem">
+        <div class="date-panel-head"><button class="date-panel-nav">‹</button><span class="date-panel-title">October 2026</span><button class="date-panel-nav">›</button></div>
+        <div class="date-grid"><span class="date-grid-weekday">Su</span><span class="date-grid-weekday">Mo</span><span class="date-grid-weekday">Tu</span><span class="date-grid-weekday">We</span><span class="date-grid-weekday">Th</span><span class="date-grid-weekday">Fr</span><span class="date-grid-weekday">Sa</span><button class="date-grid-day is-outside">27</button><button class="date-grid-day is-outside">28</button><button class="date-grid-day is-outside">29</button><button class="date-grid-day is-outside">30</button><button class="date-grid-day">1</button><button class="date-grid-day">2</button><button class="date-grid-day">3</button><button class="date-grid-day">4</button><button class="date-grid-day">5</button><button class="date-grid-day">6</button><button class="date-grid-day">7</button><button class="date-grid-day">8</button><button class="date-grid-day">9</button><button class="date-grid-day">10</button><button class="date-grid-day">11</button><button class="date-grid-day is-selected">12</button><button class="date-grid-day">13</button><button class="date-grid-day">14</button><button class="date-grid-day">15</button><button class="date-grid-day">16</button><button class="date-grid-day">17</button><button class="date-grid-day">18</button><button class="date-grid-day">19</button><button class="date-grid-day">20</button><button class="date-grid-day">21</button><button class="date-grid-day">22</button><button class="date-grid-day is-today">23</button><button class="date-grid-day">24</button><button class="date-grid-day">25</button><button class="date-grid-day">26</button><button class="date-grid-day">27</button><button class="date-grid-day">28</button><button class="date-grid-day">29</button><button class="date-grid-day">30</button><button class="date-grid-day">31</button></div>
+      </div>
+    </div>
+    <ul><li>Circular day cells, Subhead with tabular figures.</li><li>Today: tint text, semibold. Selected: tint-filled circle with a white label.</li><li>Weekdays in uppercase Caption, tertiary label. Days outside the month are tertiary.</li><li>Arrows move by day or week, PageUp/PageDown by month.</li></ul>
+  </div>
+</section>
+
+<section>
+  <h3 class="doc" style="margin-top:0">Account cards <code>.account-card</code></h3>
+  <div class="spec-card" style="grid-template-columns:1fr">
+    <div class="stage"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;font-size:15px"><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom left, color-mix(in srgb, #1c1c1e 84%, #ffffff) 0%, #1c1c1e 50%, color-mix(in srgb, #1c1c1e 70%, #000000) 100%);cursor:default;opacity:1;font-size:15px"><span class="account-card-type">Checking</span><span class="account-card-name">Black</span></span><code>#1c1c1e</code></div><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom left, color-mix(in srgb, #1e3a5f 84%, #ffffff) 0%, #1e3a5f 50%, color-mix(in srgb, #1e3a5f 70%, #000000) 100%);cursor:default;opacity:1;font-size:15px"><span class="account-card-type">Credit</span><span class="account-card-name">Navy</span></span><code>#1e3a5f</code></div><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom left, color-mix(in srgb, #6b1d2a 84%, #ffffff) 0%, #6b1d2a 50%, color-mix(in srgb, #6b1d2a 70%, #000000) 100%);cursor:default;opacity:1;font-size:15px"><span class="account-card-type">Credit</span><span class="account-card-name">Maroon</span></span><code>#6b1d2a</code></div><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom left, color-mix(in srgb, #1f4d3a 84%, #ffffff) 0%, #1f4d3a 50%, color-mix(in srgb, #1f4d3a 70%, #000000) 100%);cursor:default;opacity:1;font-size:15px"><span class="account-card-type">Savings</span><span class="account-card-name">Forest</span></span><code>#1f4d3a</code></div><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom left, color-mix(in srgb, #48484a 84%, #ffffff) 0%, #48484a 50%, color-mix(in srgb, #48484a 70%, #000000) 100%);cursor:default;opacity:1;font-size:15px"><span class="account-card-type">Investment</span><span class="account-card-name">Graphite</span></span><code>#48484a</code></div><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom left, color-mix(in srgb, #2f4858 84%, #ffffff) 0%, #2f4858 50%, color-mix(in srgb, #2f4858 70%, #000000) 100%);cursor:default;opacity:1;font-size:15px"><span class="account-card-type">Checking</span><span class="account-card-name">Slate</span></span><code>#2f4858</code></div><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom left, color-mix(in srgb, #7a5c3a 84%, #ffffff) 0%, #7a5c3a 50%, color-mix(in srgb, #7a5c3a 70%, #000000) 100%);cursor:default;opacity:1;font-size:15px"><span class="account-card-type">Cash</span><span class="account-card-name">Bronze</span></span><code>#7a5c3a</code></div><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-start"><span class="account-card account-card--branded account-card--selected" style="background:radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%), linear-gradient(to bottom left, color-mix(in srgb, #6e7781 84%, #ffffff) 0%, #6e7781 50%, color-mix(in srgb, #6e7781 70%, #000000) 100%);cursor:default;opacity:1;font-size:15px"><span class="account-card-type">Other</span><span class="account-card-name">Platinum</span></span><code>#6e7781</code></div></div></div>
+    <ul><li>Eight sober finishes, the tones real bank cards use: black, navy, maroon, forest, graphite, slate, bronze and platinum (<code>CARD_COLOR_PALETTE</code>). All carry white text at ≥ 4.5:1. People can still pick a custom colour or upload a photo.</li>
+      <li>Drawn like a real card: a soft sheen top-right, the colour through the middle, darker bottom-left under the name.</li>
+      <li>An EMV chip (gold contact plate, CSS only) sits left of centre, as on a real card. Photo cards skip it because the photo already shows one.</li>
+      <li>ID-1 proportions (1.586:1) in the large preview. Selected cards lift with a navy ring only when the selection is narrowed.</li></ul>
+  </div>
+
+  <h3 class="doc" style="margin-top:0">Lists <code>.txn-list</code></h3>
+  <div class="spec-card" style="grid-template-columns:1.6fr 1fr">
+    <div class="stage"><ul class="txn-list"><li class="txn-item"><div class="txn-row is-static">
+          <span class="txn-row-date">Oct 12, 2026</span>
+          <span class="txn-row-description-cell"><span class="txn-row-description">Uber ride</span></span>
+          <span class="txn-row-chips"><span class="txn-chip"><span class="txn-chip-label">Everyday Checking</span></span><span class="txn-chip"><span class="txn-chip-label">Transport</span></span></span>
+          <span class="txn-row-amount">−$26.80</span></div></li><li class="txn-item"><div class="txn-row is-static">
+          <span class="txn-row-date">Oct 12, 2026</span>
+          <span class="txn-row-description-cell"><span class="txn-row-description">Payroll — Acme Inc.</span></span>
+          <span class="txn-row-chips"><span class="txn-chip"><span class="txn-chip-label">Everyday Checking</span></span><span class="txn-chip"><span class="txn-chip-label">Salary</span></span></span>
+          <span class="txn-row-amount is-income">$3,200.00</span></div></li><li class="txn-item"><div class="txn-row is-static">
+          <span class="txn-row-date">Oct 11, 2026</span>
+          <span class="txn-row-description-cell"><span class="txn-row-description">Whole Foods weekly shop</span></span>
+          <span class="txn-row-chips"><span class="txn-chip"><span class="txn-chip-label">Visa Platinum</span></span><span class="txn-chip txn-chip--category is-empty"><span class="txn-chip-label">Uncategorized</span></span></span>
+          <span class="txn-row-amount">−$54.71</span></div></li></ul></div>
+    <ul><li>An inset grouped list: one section with 22pt corners and rows separated by inset half-pixel hairlines. No per-row tiles.</li>
+      <li>Row: date (Footnote, tabular), description (Body/500), chips (Caption, gray capsules), amount (Headline, tabular).</li>
+      <li>Positive amounts and income use money-in green #358C15 (<code>--amount-positive</code>); negative amounts are red (<code>--outflow</code>). Net worth stays neutral.</li>
+      <li>Uncategorized: an outlined capsule. Hover: quaternary fill. 44px minimum row height.</li></ul>
+  </div>
+
+  <h3 class="doc">Cards, notices &amp; banners</h3>
+  <div class="spec-card">
+    <div class="stage" style="display:flex;flex-direction:column;gap:.6rem">
+      <div class="card"><div style="font:var(--type-headline)">All accounts</div><div style="font:var(--type-footnote);color:var(--text-muted)">Every transaction, across every account.</div><div class="mono" style="font:var(--type-large-title);letter-spacing:-.02em">$51,062.64</div></div>
+      <button class="notice-box"><span class="notice-box-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><span class="notice-box-text">You have 193 uncategorized transactions<span>Tap to categorize them</span></span><span class="notice-box-chevron"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span></button>
+      <div class="alert alert-error" style="margin:0">Couldn't import row 4: the date isn't valid.</div>
+    </div>
+    <ul><li><b>Card</b> <code>.card</code>: a grouped section with 22pt corners and no border (the background step separates it).</li>
+      <li><b>Notice</b> <code>.notice-box</code>: a tappable tip row with a tint-soft background, tint icon and disclosure chevron.</li>
+      <li><b>Banner</b> <code>.alert</code>: tinted, borderless inline status. Apple reserves modal alerts for critical, actionable moments.</li></ul>
+  </div>
+
+  <h3 class="doc">Sheet <code>.sheet</code></h3>
+  <div class="spec-card">
+    <div class="stage"><div class="sheet" style="width:100%;box-shadow:var(--shadow-md)"><div class="sheet-body" style="padding:1.1rem">
+      <div class="sheet-header"><h2 class="sheet-title">Delete "Transport"?</h2><button class="sheet-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <p style="margin:0;font:var(--type-subhead);font-weight:600">Are you sure?</p>
+      <p style="margin:0;font:var(--type-footnote);color:var(--text-muted)"><b style="color:var(--text)">Archive</b>: hides it from category pickers.</p>
+      <div style="display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-danger">Remove permanently</button><button class="btn btn-primary">Archive</button></div>
+    </div></div></div>
+    <ul><li>Apple's sheet radius (34pt), elevated background, large shadow and a 35% scrim behind.</li>
+      <li>Title 3 header with a 30pt gray close circle (44pt on touch).</li>
+      <li>Primary action trailing, Cancel or destructive leading (HIG: Alerts &gt; Buttons). Rises in on <code>--spring</code>.</li></ul>
+  </div>
+</section>
+
+<section>
+  <h3 class="doc" style="margin-top:0">Navigation: sidebar, back &amp; segmented</h3>
+  <div class="spec-card">
+    <div class="stage" style="display:flex;gap:1rem;align-items:flex-start">
+      <div class="app-rail doc-rail">
+        <span class="app-logo">Frugal AI</span>
+        <nav class="app-rail-nav"><a class="app-rail-link"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>Home</span></a><a class="app-rail-link active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 4v16M4 7l3-3 3 3M17 20V4M14 17l3 3 3-3"/></svg><span>Transaction</span></a></nav>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.8rem;align-items:flex-start">
+        <button class="back-button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+        <div class="segmented"><button class="segmented-option is-selected">Auto</button><button class="segmented-option">Manual</button></div>
+      </div>
+    </div>
+    <ul><li><b>Sidebar</b> <code>.app-rail</code>: floating Liquid Glass, 8px inset, 26pt corners. Links are Callout/500 with tint icons, and the selected link gets a tint-soft background.</li>
+      <li><b>Back</b> <code>.back-button</code>: a 44pt glass circle, the iOS 26 toolbar back button.</li>
+      <li><b>Segmented</b> <code>.segmented</code>: a gray capsule track with a raised thumb on the selected segment. Equal segments, noun labels, at most five on a phone.</li>
+      <li><b>Search</b> <code>.search-input</code>: a capsule search bar with a filled clear button (see the Transaction screenshot).</li></ul>
+  </div>
+  <h3 class="doc">Component inventory</h3>
+  <table class="spec avoid"><thead><tr><th>Component</th><th>Class / file</th><th>Apple reference</th></tr></thead><tbody>
+    <tr><td>Button</td><td><code>.btn</code> · Button.tsx</td><td>Buttons (filled / gray / tinted / destructive)</td></tr>
+    <tr><td>Text field</td><td><code>input</code> · index.css</td><td>Text fields (grouped form)</td></tr>
+    <tr><td>Select / date / suggest</td><td><code>.field-select</code> · FieldSelect, FieldDatePicker, SuggestInput</td><td>Pop-up buttons, date pickers</td></tr>
+    <tr><td>Filter chip + menu</td><td><code>.dropdown</code> · SelectDropdown, MultiSelectDropdown, DatePickerDropdown</td><td>Menus, popovers</td></tr>
+    <tr><td>Checkbox</td><td><code>input[type=checkbox]</code></td><td>Toggles (checkmark style)</td></tr>
+    <tr><td>Segmented control</td><td><code>.segmented</code> · SegmentedControl.tsx</td><td>Segmented controls</td></tr>
+    <tr><td>Card / section</td><td><code>.card</code> · Card.tsx</td><td>Lists (inset grouped)</td></tr>
+    <tr><td>Account card</td><td><code>.account-card</code>, <code>.account-card-face</code> · AccountCarousel, AccountCardFace</td><td>Wallet passes (card art)</td></tr>
+    <tr><td>Transaction list</td><td><code>.txn-list</code> · TransactionRow.tsx</td><td>Lists and tables</td></tr>
+    <tr><td>Chip / badge</td><td><code>.txn-chip</code>, <code>.badge</code></td><td>Tokens / labels</td></tr>
+    <tr><td>Notice / banner</td><td><code>.notice-box</code>, <code>.alert</code></td><td>Alerts (non-modal guidance)</td></tr>
+    <tr><td>Sheet</td><td><code>.sheet</code> · Modal.tsx, ActionMenu.tsx</td><td>Sheets</td></tr>
+    <tr><td>Sidebar / drawer</td><td><code>.app-rail</code> · AppLayout.tsx</td><td>Sidebars, tab bars</td></tr>
+    <tr><td>Back / icon buttons</td><td><code>.back-button</code>, <code>.icon-button</code></td><td>Toolbars</td></tr>
+  </tbody></table>
+</section>
+
+<section>
+  <p class="kicker">10</p>
+  <h2 class="doc">Accessibility</h2>
+  <div class="grid-2">
+    <div class="principle"><b>Contrast</b><p>All text pairs measured in section 04 pass 4.5:1 in light and dark. Secondary text uses Apple's accessible gray, and colored text uses the increased-contrast twins.</p></div>
+    <div class="principle"><b>Increase Contrast</b><p><code>prefers-contrast: more</code> switches separators to opaque, darkens secondary labels, deepens the navy tint (<code>#142A66</code>, or <code>#B4C6FF</code> text in dark mode) and makes glass nearly solid.</p></div>
+    <div class="principle"><b>Reduce Transparency</b><p><code>prefers-reduced-transparency</code> replaces every glass and material surface with the solid elevated background.</p></div>
+    <div class="principle"><b>Reduce Motion</b><p>All transitions and animations become instant. No information is conveyed by motion alone.</p></div>
+    <div class="principle"><b>Targets &amp; input</b><p>44pt minimum on touch. Every control is a real button or input with a visible 2px tint focus ring. Custom selects use the select-only combobox pattern with full keyboard support.</p></div>
+    <div class="principle"><b>Not color alone</b><p>Amounts carry a sign, uncategorized chips are outlined (not just gray), selected states add a ring or checkmark, and destructive actions say what they'll do.</p></div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">11</p>
+  <h2 class="doc">Applied to Frugal AI</h2>
+  <figure><img class="shot" src="img/transactions-light.jpg"><figcaption>Transaction: glass sidebar with tint selection, Large Title, capsule actions, account cards, grouped summary card, tinted notice, gray filter chips and capsule search, inset grouped list with tabular amounts.</figcaption></figure>
+  <figure><img class="shot" src="img/transactions-dark.jpg"><figcaption>The same screen in dark mode: true-black page, #1C1C1E sections, the navy lifted to a mid navy for buttons and periwinkle for tinted text.</figcaption></figure>
+</section>
+
+<section>
+  <div class="grid-2">
+    <figure><img class="shot" src="img/home-light.jpg"><figcaption>Home: net-worth hero in Large Title with tabular figures, grouped account sections with Footnote headers, chart card.</figcaption></figure>
+    <figure><img class="shot" src="img/settings-light.jpg"><figcaption>Settings: grouped form cards, filled fields, a primary "Add Category" capsule, tint and destructive icon buttons.</figcaption></figure>
+  </div>
+  <div style="display:flex;gap:1.2rem;align-items:flex-start">
+    <figure style="flex:0 0 auto"><img class="shot-phone" src="img/transactions-phone.jpg"><figcaption>Phone (375pt): glass menu button,<br>wrapping chips, 44pt targets.</figcaption></figure>
+    <div style="flex:1">
+      <h3 class="doc" style="margin-top:.4rem">What changed, screen by screen</h3>
+      <table class="spec"><tbody>
+        <tr><td><b>Shell</b></td><td>Opaque bordered rail → floating glass sidebar. Phone drawer is a glass panel on a spring. Back and menu buttons are glass circles.</td></tr>
+        <tr><td><b>Lists</b></td><td>Per-row tiles → one inset grouped list with hairlines. Monospace dates and amounts → tabular Inter.</td></tr>
+        <tr><td><b>Controls</b></td><td>8px bordered buttons → capsules in four Apple styles. Bordered fields → filled 44px fields. Square checkboxes → round checkmarks.</td></tr>
+        <tr><td><b>Overlays</b></td><td>Bordered modals → 34pt sheets with a scrim and a close circle. Opaque menus → glass popovers.</td></tr>
+        <tr><td><b>Color</b></td><td>Acid-lime accent on violet-black → Frugal AI Navy on Apple grouped backgrounds. Coral expenses and green balances → plain positive amounts, red only for negatives.</td></tr>
+        <tr><td><b>Cards</b></td><td>Bright UI colours (indigo, violet, teal…) → bank-card finishes (black, navy, maroon, forest…) with a sheen and an EMV chip.</td></tr>
+        <tr><td><b>Type</b></td><td>Bricolage Grotesque + Inter at mixed sizes → Figtree + Inter on Apple's Dynamic Type scale.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">12</p>
+  <h2 class="doc">Implementation &amp; governance</h2>
+  <h3 class="doc">Where it lives</h3>
+  <table class="spec"><tbody>
+    <tr><td><code>apps/web/src/index.css</code></td><td>Token layer (primitives → semantic → aliases), dark / increased-contrast / reduced-transparency overrides, base type, form fields, checkbox.</td></tr>
+    <tr><td><code>apps/web/src/styles/components.css</code></td><td>Every component, in sections. Values reference tokens only.</td></tr>
+    <tr><td><code>apps/web/index.html</code></td><td>Figtree + Inter (Google Fonts), light and dark <code>theme-color</code>.</td></tr>
+    <tr><td><code>Modal.tsx</code>, <code>Button.tsx</code></td><td>Sheet classes instead of inline styles; the new <code>tinted</code> button variant.</td></tr>
+    <tr><td><code>docs/design-system/</code></td><td>This document (<code>build.py</code> → HTML → PDF) and the product screenshots.</td></tr>
+  </tbody></table>
+  <h3 class="doc">Rules for contributors</h3>
+  <ul>
+    <li><b>Reference tokens, never values.</b> New colors go into the semantic tier with light and dark (and increased-contrast) values first.</li>
+    <li><b>Use the alias for its meaning:</b> <code>--accent</code> for fills, <code>--accent-text</code> for text and icons, <code>--text-muted</code> for secondary text, <code>--separator</code> for hairlines.</li>
+    <li><b>One filled button per view.</b> Destructive is never primary. Confirm only irreversible actions.</li>
+    <li><b>Glass only for floating controls.</b> Content stays on solid surfaces.</li>
+    <li><b>Native form controls are not allowed.</b> Use <code>FieldSelect</code>, <code>FieldDatePicker</code> and <code>SuggestInput</code> in forms, and <code>SelectDropdown</code>, <code>MultiSelectDropdown</code> and <code>DatePickerDropdown</code> in filter bars.</li>
+    <li><b>Check both appearances</b> and the three accessibility settings before merging. Rebuild this document when tokens change.</li>
+  </ul>
+  <h3 class="doc">Known follow-ups</h3>
+  <ul>
+    <li>The card "custom colour" swatch still opens the OS color wheel; a system color picker would complete the controls.</li>
+    <li>Inline styles in feature screens use tokens but could move into named classes over time.</li>
+    <li>Apple's SF Symbols can't ship on the web; the stroke icon set approximates their weight and should keep matching text weight.</li>
+  </ul>
+  <p class="footer-note" style="margin-top:1.5rem">Frugal AI Design System v1.0 · Built on Apple's iOS 26 Human Interface Guidelines, UIKit and the iOS &amp; iPadOS 26 Figma kit. Apple, SF Pro, Liquid Glass and Wealthsimple are trademarks of their owners; Frugal AI uses openly licensed fonts (Figtree, Inter: SIL OFL).</p>
+</section>
+
+</body></html>

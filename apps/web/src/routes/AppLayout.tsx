@@ -63,7 +63,7 @@ export function AppLayout() {
   return (
     <div className={`app-shell${menuOpen ? ' is-menu-open' : ''}`}>
       <header className="app-topbar">
-        <span className="app-logo">FinAI</span>
+        <span className="app-logo"><img src="/logo.png" alt="" aria-hidden="true" className="app-logo-mark" />Frugal AI</span>
         <button
           ref={menuButtonRef}
           type="button"
@@ -81,7 +81,7 @@ export function AppLayout() {
 
       <aside id="app-rail" ref={railRef} className="app-rail" aria-label="Main menu">
         <div className="app-rail-head">
-          <span className="app-logo">FinAI</span>
+          <span className="app-logo"><img src="/logo.png" alt="" aria-hidden="true" className="app-logo-mark" />Frugal AI</span>
           <button type="button" className="app-menu-button app-menu-close" aria-label="Close menu" onClick={closeMenu}>
             <CloseIcon />
           </button>

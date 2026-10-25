@@ -10,11 +10,17 @@ export type AccountType = z.infer<typeof AccountTypeSchema>;
  * stays legible on every one). Keep in sync with the backfill in
  * supabase/migrations/20261004160000_account_card_appearance.sql.
  */
-export const CARD_COLOR_PALETTE = ["#4f46e5", "#0f766e", "#be123c", "#1d4ed8", "#b45309", "#7c3aed", "#15803d", "#334155"] as const;
+/**
+ * Card finishes, in the order new accounts are given them: the sober tones
+ * real bank cards use — midnight black, navy, maroon, forest green, graphite,
+ * slate, bronze, platinum. All are dark enough for white text (≥ 4.5:1).
+ * People can still pick any custom colour; these are only the defaults.
+ */
+export const CARD_COLOR_PALETTE = ["#1c1c1e", "#1e3a5f", "#6b1d2a", "#1f4d3a", "#48484a", "#2f4858", "#7a5c3a", "#6e7781"] as const;
 
 export const CardColorSchema = z
   .string()
-  .regex(/^#[0-9a-fA-F]{6}$/, "Card colour must be a hex colour like #4f46e5")
+  .regex(/^#[0-9a-fA-F]{6}$/, "Card colour must be a hex colour like #1e3a5f")
   .transform((value) => value.toLowerCase());
 
 export const AccountSchema = z.object({

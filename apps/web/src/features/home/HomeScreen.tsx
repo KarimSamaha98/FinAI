@@ -23,11 +23,15 @@ const HOME_BUCKETS: { type: AccountType; label: string }[] = [
   { type: 'other', label: 'Other' },
 ]
 
-/** Negative balances read red (danger), positive green (success); zero stays neutral. */
+/** Negative balances read red; positive and zero keep the regular text color. Used for the net worth total. */
 function signedColor(amount: number): string | undefined {
-  if (amount < 0) return 'var(--danger)'
-  if (amount > 0) return 'var(--success)'
-  return undefined
+  return amount < 0 ? 'var(--danger)' : undefined
+}
+
+/** Account balances: positive green, negative red, zero neutral. */
+function balanceColor(amount: number): string | undefined {
+  if (amount > 0) return 'var(--amount-positive)'
+  return signedColor(amount)
 }
 
 function AccountRow({ account }: { account: NetWorthAccount }) {
@@ -35,7 +39,7 @@ function AccountRow({ account }: { account: NetWorthAccount }) {
     <Link to={`/accounts?selected=${account.id}`} className="home-account-row">
       <span className="home-account-name">{account.name}</span>
       <span className="home-account-institution">{account.institution ?? ''}</span>
-      <span className="mono home-account-balance" style={{ color: signedColor(account.balance) }}>
+      <span className="mono home-account-balance" style={{ color: balanceColor(account.balance) }}>
         {formatCurrency(account.balance, account.currencyCode)}
       </span>
     </Link>
