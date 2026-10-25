@@ -2816,3 +2816,156 @@ dialog::backdrop {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ── Insights drill-down ──────────────────────────────────────────────── */
+/* Clicking an item narrows its card and opens that item's transactions to
+   the right. The panel matches the card's height (the card sets the row
+   height; the panel's list scrolls inside it). Narrow screens stack it below. */
+
+.insight-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.insight-split.is-open {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.insight-split-main {
+  min-width: 0;
+}
+
+.insight-split-main > .card {
+  height: 100%;
+}
+
+.insight-split-panel {
+  position: relative;
+  min-width: 0;
+  min-height: 16rem;
+}
+
+.insight-drill {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3) var(--space-3) 0;
+  overflow: hidden;
+  animation: insight-drill-in var(--duration-fast) var(--ease-out);
+}
+
+@keyframes insight-drill-in {
+  from { opacity: 0; transform: translateX(8px); }
+}
+
+.insight-drill-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0 var(--space-1) var(--space-2);
+}
+
+.insight-drill-heading {
+  min-width: 0;
+}
+
+.insight-drill-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insight-drill-summary {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.insight-drill-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: var(--space-3);
+}
+
+.insight-drill-note {
+  margin: var(--space-3) var(--space-1);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .insight-split.is-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .insight-split-panel {
+    min-height: 0;
+  }
+
+  .insight-drill {
+    position: static;
+    max-height: 24rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .insight-drill {
+    animation: none;
+  }
+}
+
+/* Selected items inside Insights cards. */
+.category-change-tile {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1.5px transparent;
+  transition: box-shadow var(--transition), background var(--transition);
+}
+
+.category-change-tile:hover {
+  background: var(--fill-quaternary);
+}
+
+.category-change-tile:disabled {
+  cursor: default;
+}
+
+.category-change-tile.is-selected {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.category-change-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.heatmap-day.is-selected {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.heatmap-day:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.txn-row.is-selected,
+.txn-row.is-selected:hover {
+  background: var(--tint-soft);
+}
+
+/* A half-width Changes card fits two tiles per row. */
+.insight-split.is-open .category-changes-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

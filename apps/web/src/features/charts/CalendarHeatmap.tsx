@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import type { AmountKind, HeatmapDay, InsightMode } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns'
+import type { DrillableProps } from './drillDown'
 
-interface CalendarHeatmapProps {
+interface CalendarHeatmapProps extends DrillableProps {
   title: string
   days: HeatmapDay[]
   kind: AmountKind
@@ -99,7 +100,7 @@ function DayCellBlock({ cell, baseColor, maxAmount, onHover, onLeave }: { cell: 
   )
 }
 
-export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode }: CalendarHeatmapProps) {
+export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode, selectedKey, onSelect }: CalendarHeatmapProps) {
   const [tooltip, setTooltip] = useState<{ date: string; amount: string; x: number; y: number } | null>(null)
 
   const maxAmount = useMemo(() => Math.max(...days.map((d) => d.total), 1), [days])
@@ -186,6 +187,13 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode 
               return (
                 <div
                   key={`${weekIndex}-${dayIndex}`}
+                  className={`heatmap-day${selectedKey === date ? ' is-selected' : ''}`}
+                  role={hasData && onSelect ? 'button' : undefined}
+                  tabIndex={hasData && onSelect ? 0 : undefined}
+                  aria-label={hasData && onSelect ? `${format(parseISO(date), 'MMM d')}: ${formatCurrency(day.total, currencyCode)}` : undefined}
+                  aria-pressed={hasData && onSelect ? selectedKey === date : undefined}
+                  onClick={hasData && onSelect ? () => onSelect(date) : undefined}
+                  onKeyDown={hasData && onSelect ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(date) } } : undefined}
                   style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', position: 'relative', cursor: hasData ? 'pointer' : 'default', visibility: isEmpty ? 'hidden' : 'visible' }}
                   onMouseEnter={(e) => {
                     if (day) {

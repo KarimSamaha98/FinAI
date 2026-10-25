@@ -1,8 +1,9 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AmountKind, CategoryBreakdownPoint } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
+import { categoryKey, type DrillableProps } from './drillDown'
 
-interface CategoryBarChartProps {
+interface CategoryBarChartProps extends DrillableProps {
   title: string
   points: CategoryBreakdownPoint[]
   kind: AmountKind
@@ -43,7 +44,7 @@ const TONE_COLOR: Record<AmountKind, string> = {
 
 const BAR_HEIGHT = 20
 
-export function CategoryBarChart({ title, points, kind, currencyCode }: CategoryBarChartProps) {
+export function CategoryBarChart({ title, points, kind, currencyCode, selectedKey, onSelect }: CategoryBarChartProps) {
   if (points.length === 0) {
     return (
       <div>
@@ -71,11 +72,19 @@ export function CategoryBarChart({ title, points, kind, currencyCode }: Category
             axisLine={false}
           />
           <Tooltip content={<CategoryBarTooltip currencyCode={currencyCode} />} cursor={{ fill: 'var(--border)', opacity: 0.2 }} isAnimationActive={false} />
-          <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+          <Bar
+            dataKey="total"
+            radius={[0, 4, 4, 0]}
+            // A transparent full-width track behind each bar makes the whole row clickable.
+            background={onSelect ? { fill: 'transparent', cursor: 'pointer' } : undefined}
+            style={onSelect ? { cursor: 'pointer' } : undefined}
+            onClick={onSelect ? (_: unknown, index: number) => { const p = points[index]; if (p) onSelect(categoryKey(p.categoryId)) } : undefined}
+          >
             {points.map((point) => (
               <Cell
-                key={point.categoryId ?? 'uncategorized'}
+                key={categoryKey(point.categoryId)}
                 fill={TONE_COLOR[kind]}
+                opacity={selectedKey && selectedKey !== categoryKey(point.categoryId) ? 0.35 : 1}
               />
             ))}
           </Bar>
