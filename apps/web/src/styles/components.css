@@ -2930,7 +2930,8 @@ dialog::backdrop {
   text-align: left;
   font: inherit;
   cursor: pointer;
-  box-shadow: inset 0 0 0 1.5px transparent;
+  /* A light grey stroke marks the tiles as clickable; the selected tile swaps it for the accent. */
+  box-shadow: inset 0 0 0 1px var(--separator-opaque);
   transition: box-shadow var(--transition), background var(--transition);
 }
 
