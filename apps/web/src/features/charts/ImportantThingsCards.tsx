@@ -22,12 +22,12 @@ export function CategoryChangesCard({ changes, filterKind, title = 'Category Cha
       <h4 style={{ fontSize: '0.95rem', marginBottom: 'var(--space-3)', margin: '0 0 var(--space-3) 0', fontWeight: 600, color: 'var(--text-muted)' }}>
         {title}
       </h4>
-      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+      <div className="category-changes-grid">
         {filtered.slice(0, 8).map((change) => {
           const sign = change.percentChange > 0 ? '+' : ''
           const color = change.type === 'expense_spike' || change.type === 'income_reduction' ? 'var(--danger)' : 'var(--amount-positive)'
           return (
-            <Card key={`${change.categoryId ?? 'uncategorized'}-${change.type}`} style={{ flex: '1 1 auto', minWidth: '10rem', padding: 'var(--space-3)' }}>
+            <Card key={`${change.categoryId ?? 'uncategorized'}-${change.type}`} style={{ minWidth: 0, padding: 'var(--space-3)' }}>
               <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)' }}>{change.categoryName}</p>
               <p style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color }}>
                 {sign}{change.percentChange.toFixed(0)}%
