@@ -7,6 +7,8 @@ interface IncomeExpenseChartProps {
   points: TrendPoint[]
   currencyCode: string
   currentPeriod?: string
+  /** Called with a point's period ('yyyy-MM' or 'yyyy') when its bar is clicked. */
+  onSelectPeriod?: (period: string) => void
 }
 
 interface TooltipPayloadEntry {
@@ -62,7 +64,7 @@ function ChartTooltip({ active, payload, label, currencyCode }: { active?: boole
   )
 }
 
-export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod }: IncomeExpenseChartProps) {
+export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod, onSelectPeriod }: IncomeExpenseChartProps) {
   if (points.length === 0) {
     return (
       <div>
@@ -86,16 +88,29 @@ export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod 
     }
   })
 
+  // Bars are stacked to 100%, so each column is fully covered by its two bars.
+  const handleBarClick = onSelectPeriod
+    ? (_: unknown, index: number) => {
+        const point = data[index]
+        if (point) onSelectPeriod(point.period)
+      }
+    : undefined
+
   return (
     <div>
       <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
       <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={data} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
+        <BarChart
+          data={data}
+          margin={{ top: 16, right: 16, left: 0, bottom: 0 }}
+          style={onSelectPeriod ? { cursor: 'pointer' } : undefined}
+        >
           <XAxis
             dataKey="label"
             stroke="var(--border)"
             tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
             tickLine={false}
+            interval={0}
           />
           <YAxis
             stroke="var(--border)"
@@ -103,15 +118,16 @@ export function IncomeExpenseChart({ title, points, currencyCode, currentPeriod 
             tickLine={false}
             tickFormatter={(v: number) => `${v}%`}
             domain={[0, 100]}
+            ticks={[0, 25, 50, 75, 100]}
             width={48}
           />
           <Tooltip content={<ChartTooltip currencyCode={currencyCode} />} cursor={{ fill: 'var(--border)', opacity: 0.2 }} isAnimationActive={false} />
-          <Bar dataKey="expensePct" stackId="stack" radius={[0, 0, 0, 0]} maxBarSize={20}>
+          <Bar dataKey="expensePct" stackId="stack" onClick={handleBarClick} radius={[0, 0, 0, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
               <Cell key={i} fill="var(--outflow)" opacity={entry.isCurrent ? 1 : 0.35} />
             ))}
           </Bar>
-          <Bar dataKey="incomePct" stackId="stack" radius={[4, 4, 0, 0]} maxBarSize={20}>
+          <Bar dataKey="incomePct" stackId="stack" onClick={handleBarClick} radius={[4, 4, 0, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
               <Cell key={i} fill="var(--amount-positive)" opacity={entry.isCurrent ? 1 : 0.35} />
             ))}

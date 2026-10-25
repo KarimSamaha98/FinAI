@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { addMonths, format, parse, subMonths } from 'date-fns'
 import type { InsightMode } from 'shared-types'
+import { formatPeriod } from '../lib/formatPeriod'
 
 interface PeriodSelectorProps {
   mode: InsightMode
   period: string
   onChange: (period: string) => void
-}
-
-function formatPeriod(mode: InsightMode, period: string): string {
-  if (mode === 'monthly') {
-    return format(parse(period + '-01', 'yyyy-MM-dd', new Date()), 'MMMM yyyy')
-  }
-  return period
 }
 
 function shiftPeriod(mode: InsightMode, period: string, delta: number): string {

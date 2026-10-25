@@ -2758,3 +2758,8 @@ dialog::backdrop {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Charts: Recharts focuses its layers on click; keep the ring for keyboard focus only. */
+.recharts-wrapper :focus:not(:focus-visible) {
+  outline: none;
+}
