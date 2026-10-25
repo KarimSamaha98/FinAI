@@ -2,6 +2,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import type { TrendPoint } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { ChevronLeftIcon, ChevronRightIcon } from '../../components/icons'
+import { ColumnHitTargets } from './ColumnHitTargets'
 
 interface IncomeExpenseChartProps {
   title: string
@@ -119,14 +120,6 @@ export function IncomeExpenseChart({ title, subtitle, points, currencyCode, curr
     }
   })
 
-  // Bars are stacked to 100%, so each column is fully covered by its two bars.
-  const handleBarClick = onSelectPeriod
-    ? (_: unknown, index: number) => {
-        const point = data[index]
-        if (point) onSelectPeriod(point.period)
-      }
-    : undefined
-
   return (
     <div>
       {header}
@@ -153,16 +146,17 @@ export function IncomeExpenseChart({ title, subtitle, points, currencyCode, curr
             width={48}
           />
           <Tooltip content={<ChartTooltip currencyCode={currencyCode} />} cursor={{ fill: 'var(--border)', opacity: 0.2 }} isAnimationActive={false} />
-          <Bar dataKey="expensePct" stackId="stack" onClick={handleBarClick} radius={[0, 0, 0, 0]} maxBarSize={20}>
+          <Bar dataKey="expensePct" stackId="stack" radius={[0, 0, 0, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
               <Cell key={i} fill="var(--outflow)" opacity={entry.isCurrent ? 1 : 0.35} />
             ))}
           </Bar>
-          <Bar dataKey="incomePct" stackId="stack" onClick={handleBarClick} radius={[4, 4, 0, 0]} maxBarSize={20}>
+          <Bar dataKey="incomePct" stackId="stack" radius={[4, 4, 0, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
               <Cell key={i} fill="var(--amount-positive)" opacity={entry.isCurrent ? 1 : 0.35} />
             ))}
           </Bar>
+          {onSelectPeriod && <ColumnHitTargets count={data.length} onPick={(i) => onSelectPeriod(data[i].period)} />}
         </BarChart>
       </ResponsiveContainer>
     </div>

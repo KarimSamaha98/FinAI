@@ -4,6 +4,7 @@ import type { AmountKind, HeatmapDay } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { format, parseISO } from 'date-fns'
 import type { DrillableProps } from './drillDown'
+import { ColumnHitTargets } from './ColumnHitTargets'
 
 interface MonthlyBarChartProps extends DrillableProps {
   title: string
@@ -68,7 +69,13 @@ export function MonthlyBarChart({ title, days, kind, currencyCode, selectedKey, 
     <div>
       <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={monthlyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barSize={28} barGap={4}>
+        <BarChart
+          data={monthlyData}
+          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+          barSize={28}
+          barGap={4}
+          style={onSelect ? { cursor: 'pointer' } : undefined}
+        >
           <XAxis
             dataKey="monthLabel"
             stroke="var(--border)"
@@ -93,14 +100,12 @@ export function MonthlyBarChart({ title, days, kind, currencyCode, selectedKey, 
           <Bar
             dataKey="total"
             radius={[4, 4, 0, 0]}
-            background={onSelect ? { fill: 'transparent', cursor: 'pointer' } : undefined}
-            style={onSelect ? { cursor: 'pointer' } : undefined}
-            onClick={onSelect ? (_: unknown, index: number) => { const m = monthlyData[index]; if (m) onSelect(m.monthKey) } : undefined}
           >
             {monthlyData.map((m, i) => (
               <Cell key={i} fill={barColor} opacity={selectedKey && selectedKey !== m.monthKey ? 0.35 : 1} />
             ))}
           </Bar>
+          {onSelect && <ColumnHitTargets count={monthlyData.length} onPick={(i) => onSelect(monthlyData[i].monthKey)} />}
         </BarChart>
       </ResponsiveContainer>
     </div>

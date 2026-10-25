@@ -2931,7 +2931,7 @@ dialog::backdrop {
   font: inherit;
   cursor: pointer;
   /* A light grey stroke marks the tiles as clickable; the selected tile swaps it for the accent. */
-  box-shadow: inset 0 0 0 1px var(--separator-opaque);
+  box-shadow: inset 0 0 0 1px var(--stroke-control);
   transition: box-shadow var(--transition), background var(--transition);
 }
 
@@ -2969,4 +2969,9 @@ dialog::backdrop {
 /* A half-width Changes card fits two tiles per row. */
 .insight-split.is-open .category-changes-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Clickable charts: axis labels sit above the hit targets, so let clicks through them. */
+.recharts-wrapper:has(.chart-hit-targets) text {
+  pointer-events: none;
 }

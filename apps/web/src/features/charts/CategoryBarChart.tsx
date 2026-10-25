@@ -2,6 +2,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import type { AmountKind, CategoryBreakdownPoint } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { categoryKey, type DrillableProps } from './drillDown'
+import { ColumnHitTargets } from './ColumnHitTargets'
 
 interface CategoryBarChartProps extends DrillableProps {
   title: string
@@ -61,7 +62,14 @@ export function CategoryBarChart({ title, points, kind, currencyCode, selectedKe
     <div>
       <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart data={points} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 4 }} barSize={BAR_HEIGHT} barGap={12}>
+        <BarChart
+          data={points}
+          layout="vertical"
+          margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
+          barSize={BAR_HEIGHT}
+          barGap={12}
+          style={onSelect ? { cursor: 'pointer' } : undefined}
+        >
           <XAxis type="number" hide domain={[0, maxTotal * 1.15]} />
           <YAxis
             type="category"
@@ -75,10 +83,6 @@ export function CategoryBarChart({ title, points, kind, currencyCode, selectedKe
           <Bar
             dataKey="total"
             radius={[0, 4, 4, 0]}
-            // A transparent full-width track behind each bar makes the whole row clickable.
-            background={onSelect ? { fill: 'transparent', cursor: 'pointer' } : undefined}
-            style={onSelect ? { cursor: 'pointer' } : undefined}
-            onClick={onSelect ? (_: unknown, index: number) => { const p = points[index]; if (p) onSelect(categoryKey(p.categoryId)) } : undefined}
           >
             {points.map((point) => (
               <Cell
@@ -88,6 +92,7 @@ export function CategoryBarChart({ title, points, kind, currencyCode, selectedKe
               />
             ))}
           </Bar>
+          {onSelect && <ColumnHitTargets count={points.length} layout="vertical" onPick={(i) => onSelect(categoryKey(points[i].categoryId))} />}
         </BarChart>
       </ResponsiveContainer>
     </div>
