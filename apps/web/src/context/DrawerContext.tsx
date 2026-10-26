@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Drawer } from '../components/Drawer'
 
 interface DrawerState {
@@ -17,6 +18,12 @@ const DrawerContext = createContext<DrawerContextValue | null>(null)
 
 export function DrawerProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DrawerState>({ open: false, title: '', content: null })
+  const { pathname } = useLocation()
+
+  // Close the drawer when navigating away from the current view.
+  useEffect(() => {
+    setState((prev) => (prev.open ? { ...prev, open: false, content: null } : prev))
+  }, [pathname])
 
   const openDrawer = useCallback((content: ReactNode, title: string) => {
     setState({ open: true, title, content })
