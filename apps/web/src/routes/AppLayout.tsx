@@ -5,6 +5,7 @@ import { Button } from '../components/Button'
 import { Avatar } from '../components/Avatar'
 import { CloseIcon, HomeIcon, InsightsIcon, LogoutIcon, MenuIcon, SettingsIcon, TransactionIcon } from '../components/icons'
 import { useProfile } from '../hooks/useProfile'
+import { DrawerProvider } from '../context/DrawerContext'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home', icon: HomeIcon },
@@ -110,7 +111,9 @@ export function AppLayout() {
         </Button>
       </aside>
       <div className="app-content">
-        <Outlet />
+        <DrawerProvider>
+          <Outlet />
+        </DrawerProvider>
       </div>
     </div>
   )

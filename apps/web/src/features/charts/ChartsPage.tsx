@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import type { InsightMode } from 'shared-types'
 import { ModeToggle } from '../../components/ModeToggle'
@@ -10,18 +10,18 @@ import { Alert } from '../../components/Alert'
 import { useProfile } from '../../hooks/useProfile'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
-import { useInsightTransactions } from '../../hooks/useInsightTransactions'
 import { useCategoryBreakdown } from '../../hooks/useCategoryBreakdown'
 import { useHeatmap } from '../../hooks/useHeatmap'
 import { useDashboardSummary } from '../../hooks/useDashboardSummary'
 import { useImportantThings } from '../../hooks/useImportantThings'
 import { useTrend } from '../../hooks/useTrend'
+import { useDrawer } from '../../context/DrawerContext'
 import { CategoryBarChart } from './CategoryBarChart'
 import { CalendarHeatmap } from './CalendarHeatmap'
 import { MonthlyBarChart } from './MonthlyBarChart'
 import { DashboardMetrics } from './DashboardMetrics'
 import { IncomeExpenseChart } from './IncomeExpenseChart'
-import { InsightDrillPanel, InsightSplit } from './InsightDrillPanel'
+import { InsightDrillPanel } from './InsightDrillPanel'
 import { categoryKey, rowKind, type DrillSelection } from './drillDown'
 import { CategoryChangesCard, TopExpensesCard, TopIncomeCard, RecurringPaymentsCard } from './ImportantThingsCards'
 
@@ -40,11 +40,20 @@ export function ChartsPage() {
   // `period`, so the chart stays put; picking a period outside the window moves it.
   const [trendAnchor, setTrendAnchor] = useState<string>(period)
   const [activeSection, setActiveSection] = useState<string>('expense')
+  // The currently-selected drill item — used for highlighting and toggling the drawer.
+  const [drill, setDrill] = useState<DrillSelection | null>(null)
   const { profile } = useProfile()
   const { categories } = useCategories()
   const { accounts } = useAccounts()
-  // The clicked item, tagged with the view it was made in so it closes when the view changes.
-  const [drill, setDrill] = useState<(DrillSelection & { view: string }) | null>(null)
+  const { openDrawer, closeDrawer, open: drawerOpen } = useDrawer()
+
+  // When the drawer closes externally (backdrop click, Escape, >> button),
+  // clear the drill selection so the chart item is deselected.
+  useEffect(() => {
+    if (!drawerOpen && drill) {
+      setDrill(null)
+    }
+  }, [drawerOpen, drill])
 
   const summary = useDashboardSummary(mode, period)
   const expenseByCategory = useCategoryBreakdown(mode, period, 'expense')
@@ -77,43 +86,51 @@ export function ChartsPage() {
     setMode(nextMode)
     setPeriod(nextPeriod)
     setTrendAnchor(nextPeriod)
+    setDrill(null)
+    closeDrawer()
   }
 
   const handlePeriodChange = (nextPeriod: string) => {
     setPeriod(nextPeriod)
     if (!trend.points.some((p) => p.period === nextPeriod)) setTrendAnchor(nextPeriod)
+    setDrill(null)
+    closeDrawer()
+  }
+
+  const handleSectionChange = (nextSection: string) => {
+    setActiveSection(nextSection)
+    setDrill(null)
+    closeDrawer()
   }
 
   const currencyCode = profile?.homeCurrencyCode ?? 'USD'
 
-  const viewKey = `${mode}|${period}|${activeSection}`
-  const activeDrill = drill && drill.view === viewKey ? drill : null
-  const drillTransactions = useInsightTransactions(activeDrill?.range ?? null)
   const periodLabel = formatPeriod(mode, period)
   const currentRange = periodRange(mode, period)
   // Recurring payments are detected over the period's last month and the 3 before it.
   const recurringEndMonth = mode === 'monthly' ? period : `${period}-12`
   const recurringRange = { from: periodRange('monthly', shiftPeriod('monthly', recurringEndMonth, -3)).from, to: periodRange('monthly', recurringEndMonth).to }
 
-  // Clicking the selected item again closes the panel.
-  // Every drill-down fetches the whole period (month-split portions are dated
-  // relative to the fetched range) and filters, so its totals match the charts.
+  // Clicking the selected item again closes the drawer.
+  // InsightDrillPanel fetches its own transactions — no stale snapshot problem.
   const toggleDrill = (selection: DrillSelection) => {
-    setDrill(activeDrill && activeDrill.cardId === selection.cardId && activeDrill.itemKey === selection.itemKey ? null : { ...selection, view: viewKey })
+    if (drill && drill.cardId === selection.cardId && drill.itemKey === selection.itemKey) {
+      setDrill(null)
+      closeDrawer()
+    } else {
+      setDrill(selection)
+      openDrawer(
+        <InsightDrillPanel
+          range={selection.range}
+          match={selection.match}
+          categories={categories}
+          accounts={accounts}
+          currencyCode={currencyCode}
+        />,
+        selection.title,
+      )
+    }
   }
-
-  const drillPanel = activeDrill ? (
-    <InsightDrillPanel
-      title={activeDrill.title}
-      rows={drillTransactions.rows.filter(activeDrill.match)}
-      loading={drillTransactions.loading}
-      error={drillTransactions.error}
-      categories={categories}
-      accounts={accounts}
-      currencyCode={currencyCode}
-      onClose={() => setDrill(null)}
-    />
-  ) : null
 
   // Columns outside the user's data are dropped rather than drawn empty, and the
   // arrows stop at the first/last period that has transactions.
@@ -142,6 +159,8 @@ export function ChartsPage() {
     ? `${trendPoints[0].label} ${trendPoints[0].period.slice(0, 4)} – ${trendPoints[trendPoints.length - 1].label} ${trendPoints[trendPoints.length - 1].period.slice(0, 4)}`
     : ''
 
+  const selectedIn = (cardId: string) => (drill?.cardId === cardId ? drill.itemKey : null)
+
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
       <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 'var(--space-4)' }}>Insights</h1>
@@ -162,7 +181,7 @@ export function ChartsPage() {
             points={trendPoints}
             currencyCode={currencyCode}
             currentPeriod={period}
-            onSelectPeriod={setPeriod}
+            onSelectPeriod={handlePeriodChange}
             onPageBack={canPageBack ? pageBack : undefined}
             onPageForward={canPageForward ? pageForward : undefined}
             stepLabel={mode === 'monthly' ? '4 months' : '1 year'}
@@ -176,7 +195,7 @@ export function ChartsPage() {
         <SectionNav
           sections={NAV_SECTIONS}
           activeId={activeSection}
-          onChange={setActiveSection}
+          onChange={handleSectionChange}
         />
       </div>
 
@@ -184,96 +203,84 @@ export function ChartsPage() {
         const kind = activeSection
         const byCategory = kind === 'expense' ? expenseByCategory : incomeByCategory
         const heatmap = kind === 'expense' ? expenseHeatmap : incomeHeatmap
-        const panelFor = (cardId: string) => (activeDrill?.cardId === cardId ? drillPanel : null)
-        const selectedIn = (cardId: string) => (activeDrill?.cardId === cardId ? activeDrill.itemKey : null)
         return (
           <section style={{ marginBottom: 'var(--space-5)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <InsightSplit panel={panelFor('category')}>
-                <Card style={{ padding: 'var(--space-4)' }}>
-                  <CategoryBarChart
-                    title="By Category"
-                    points={byCategory.points}
-                    kind={kind}
-                    currencyCode={currencyCode}
-                    selectedKey={selectedIn('category')}
-                    onSelect={(key) => {
-                      const point = byCategory.points.find((p) => categoryKey(p.categoryId) === key)
-                      toggleDrill({ cardId: 'category', itemKey: key, title: `${point?.categoryName ?? 'Uncategorized'} · ${periodLabel}`, range: currentRange, match: (row) => rowKind(row) === kind && categoryKey(row.categoryId) === key })
-                    }}
-                  />
-                </Card>
-              </InsightSplit>
-              <InsightSplit panel={panelFor('calendar')}>
-                <Card style={{ padding: 'var(--space-4)' }}>
-                  {mode === 'yearly' ? (
-                    <MonthlyBarChart
-                      title="By Month"
-                      days={heatmap.days}
-                      kind={kind}
-                      currencyCode={currencyCode}
-                      selectedKey={selectedIn('calendar')}
-                      onSelect={(monthKey) =>
-                        toggleDrill({ cardId: 'calendar', itemKey: monthKey, title: formatPeriod('monthly', monthKey), range: currentRange, match: (row) => rowKind(row) === kind && row.date.startsWith(monthKey) })
-                      }
-                    />
-                  ) : (
-                    <CalendarHeatmap
-                      title="By Date"
-                      days={heatmap.days}
-                      kind={kind}
-                      currencyCode={currencyCode}
-                      period={period}
-                      mode={mode}
-                      selectedKey={selectedIn('calendar')}
-                      onSelect={(date) =>
-                        toggleDrill({ cardId: 'calendar', itemKey: date, title: format(parseISO(date), 'EEEE, MMMM d'), range: currentRange, match: (row) => rowKind(row) === kind && row.date === date })
-                      }
-                    />
-                  )}
-                </Card>
-              </InsightSplit>
-              <InsightSplit panel={panelFor('changes')}>
-                <CategoryChangesCard
-                  changes={importantThings.categoryChanges}
-                  filterKind={kind}
-                  title="Changes"
-                  selectedKey={selectedIn('changes')}
+              <Card style={{ padding: 'var(--space-4)' }}>
+                <CategoryBarChart
+                  title="By Category"
+                  points={byCategory.points}
+                  kind={kind}
+                  currencyCode={currencyCode}
+                  selectedKey={selectedIn('category')}
                   onSelect={(key) => {
-                    const change = importantThings.categoryChanges.find((c) => c.kind === kind && categoryKey(c.categoryId) === key)
-                    toggleDrill({ cardId: 'changes', itemKey: key, title: `${change?.categoryName ?? 'Uncategorized'} · ${periodLabel}`, range: currentRange, match: (row) => rowKind(row) === kind && categoryKey(row.categoryId) === key })
+                    const point = byCategory.points.find((p) => categoryKey(p.categoryId) === key)
+                    toggleDrill({ cardId: 'category', itemKey: key, title: `${point?.categoryName ?? 'Uncategorized'} · ${periodLabel}`, range: currentRange, match: (row) => rowKind(row) === kind && categoryKey(row.categoryId) === key })
                   }}
                 />
-              </InsightSplit>
-              <InsightSplit panel={panelFor('top')}>
-                {kind === 'expense' ? (
-                  <TopExpensesCard
-                    expenses={importantThings.topExpenses}
-                    selectedKey={selectedIn('top')}
-                    onSelect={(description) =>
-                      toggleDrill({ cardId: 'top', itemKey: description, title: `${description} · ${periodLabel}`, range: currentRange, match: (row) => rowKind(row) === kind && row.description === description })
+              </Card>
+              <Card style={{ padding: 'var(--space-4)' }}>
+                {mode === 'yearly' ? (
+                  <MonthlyBarChart
+                    title="By Month"
+                    days={heatmap.days}
+                    kind={kind}
+                    currencyCode={currencyCode}
+                    selectedKey={selectedIn('calendar')}
+                    onSelect={(monthKey) =>
+                      toggleDrill({ cardId: 'calendar', itemKey: monthKey, title: formatPeriod('monthly', monthKey), range: currentRange, match: (row) => rowKind(row) === kind && row.date.startsWith(monthKey) })
                     }
                   />
                 ) : (
-                  <TopIncomeCard
-                    income={importantThings.topIncome}
-                    selectedKey={selectedIn('top')}
-                    onSelect={(description) =>
-                      toggleDrill({ cardId: 'top', itemKey: description, title: `${description} · ${periodLabel}`, range: currentRange, match: (row) => rowKind(row) === kind && row.description === description })
+                  <CalendarHeatmap
+                    title="By Date"
+                    days={heatmap.days}
+                    kind={kind}
+                    currencyCode={currencyCode}
+                    period={period}
+                    mode={mode}
+                    selectedKey={selectedIn('calendar')}
+                    onSelect={(date) =>
+                      toggleDrill({ cardId: 'calendar', itemKey: date, title: format(parseISO(date), 'EEEE, MMMM d'), range: currentRange, match: (row) => rowKind(row) === kind && row.date === date })
                     }
                   />
                 )}
-              </InsightSplit>
+              </Card>
+              <CategoryChangesCard
+                changes={importantThings.categoryChanges}
+                filterKind={kind}
+                title="Changes"
+                selectedKey={selectedIn('changes')}
+                onSelect={(key) => {
+                  const change = importantThings.categoryChanges.find((c) => c.kind === kind && categoryKey(c.categoryId) === key)
+                  toggleDrill({ cardId: 'changes', itemKey: key, title: `${change?.categoryName ?? 'Uncategorized'} · ${periodLabel}`, range: currentRange, match: (row) => rowKind(row) === kind && categoryKey(row.categoryId) === key })
+                }}
+              />
+              {kind === 'expense' ? (
+                <TopExpensesCard
+                  expenses={importantThings.topExpenses}
+                  selectedKey={selectedIn('top')}
+                  onSelect={(description) =>
+                    toggleDrill({ cardId: 'top', itemKey: description, title: `${description} · ${periodLabel}`, range: currentRange, match: (row) => rowKind(row) === kind && row.description === description })
+                  }
+                />
+              ) : (
+                <TopIncomeCard
+                  income={importantThings.topIncome}
+                  selectedKey={selectedIn('top')}
+                  onSelect={(description) =>
+                    toggleDrill({ cardId: 'top', itemKey: description, title: `${description} · ${periodLabel}`, range: currentRange, match: (row) => rowKind(row) === kind && row.description === description })
+                  }
+                />
+              )}
               {kind === 'expense' && (
-                <InsightSplit panel={panelFor('recurring')}>
-                  <RecurringPaymentsCard
-                    payments={importantThings.recurringPayments}
-                    selectedKey={selectedIn('recurring')}
-                    onSelect={(description) =>
-                      toggleDrill({ cardId: 'recurring', itemKey: description, title: `${description} · last 4 months`, range: recurringRange, match: (row) => rowKind(row) === 'expense' && row.description === description })
-                    }
-                  />
-                </InsightSplit>
+                <RecurringPaymentsCard
+                  payments={importantThings.recurringPayments}
+                  selectedKey={selectedIn('recurring')}
+                  onSelect={(description) =>
+                    toggleDrill({ cardId: 'recurring', itemKey: description, title: `${description} · last 4 months`, range: recurringRange, match: (row) => rowKind(row) === 'expense' && row.description === description })
+                  }
+                />
               )}
             </div>
           </section>
