@@ -16,7 +16,7 @@
 
 :root {
   /* ── 1. Primitives: iOS 26 system colors (HIG > Color > Specifications) ── */
-  --sys-red: #ff383c;
+  --sys-red: #dc2626;
   --sys-orange: #ff8d28;
   --sys-yellow: #ffcc00;
   --sys-green: #34c759;
@@ -31,7 +31,7 @@
 
   /* Increased-contrast variants — Apple's accessible versions, used wherever
      a system color sits on text-size content so it passes WCAG 4.5:1. */
-  --sys-red-ic: #e9152d;
+  --sys-red-ic: #b91c1c;
   --sys-green-ic: #008932;
   --sys-indigo-ic: #564ade;
   --sys-orange-ic: #c55300;
@@ -40,17 +40,21 @@
   /* FinAI brand: navy. Apple has no navy system color, so the brand hue gets
      its own primitive set, built to the same rules as Apple's: a light
      variant, a brighter dark-mode variant, and increased-contrast twins. */
-  --brand-navy: #1e3a8a;
-  --brand-navy-dark-fill: #3256c8;
-  --brand-navy-dark-text: #8fa8ff;
-  --brand-navy-ic: #142a66;
-  --brand-navy-ic-dark-fill: #2a49b0;
-  --brand-navy-ic-dark-text: #b4c6ff;
+  /* FinAI brand: forest green. Creates a unified green family with the income
+     indicator; classic red stays as the sole warm accent for expenses. Apple
+     has no forest-green system color, so the brand hue gets its own primitive
+     set built to the same rules: a dark-mode fill lift, and IC twins. */
+  --brand-navy: #14532d;
+  --brand-navy-dark-fill: #166534;
+  --brand-navy-dark-text: #6ee7b7;
+  --brand-navy-ic: #0f3d24;
+  --brand-navy-ic-dark-fill: #125a2d;
+  --brand-navy-ic-dark-text: #86efac;
   /* Money-in green: positive amounts and income series. Dark mode lifts it so it reads on black. */
-  --brand-green: #358c15;
-  --brand-green-dark: #5fbf3a;
-  --brand-green-ic: #2a7010;
-  --brand-green-ic-dark: #7fd65e;
+  --brand-green: #16a34a;
+  --brand-green-dark: #4ade80;
+  --brand-green-ic: #127a35;
+  --brand-green-ic-dark: #bbf7d0;
 
   --sys-gray: #8e8e93;
   --sys-gray-2: #aeaeb2;
@@ -168,12 +172,12 @@
   --type-caption-1: 400 0.75rem/1rem var(--font-text);
   --type-caption-2: 400 0.6875rem/0.8125rem var(--font-text);
 
-  /* Categorical chart palette — Apple system hues in a fixed, CVD-aware
-     order (assign in sequence; never cycle within a chart's first 8). */
+  /* Categorical chart palette — CVD-aware order.
+     series-1 is forest green, series-2 uses blue for contrast. */
   --series-1: var(--brand-navy);
-  --series-2: var(--sys-orange-ic);
+  --series-2: var(--sys-blue-ic);
   --series-3: #00a3b0;
-  --series-4: #d9a300;
+  --series-4: #8b5cf6;
   --series-5: var(--sys-pink);
   --series-6: var(--sys-green-ic);
   --series-7: var(--sys-purple);
@@ -208,7 +212,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --sys-red: #ff4245;
+    --sys-red: #ef4444;
     --sys-orange: #ff9230;
     --sys-yellow: #ffd600;
     --sys-green: #30d158;
@@ -221,7 +225,7 @@
     --sys-pink: #ff375f;
     --sys-brown: #b78a66;
 
-    --sys-red-ic: #ff6165;
+    --sys-red-ic: #f87171;
     --sys-green-ic: #4ad968;
     --sys-indigo-ic: #a7aaff;
     --sys-orange-ic: #ffa056;
@@ -277,7 +281,7 @@
 
     --series-1: var(--brand-navy-dark-text);
     --series-3: var(--sys-teal);
-    --series-4: var(--sys-yellow);
+    --series-4: #a78bfa; /* lifted purple for dark bg */
   }
 }
 
