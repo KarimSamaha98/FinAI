@@ -56,6 +56,18 @@
   --brand-green-ic: #127a35;
   --brand-green-ic-dark: #bbf7d0;
 
+  /* Income (teal) and expense (coral) — muted, modern tones that
+     read as money flow, not error/warning. Kept separate from --status-negative
+     (--danger) so expenses never look like failures. */
+  --sys-income: #3a8a7a;
+  --sys-income-dark: #5ab8a8;
+  --sys-income-ic: #2d6d60;
+  --sys-income-ic-dark: #7ad4c4;
+  --sys-outflow: #c46a6a;
+  --sys-outflow-dark: #d88a8a;
+  --sys-outflow-ic: #a04848;
+  --sys-outflow-ic-dark: #e8a0a0;
+
   --sys-gray: #8e8e93;
   --sys-gray-2: #aeaeb2;
   --sys-gray-3: #c7c7cc;
@@ -195,9 +207,9 @@
   --accent-contrast: var(--on-tint);
   --danger: var(--status-negative);
   --success: var(--status-positive);
-  /* Amounts: positive in money-in green, negative in red. Net worth stays neutral. */
-  --amount-positive: var(--brand-green);
-  --outflow: var(--status-negative);
+  /* Amounts: income in sage, expense in terracotta — distinct from --danger red. */
+  --amount-positive: var(--sys-income);
+  --outflow: var(--sys-outflow);
   --shadow-glow: var(--focus-ring);
   --font-body: var(--font-text);
   --transition: var(--duration-fast) var(--ease-out);
@@ -266,7 +278,8 @@
 
     --status-positive: var(--sys-green);
     --status-negative: var(--sys-red-ic);
-    --amount-positive: var(--brand-green-dark);
+    --amount-positive: var(--sys-income-dark);
+    --outflow: var(--sys-outflow-dark);
 
     --glass-bg: rgba(44, 44, 48, 0.62);
     --glass-bg-strong: rgba(44, 44, 48, 0.88);
@@ -293,7 +306,8 @@
     --tint-fill: var(--brand-navy-ic);
     --tint-text: var(--brand-navy-ic);
     --stroke-control: var(--separator-opaque);
-    --amount-positive: var(--brand-green-ic);
+    --amount-positive: var(--sys-income-ic);
+    --outflow: var(--sys-outflow-ic);
     --glass-bg: rgba(250, 250, 252, 0.94);
     --glass-bg-strong: rgba(250, 250, 252, 0.98);
   }
@@ -305,7 +319,8 @@
     --tint-fill: var(--brand-navy-ic-dark-fill);
     --tint-text: var(--brand-navy-ic-dark-text);
     --stroke-control: var(--separator-opaque);
-    --amount-positive: var(--brand-green-ic-dark);
+    --amount-positive: var(--sys-income-ic-dark);
+    --outflow: var(--sys-outflow-ic-dark);
     --glass-bg: rgba(44, 44, 48, 0.96);
     --glass-bg-strong: rgba(44, 44, 48, 0.98);
   }
