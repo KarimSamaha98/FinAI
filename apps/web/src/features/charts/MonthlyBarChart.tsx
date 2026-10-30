@@ -3,14 +3,18 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import type { AmountKind, HeatmapDay } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { format, parseISO } from 'date-fns'
-import type { DrillableProps } from './drillDown'
 import { ColumnHitTargets } from './ColumnHitTargets'
 
-interface MonthlyBarChartProps extends DrillableProps {
+interface MonthlyBarChartProps {
   title: string
   days: HeatmapDay[]
   kind: AmountKind
   currencyCode: string
+  loading?: boolean
+  /** Called with the month key ('yyyy-MM') when a bar is clicked. */
+  onSelect?: (monthKey: string) => void
+  /** The currently-selected month key — highlighted with an accent ring. */
+  selectedKey?: string | null
 }
 
 interface TooltipPayloadEntry {
@@ -38,7 +42,7 @@ function ChartTooltip({ active, payload, currencyCode }: { active?: boolean; pay
   )
 }
 
-export function MonthlyBarChart({ title, days, kind, currencyCode, selectedKey, onSelect }: MonthlyBarChartProps) {
+export function MonthlyBarChart({ title, days, kind, currencyCode, loading, onSelect, selectedKey }: MonthlyBarChartProps) {
   const monthlyData = useMemo(() => {
     const totals = new Map<string, number>()
     for (const day of days) {
@@ -53,6 +57,31 @@ export function MonthlyBarChart({ title, days, kind, currencyCode, selectedKey, 
         total,
       }))
   }, [days])
+
+  if (loading) {
+    const skeletonData = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((label, i) => ({
+      monthKey: 'skel',
+      monthLabel: label,
+      total: 400 + (i % 5) * 120,
+    }))
+
+    return (
+      <div>
+        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={skeletonData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barSize={28} barGap={4}>
+            <XAxis dataKey="monthLabel" stroke="var(--border)" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} tickLine={false} />
+            <YAxis stroke="var(--border)" tick={false} tickLine={false} width={48} />
+            <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+              {skeletonData.map((_, i) => (
+                <Cell key={i} fill="var(--surface-raised)" />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  }
 
   if (monthlyData.length === 0) {
     return (
@@ -97,13 +126,19 @@ export function MonthlyBarChart({ title, days, kind, currencyCode, selectedKey, 
             cursor={{ fill: 'var(--border)', opacity: 0.2 }}
             isAnimationActive={false}
           />
-          <Bar
-            dataKey="total"
-            radius={[4, 4, 0, 0]}
-          >
-            {monthlyData.map((m, i) => (
-              <Cell key={i} fill={barColor} opacity={selectedKey && selectedKey !== m.monthKey ? 0.35 : 1} />
-            ))}
+          <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+            {monthlyData.map((m, i) => {
+              const isSelected = selectedKey === m.monthKey
+              return (
+                <Cell
+                  key={i}
+                  fill={barColor}
+                  opacity={selectedKey && !isSelected ? 0.45 : 1}
+                  stroke={isSelected ? 'var(--accent)' : 'none'}
+                  strokeWidth={isSelected ? 2 : 0}
+                />
+              )
+            })}
           </Bar>
           {onSelect && <ColumnHitTargets count={monthlyData.length} onPick={(i) => onSelect(monthlyData[i].monthKey)} />}
         </BarChart>

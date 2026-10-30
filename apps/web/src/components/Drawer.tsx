@@ -54,7 +54,6 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
           target.closest('a') ||
           target.closest('[role="button"]') ||
           target.closest('.chart-hit-targets') ||
-          target.closest('.category-change-tile') ||
           target.closest('.txn-row') ||
           target.closest('.heatmap-day') ||
           getComputedStyle(target).cursor === 'pointer'

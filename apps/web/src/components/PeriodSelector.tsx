@@ -26,7 +26,10 @@ export function PeriodSelector({ mode, period, onChange }: PeriodSelectorProps) 
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         onChange(shiftPeriod(mode, period, -1))
       } else if (e.key === 'ArrowRight') {
@@ -43,6 +46,8 @@ export function PeriodSelector({ mode, period, onChange }: PeriodSelectorProps) 
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         style={{
           padding: '0.5rem 1rem',
           font: 'inherit',
@@ -65,6 +70,7 @@ export function PeriodSelector({ mode, period, onChange }: PeriodSelectorProps) 
       {open && (
         <div
           ref={panelRef}
+          role="listbox"
           style={{
             position: 'absolute',
             zIndex: 20,
@@ -98,9 +104,9 @@ function MonthlyPicker({ period, onPick }: { period: string; onPick: (p: string)
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-        <button type="button" onClick={() => setYear((y) => y - 1)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1rem' }}>‹</button>
+        <button type="button" onClick={() => setYear((y) => y - 1)} aria-label="Previous year" style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1rem' }}>‹</button>
         <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{year}</span>
-        <button type="button" onClick={() => setYear((y) => y + 1)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1rem' }}>›</button>
+        <button type="button" onClick={() => setYear((y) => y + 1)} aria-label="Next year" style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1rem' }}>›</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.25rem' }}>
         {MONTH_NAMES.map((name, i) => {
@@ -111,6 +117,8 @@ function MonthlyPicker({ period, onPick }: { period: string; onPick: (p: string)
             <button
               key={name}
               type="button"
+              role="option"
+              aria-selected={active}
               onClick={() => onPick(p)}
               style={{
                 padding: '0.4rem',
@@ -143,9 +151,9 @@ function YearlyPicker({ period, onPick }: { period: string; onPick: (p: string) 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-        <button type="button" onClick={() => setBaseYear((y) => y - 12)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1rem' }}>‹</button>
+        <button type="button" onClick={() => setBaseYear((y) => y - 12)} aria-label="Previous 12 years" style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1rem' }}>‹</button>
         <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{baseYear} – {baseYear + 11}</span>
-        <button type="button" onClick={() => setBaseYear((y) => y + 12)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1rem' }}>›</button>
+        <button type="button" onClick={() => setBaseYear((y) => y + 12)} aria-label="Next 12 years" style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontSize: '1rem' }}>›</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.25rem' }}>
         {years.map((y) => {
@@ -154,6 +162,8 @@ function YearlyPicker({ period, onPick }: { period: string; onPick: (p: string) 
             <button
               key={y}
               type="button"
+              role="option"
+              aria-selected={active}
               onClick={() => onPick(String(y))}
               style={{
                 padding: '0.4rem',

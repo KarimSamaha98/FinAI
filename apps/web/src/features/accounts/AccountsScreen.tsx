@@ -78,8 +78,14 @@ export function AccountsScreen() {
       { replace: true },
     )
   }
-  const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('current-month'))
-  const [categoryIds, setCategoryIds] = useState<string[]>([])
+  // Deep-link filters from other views (Insights "Show All" hands off its
+  // drill: ?from=&to=&category=). Read once on mount — the ledger's filters
+  // are local state after arrival.
+  const urlFrom = searchParams.get('from') ?? undefined
+  const urlTo = searchParams.get('to') ?? undefined
+  const urlCategory = searchParams.get('category') ?? null
+  const [dateRange, setDateRange] = useState<DateRange>(() => (urlFrom || urlTo ? { from: urlFrom, to: urlTo } : getPresetRange('current-month')))
+  const [categoryIds, setCategoryIds] = useState<string[]>(() => (urlCategory ? [urlCategory] : []))
   const [view, setView] = useState<TransactionView>('real')
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>(DEFAULT_SORT_FIELD)
@@ -300,7 +306,7 @@ export function AccountsScreen() {
 
       <UncategorizedNotice count={uncategorized.length} onOpen={openCategorizeDeck} />
       <div className="filter-bar" style={{ margin: 'var(--space-4) 0' }}>
-        <DateRangePresetPicker value={dateRange} onChange={setDateRange} />
+        <DateRangePresetPicker value={dateRange} onChange={setDateRange} defaultPreset={urlFrom || urlTo ? 'custom' : 'current-month'} />
         <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
         <SelectDropdown<TransactionView>
           label="View"
