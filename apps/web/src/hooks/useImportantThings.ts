@@ -6,7 +6,6 @@ const EMPTY_RESPONSE: ImportantThingsResponse = {
   categoryChanges: [],
   topExpenses: [],
   topIncome: [],
-  recurringPayments: [],
 }
 
 export function useImportantThings(mode: InsightMode, period: string) {

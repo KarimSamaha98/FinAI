@@ -2,15 +2,19 @@ import { useMemo, useState } from 'react'
 import type { AmountKind, HeatmapDay, InsightMode } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns'
-import type { DrillableProps } from './drillDown'
 
-interface CalendarHeatmapProps extends DrillableProps {
+interface CalendarHeatmapProps {
   title: string
   days: HeatmapDay[]
   kind: AmountKind
   currencyCode: string
   period: string
   mode: InsightMode
+  loading?: boolean
+  /** Called with the date string when a day cell is clicked. */
+  onSelect?: (date: string) => void
+  /** The currently-selected date — highlighted with an accent ring. */
+  selectedKey?: string | null
 }
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -52,7 +56,7 @@ function buildMonthGrid(date: Date, daysByDate: Map<string, HeatmapDay>): DayCel
   return weeks
 }
 
-function DayCellBlock({ cell, baseColor, maxAmount, onHover, onLeave }: { cell: DayCell; baseColor: string; maxAmount: number; onHover: (e: React.MouseEvent) => void; onLeave: () => void }) {
+function DayCellBlock({ cell, baseColor, maxAmount, onHover, onLeave, onClick }: { cell: DayCell; baseColor: string; maxAmount: number; onHover: (e: React.MouseEvent) => void; onLeave: () => void; onClick?: () => void }) {
   const isEmpty = cell.dayNum === 0
   const hasData = cell.day !== null
   const opacity = hasData ? Math.max(0.15, Math.sqrt(cell.day!.total / maxAmount)) : 1
@@ -74,6 +78,7 @@ function DayCellBlock({ cell, baseColor, maxAmount, onHover, onLeave }: { cell: 
       }}
       onMouseEnter={onHover}
       onMouseLeave={onLeave}
+      onClick={hasData && onClick ? onClick : undefined}
     >
       <div
         style={{
@@ -100,7 +105,7 @@ function DayCellBlock({ cell, baseColor, maxAmount, onHover, onLeave }: { cell: 
   )
 }
 
-export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode, selectedKey, onSelect }: CalendarHeatmapProps) {
+export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode, loading, onSelect, selectedKey }: CalendarHeatmapProps) {
   const [tooltip, setTooltip] = useState<{ date: string; amount: string; x: number; y: number } | null>(null)
 
   const maxAmount = useMemo(() => Math.max(...days.map((d) => d.total), 1), [days])
@@ -115,12 +120,30 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode,
 
   const calendarGrid = useMemo(() => buildMonthGrid(parseISO(period + '-01'), daysByDate), [period, daysByDate])
 
+  if (loading) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
+          {WEEKDAYS.map((day, i) => (
+            <div key={i} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', padding: '4px 0' }}>{day}</div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+          {Array.from({ length: 35 }).map((_, i) => (
+            <div key={i} style={{ height: '40px', borderRadius: '6px', background: 'var(--surface-raised)' }} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   if (mode === 'yearly') {
     const year = Number(period)
     const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1))
 
     return (
-      <div style={{ position: 'relative' }}>
+      <div className="insight-heatmap" style={{ position: 'relative' }}>
         <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)' }}>
           {months.map((monthDate, idx) => {
@@ -148,6 +171,7 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode,
                           }
                         }}
                         onLeave={() => setTooltip(null)}
+                        onClick={() => cell.day && onSelect?.(cell.date)}
                       />
                     ))
                   )}
@@ -167,9 +191,8 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode,
     )
   }
 
-  // Monthly mode
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="insight-heatmap" style={{ position: 'relative' }}>
       <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{title}</h4>
       <div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
@@ -187,11 +210,11 @@ export function CalendarHeatmap({ title, days, kind, currencyCode, period, mode,
               return (
                 <div
                   key={`${weekIndex}-${dayIndex}`}
-                  className={`heatmap-day${selectedKey === date ? ' is-selected' : ''}`}
+                  className={`heatmap-day${hasData && onSelect && selectedKey === date ? ' is-selected' : ''}`}
                   role={hasData && onSelect ? 'button' : undefined}
                   tabIndex={hasData && onSelect ? 0 : undefined}
+                  aria-pressed={hasData && onSelect && selectedKey !== undefined ? selectedKey === date : undefined}
                   aria-label={hasData && onSelect ? `${format(parseISO(date), 'MMM d')}: ${formatCurrency(day.total, currencyCode)}` : undefined}
-                  aria-pressed={hasData && onSelect ? selectedKey === date : undefined}
                   onClick={hasData && onSelect ? () => onSelect(date) : undefined}
                   onKeyDown={hasData && onSelect ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(date) } } : undefined}
                   style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', position: 'relative', cursor: hasData ? 'pointer' : 'default', visibility: isEmpty ? 'hidden' : 'visible' }}

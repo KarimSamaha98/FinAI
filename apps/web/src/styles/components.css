@@ -2803,76 +2803,92 @@ dialog::backdrop {
   transform: none;
 }
 
-/* Insights → Changes: up to 4 equal tiles per row; a short row keeps the same
-   tile width instead of stretching. Two per row on narrow screens. */
-.category-changes-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-3);
-}
+/* ── Right-side drawer (overlays content + nav rail) ────────────── */
+/* A slide-from-right drawer for detail views. Uses the same spring easing
+   and z-index layering as the mobile nav drawer. The scrim dismisses on
+   click; Escape and the close button also close it. */
 
-@media (max-width: 560px) {
-  .category-changes-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* ── Insights drill-down ──────────────────────────────────────────────── */
-/* Clicking an item narrows its card and opens that item's transactions to
-   the right. The panel matches the card's height (the card sets the row
-   height; the panel's list scrolls inside it). Narrow screens stack it below. */
-
-.insight-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-}
-
-.insight-split.is-open {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-.insight-split-main {
-  min-width: 0;
-}
-
-.insight-split-main > .card {
-  height: 100%;
-}
-
-.insight-split-panel {
-  position: relative;
-  min-width: 0;
-  min-height: 16rem;
-}
-
-.insight-drill {
-  position: absolute;
-  inset: 0;
+.drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  width: min(26rem, 92vw);
   display: flex;
   flex-direction: column;
-  padding: var(--space-3) var(--space-3) 0;
-  overflow: hidden;
-  animation: insight-drill-in var(--duration-fast) var(--ease-out);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-edge);
+  padding-right: max(var(--space-3), env(safe-area-inset-right));
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform var(--duration-spring) var(--spring), visibility 0s linear var(--duration-spring);
 }
 
-@keyframes insight-drill-in {
-  from { opacity: 0; transform: translateX(8px); }
+.drawer-panel.is-open {
+  transform: translateX(0);
+  visibility: visible;
+  transition: transform var(--duration-spring) var(--spring), visibility 0s;
 }
 
-.insight-drill-header {
+.drawer-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 0 var(--space-1) var(--space-2);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--separator);
 }
 
-.insight-drill-heading {
+.drawer-close-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--transition), background var(--transition);
+}
+
+.drawer-close-button:hover {
+  color: var(--text);
+  background: var(--fill-tertiary);
+}
+
+.drawer-close-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.drawer-close-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  line-height: 0;
+}
+
+.drawer-close-icon svg {
+  width: 12px;
+  height: 12px;
+  margin-left: -2px;
+}
+
+.drawer-close-icon svg:first-child {
+  margin-left: 0;
+}
+
+.drawer-title {
+  flex: 1 1 auto;
   min-width: 0;
-}
-
-.insight-drill-title {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 600;
@@ -2881,75 +2897,39 @@ dialog::backdrop {
   white-space: nowrap;
 }
 
-.insight-drill-summary {
-  margin: 2px 0 0;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.insight-drill-body {
+.drawer-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-bottom: var(--space-3);
-}
-
-.insight-drill-note {
-  margin: var(--space-3) var(--space-1);
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-@media (max-width: 720px) {
-  .insight-split.is-open {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .insight-split-panel {
-    min-height: 0;
-  }
-
-  .insight-drill {
-    position: static;
-    max-height: 24rem;
-  }
+  padding: var(--space-3) var(--space-4);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .insight-drill {
-    animation: none;
+  .drawer-panel,
+  .drawer-panel.is-open {
+    transition: none;
   }
 }
 
-/* Selected items inside Insights cards. */
-.category-change-tile {
-  min-width: 0;
-  padding: var(--space-3);
-  border: 0;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-  /* A light grey stroke marks the tiles as clickable; the selected tile swaps it for the accent. */
-  box-shadow: inset 0 0 0 1px var(--separator-opaque);
-  transition: box-shadow var(--transition), background var(--transition);
+/* ── Insights drill-down content (inside drawer body) ──────────────── */
+
+.insight-drill-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.category-change-tile:hover {
-  background: var(--fill-quaternary);
+.insight-drill-summary {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
-.category-change-tile:disabled {
-  cursor: default;
-}
-
-.category-change-tile.is-selected {
-  box-shadow: inset 0 0 0 1.5px var(--accent);
-}
-
-.category-change-tile:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.insight-drill-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
 .heatmap-day.is-selected {
@@ -2961,12 +2941,291 @@ dialog::backdrop {
   outline-offset: 2px;
 }
 
-.txn-row.is-selected,
-.txn-row.is-selected:hover {
+
+/* Clickable charts: axis labels sit above the hit targets, so let clicks through them. */
+.recharts-wrapper:has(.chart-hit-targets) text {
+  pointer-events: none;
+}
+
+/* ── Insights page typography hierarchy ──────────────────────────── */
+.insights-period-sentence {
+  font: var(--type-title-3);
+  letter-spacing: -0.01em;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.insights-period-sentence .dropdown-trigger {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  min-height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.insights-period-sentence .dropdown-trigger-chevron {
+  font-size: 0.65rem;
+}
+
+.insights-period-sentence .dropdown-panel {
+  min-width: 14rem;
+}
+
+.insights-period-sentence .dropdown-item {
+  font: var(--type-subhead);
+  font-weight: 400;
+  min-height: auto;
+  padding: 0.4rem 0.65rem;
+}
+
+.insights-period-sentence .dropdown-option-check {
+  font-size: 0.75rem;
+}
+
+/* Flat month/year picker buttons inside the period dropdown panel. */
+.period-picker-btn {
+  padding: 0.35rem 0.25rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: var(--type-subhead);
+  font-weight: 400;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.period-picker-btn:hover {
+  background: var(--fill-tertiary);
+}
+
+.period-picker-btn[data-selected] {
+  color: var(--accent-text);
+  font-weight: 600;
   background: var(--tint-soft);
 }
 
-/* A half-width Changes card fits two tiles per row. */
-.insight-split.is-open .category-changes-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.period-picker-arrow {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+}
+
+.period-picker-arrow:hover {
+  background: var(--fill-tertiary);
+  color: var(--text);
+}
+
+.insights-section-header {
+  font: var(--type-title-3);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.insights-subheader {
+  font: var(--type-subhead);
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin: 0 0 0.15rem 0;
+}
+
+.insights-hint {
+  font: var(--type-subhead);
+  color: var(--label-tertiary);
+  margin: 0 0 var(--space-3) 0;
+}
+
+
+/* Split panel card: the chart defines the row height; when split, a rounded
+   inset panel is absolutely positioned over the right third and scrolls
+   internally — the drawer never stretches the card (chart height is fixed). */
+.split-panel-card {
+  position: relative;
+  /* Guarantees the drawer fits its title, summary and at least two
+     transaction rows even when the chart is short (a few categories),
+     and keeps the card height stable between open and closed states. */
+  min-height: 240px;
+}
+
+.split-panel-chart {
+  width: 100%;
+  min-width: 0;
+  transition: width var(--duration-base) var(--ease-out);
+}
+
+.split-panel-card.is-split .split-panel-chart {
+  width: calc(66.667% - var(--space-3));
+}
+
+.split-panel-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  overflow: hidden;
+  transition: width var(--duration-base) var(--ease-out);
+}
+
+.split-panel-card.is-split .split-panel-drawer {
+  width: 33.333%;
+}
+
+.split-panel-details {
+  width: calc(100% - var(--space-3));
+  margin-left: var(--space-3);
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-grouped);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  animation: popover-in var(--duration-base) var(--spring);
+}
+
+/* Close: content fades out (held mounted by SplitPanelCard) while the
+   drawer collapses to zero width. */
+.split-panel-details.is-closing {
+  animation: popover-out var(--duration-base) var(--ease-out) forwards;
+}
+
+@keyframes popover-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* On narrow screens the drawer takes half the row so its content fits. */
+@media (max-width: 720px) {
+  .split-panel-card.is-split .split-panel-chart {
+    width: calc(50% - var(--space-3));
+  }
+
+  .split-panel-card.is-split .split-panel-drawer {
+    width: 50%;
+  }
+}
+
+/* Scaled-down, single-line rows inside the drawer: category icon, truncated
+   description, amount (the compact DrillPanel row replaces the ledger row). */
+.split-panel-details .insight-drill-content {
+  gap: var(--space-2);
+}
+
+.split-panel-details .insight-drill-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.drill-txn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.drill-txn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.drill-txn:last-child {
+  border-bottom: 0;
+}
+
+.drill-txn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.drill-txn-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.drill-txn-desc {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drill-txn-amount {
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--outflow);
+  white-space: nowrap;
+}
+
+.drill-txn-amount.is-income {
+  color: var(--amount-positive);
+}
+
+.drill-txn-amount.is-zero {
+  color: var(--text-muted);
+}
+
+.drill-show-all {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font: var(--type-footnote);
+  font-weight: 600;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.drill-show-all:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-panel-drawer {
+    transition: none;
+  }
+
+  .split-panel-chart {
+    transition: none;
+  }
+
+  .split-panel-details,
+  .split-panel-details.is-closing {
+    animation: none;
+  }
+}
+
+/* Changes tiles (non-clickable) */
+.changes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 560px) {
+  .changes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.change-tile {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--bg-grouped);
 }

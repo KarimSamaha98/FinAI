@@ -93,24 +93,10 @@ export const TopTransactionSchema = z.object({
 });
 export type TopTransaction = z.infer<typeof TopTransactionSchema>;
 
-export const RecurringPaymentSchema = z.object({
-  description: z.string(),
-  amount: z.number(),
-  currencyCode: CurrencyCodeSchema,
-  occurrenceCount: z.number().int(),
-  monthCount: z.number().int(),
-  categoryId: z.string().uuid().nullable(),
-  categoryName: z.string().nullable(),
-  categoryIcon: CategoryIconKeySchema.nullable(),
-  mostRecentDate: z.string().date(),
-});
-export type RecurringPayment = z.infer<typeof RecurringPaymentSchema>;
-
 export const ImportantThingsResponseSchema = z.object({
   categoryChanges: z.array(CategoryChangeSchema),
   topExpenses: z.array(TopTransactionSchema),
   topIncome: z.array(TopTransactionSchema),
-  recurringPayments: z.array(RecurringPaymentSchema),
 });
 export type ImportantThingsResponse = z.infer<typeof ImportantThingsResponseSchema>;
 

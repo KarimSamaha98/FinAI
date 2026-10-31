@@ -1,3 +1,4 @@
+import { type KeyboardEvent } from 'react'
 import type { InsightMode } from 'shared-types'
 
 interface ModeToggleProps {
@@ -11,6 +12,17 @@ const MODES: { value: InsightMode; label: string }[] = [
 ]
 
 export function ModeToggle({ mode, onChange }: ModeToggleProps) {
+  const handleKey = (e: KeyboardEvent) => {
+    const idx = MODES.findIndex((m) => m.value === mode)
+    if (e.key === 'ArrowRight' && idx < MODES.length - 1) {
+      e.preventDefault()
+      onChange(MODES[idx + 1].value)
+    } else if (e.key === 'ArrowLeft' && idx > 0) {
+      e.preventDefault()
+      onChange(MODES[idx - 1].value)
+    }
+  }
+
   return (
     <div
       className="insight-mode-toggle"
@@ -21,6 +33,7 @@ export function ModeToggle({ mode, onChange }: ModeToggleProps) {
         overflow: 'hidden',
       }}
       role="tablist"
+      onKeyDown={handleKey}
     >
       {MODES.map(({ value, label }) => {
         const active = value === mode
@@ -30,6 +43,7 @@ export function ModeToggle({ mode, onChange }: ModeToggleProps) {
             type="button"
             role="tab"
             aria-selected={active}
+            tabIndex={active ? 0 : -1}
             onClick={() => onChange(value)}
             style={{
               padding: '0.5rem 1.25rem',

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { and, gte, lte, max, min } from 'drizzle-orm'
-import { format, parseISO, subMonths, startOfMonth, endOfMonth, endOfYear } from 'date-fns'
+import { max, min } from 'drizzle-orm'
+import { format, parseISO, subMonths, endOfMonth, endOfYear } from 'date-fns'
 import type {
   AmountKind,
   BucketGranularity,
@@ -12,7 +12,6 @@ import type {
   HeatmapResponse,
   ImportantThingsResponse,
   InsightMode,
-  RecurringPayment,
   TimeseriesResponse,
   TopTransaction,
   TransactionView,
@@ -181,9 +180,8 @@ export class ChartAggregationService {
     const categoryChanges = await this.detectCategoryChanges(userId, mode, currentRows, lookbackRows, lookbackPeriods)
     const topExpenses = await this.detectTopTransactions(userId, currentRows, 'expense')
     const topIncome = await this.detectTopTransactions(userId, currentRows, 'income')
-    const recurringPayments = await this.detectRecurringPayments(userId, currentRange)
 
-    return { categoryChanges, topExpenses, topIncome, recurringPayments }
+    return { categoryChanges, topExpenses, topIncome }
   }
 
   async getTrend(
@@ -443,81 +441,6 @@ export class ChartAggregationService {
       }
 
       return results.sort((a, b) => b.amount - a.amount).slice(0, 5)
-    })
-  }
-
-  private async detectRecurringPayments(
-    userId: string,
-    currentRange: { from: string; to: string },
-  ): Promise<RecurringPayment[]> {
-    const lookbackMonths = 3
-    const [year, month] = currentRange.to.split('-').map(Number)
-    const endDate = new Date(year, month - 1, 1)
-    const startDate = subMonths(endDate, lookbackMonths)
-
-    const startDateStr = format(startOfMonth(startDate), 'yyyy-MM-dd')
-    const endDateStr = format(endOfMonth(endDate), 'yyyy-MM-dd')
-
-    return runInTenantContext(this.db, userId, async (tx) => {
-      const rows = await tx
-        .select()
-        .from(transactions)
-        .where(
-          and(
-            gte(transactions.date, startDateStr),
-            lte(transactions.date, endDateStr),
-          ),
-        )
-
-      const categoryRows = await tx.select().from(categories)
-      const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
-
-      const byDescAmount = new Map<string, { row: typeof rows[0]; count: number; months: Set<string>; mostRecentDate: string }[]>()
-      for (const row of rows) {
-        const amount = Number(row.amount)
-        if (amount >= 0) continue
-        const absAmount = Math.abs(amount)
-        const roundedAmount = Math.round(absAmount * 100) / 100
-        const key = `${row.description.toLowerCase()}|${roundedAmount}`
-        const month = row.date.slice(0, 7)
-
-        if (!byDescAmount.has(key)) {
-          byDescAmount.set(key, [])
-        }
-        const entries = byDescAmount.get(key)!
-        const existing = entries.find((e) => Math.abs(Number(e.row.amount) - amount) < 0.01)
-        if (existing) {
-          existing.count++
-          existing.months.add(month)
-          if (row.date > existing.mostRecentDate) {
-            existing.mostRecentDate = row.date
-          }
-        } else {
-          entries.push({ row, count: 1, months: new Set([month]), mostRecentDate: row.date })
-        }
-      }
-
-      const recurring: RecurringPayment[] = []
-      for (const entries of byDescAmount.values()) {
-        for (const { row, count, months, mostRecentDate } of entries) {
-          if (count >= 3 && months.size >= 3) {
-            const category = row.categoryId ? categoryById.get(row.categoryId) : null
-            recurring.push({
-              description: row.description,
-              amount: Math.abs(Number(row.amount)),
-              currencyCode: row.currencyCode,
-              occurrenceCount: count,
-              monthCount: months.size,
-              categoryId: row.categoryId,
-              categoryName: category?.name ?? null,
-              categoryIcon: (category?.icon ?? null) as CategoryIconKey | null,
-              mostRecentDate,
-            })
-          }
-        }
-      }
-
-      return recurring.sort((a, b) => b.amount - a.amount)
     })
   }
 
