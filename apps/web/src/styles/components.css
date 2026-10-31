@@ -1708,7 +1708,7 @@ dialog::backdrop {
   display: grid;
   /* The amount column has a fixed minimum so the category pill (to its left)
      stays aligned across rows regardless of how many digits each amount has. */
-  grid-template-columns: 96px minmax(0, 1fr) auto minmax(6.5rem, max-content);
+  grid-template-columns: 40px minmax(0, 1fr) auto minmax(6.5rem, max-content);
   grid-template-areas: 'date description chips amount';
   align-items: center;
   column-gap: 16px;
@@ -1748,10 +1748,27 @@ dialog::backdrop {
 
 .txn-row-date {
   grid-area: date;
-  font: var(--type-footnote);
-  font-variant-numeric: tabular-nums;
-  color: var(--txn-muted);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  min-width: 36px;
   white-space: nowrap;
+}
+
+.txn-date-month {
+  font: 600 0.6875rem/1 var(--font-text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txn-muted);
+}
+
+.txn-date-day {
+  margin-top: 2px;
+  font: 700 1.375rem/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--txn-text);
 }
 
 .txn-row-description-cell {
@@ -1838,6 +1855,17 @@ dialog::backdrop {
   height: 13px;
 }
 
+/* Account pill: a 50% layer of the account's card colour over the grey fill. */
+.txn-chip--account.is-tinted {
+  background:
+    linear-gradient(color-mix(in srgb, var(--chip-tint) 50%, transparent), color-mix(in srgb, var(--chip-tint) 50%, transparent)),
+    var(--fill-tertiary);
+}
+
+.txn-chip--account.is-tinted .txn-chip-icon {
+  color: inherit;
+}
+
 /* Account pill and category pill both truncate rather than blow out the row. */
 .txn-chip--account,
 .txn-chip--category {
@@ -1869,10 +1897,14 @@ dialog::backdrop {
   box-shadow: inset 0 0 0 1px var(--separator-opaque);
 }
 
-.txn-category-icon::after {
+/* Hover labels: data-tooltip text beside the element (--left or --right). */
+.has-tooltip {
+  position: relative;
+}
+
+.has-tooltip::after {
   content: attr(data-tooltip);
   position: absolute;
-  right: calc(100% + 6px);
   top: 50%;
   z-index: 2;
   padding: 3px 8px;
@@ -1881,20 +1913,31 @@ dialog::backdrop {
   color: var(--bg);
   font: var(--type-caption-1);
   font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transform: translate(4px, -50%);
   transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
-.txn-category-icon:hover::after {
+.has-tooltip--left::after {
+  right: calc(100% + 6px);
+  transform: translate(4px, -50%);
+}
+
+.has-tooltip--right::after {
+  left: calc(100% + 6px);
+  transform: translate(-4px, -50%);
+}
+
+.has-tooltip:hover::after {
   opacity: 1;
   transform: translate(0, -50%);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .txn-category-icon::after {
+  .has-tooltip::after {
     transition: opacity var(--duration-fast) linear;
     transform: translate(0, -50%);
   }
@@ -1929,17 +1972,33 @@ dialog::backdrop {
    (kind + category icon) sit at the end of the date line, under the amount. */
 @container (max-width: 720px) {
   .txn-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
     grid-template-areas:
-      'description amount'
-      'date chips';
+      'date description amount'
+      'date description chips';
     column-gap: 12px;
     row-gap: 4px;
     padding: 10px 12px;
   }
 
   .txn-row-amount {
+    align-self: end;
+  }
+
+  .txn-row-chips {
     align-self: start;
+  }
+
+  /* Linked/Split collapse to their icon so the description keeps its width. */
+  .txn-chip--kind {
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    justify-content: center;
+  }
+
+  .txn-chip--kind .txn-chip-label {
+    display: none;
   }
 }
 
