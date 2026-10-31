@@ -30,11 +30,12 @@ const MIN_YEARLY_BARS = 6
 
 /** Wraps a Top-aggregate (latest occurrence + summed amount) so it renders
     through the standard ledger `TransactionRow`. */
-function topTxnRow(item: TopTransaction): DisplayRow {
+/** The API reports top totals as positive amounts; expenses are signed negative so the row shows them in the expense colour. */
+function topTxnRow(item: TopTransaction, kind: 'expense' | 'income'): DisplayRow {
   return {
     kind: 'plain',
     date: item.mostRecentDate,
-    amount: item.amount,
+    amount: kind === 'expense' ? -Math.abs(item.amount) : Math.abs(item.amount),
     currencyCode: item.currencyCode,
     description: item.description,
     categoryId: item.categoryId,
@@ -266,28 +267,6 @@ export function ChartsPage() {
         currencyCode={currencyCode}
       />
 
-      {/* Expenses — Top Expenses */}
-      <div>
-        <Card style={{ padding: 'var(--space-4)' }}>
-          <h4 className="insights-subheader">Top Expenses</h4>
-          {importantThings.loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
-          {!importantThings.loading && importantThings.topExpenses.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No expenses for this period.</p>}
-          {!importantThings.loading && importantThings.topExpenses.length > 0 && (
-            <ul className="txn-list">
-              {importantThings.topExpenses.map((item) => (
-                <TransactionRow
-                  key={`${item.description}-${item.mostRecentDate}`}
-                  row={topTxnRow(item)}
-                  categories={categories}
-                  accounts={accounts}
-                  showAccount={false}
-                />
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
-
       {/* Expenses | Income: every section below belongs to the selected side */}
       <SegmentedControl
         value={flowTab}
@@ -352,6 +331,28 @@ export function ChartsPage() {
             />
           )}
         </SplitPanelCard>
+      </div>
+
+      {/* Expenses — Top Expenses */}
+      <div style={{ marginTop: 'var(--space-5)' }}>
+        <Card style={{ padding: 'var(--space-4)' }}>
+          <h4 className="insights-subheader">Top Expenses</h4>
+          {importantThings.loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+          {!importantThings.loading && importantThings.topExpenses.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No expenses for this period.</p>}
+          {!importantThings.loading && importantThings.topExpenses.length > 0 && (
+            <ul className="txn-list">
+              {importantThings.topExpenses.map((item) => (
+                <TransactionRow
+                  key={`${item.description}-${item.mostRecentDate}`}
+                  row={topTxnRow(item, 'expense')}
+                  categories={categories}
+                  accounts={accounts}
+                  showAccount={false}
+                />
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
 
         </>
@@ -420,7 +421,7 @@ export function ChartsPage() {
               {importantThings.topIncome.map((item) => (
                 <TransactionRow
                   key={`${item.description}-${item.mostRecentDate}`}
-                  row={topTxnRow(item)}
+                  row={topTxnRow(item, 'income')}
                   categories={categories}
                   accounts={accounts}
                   showAccount={false}
