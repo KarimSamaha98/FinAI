@@ -248,7 +248,7 @@ export function AccountsScreen() {
   if (isFxUnavailable(accountsError) || isFxUnavailable(error) || isFxUnavailable(rowsError)) {
     return (
       <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 640, margin: '0 auto', width: '100%' }}>
-        <h1>Transaction</h1>
+        <h1>Transactions</h1>
         <Card className="home-empty">
           <h2>Fetching data failed</h2>
           <p>We couldn&apos;t fetch exchange rates, so your balances and totals can&apos;t be shown right now.</p>
@@ -273,7 +273,7 @@ export function AccountsScreen() {
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>Transaction</h1>
+        <h1>Transactions</h1>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
           <Button variant="secondary" onClick={() => setShowAccountForm(true)}>
             + Add Account

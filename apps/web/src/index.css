@@ -35,6 +35,7 @@
   --sys-green-ic: #008932;
   --sys-indigo-ic: #564ade;
   --sys-orange-ic: #c55300;
+  --sys-yellow-ic: #a16a00;
   --sys-blue-ic: #1e6ef4;
 
   /* FinAI brand: navy. Apple has no navy system color, so the brand hue gets
@@ -118,6 +119,10 @@
   --status-negative: var(--sys-red-ic);
   --status-negative-fill: var(--sys-red);
   --status-warning: var(--sys-orange-ic);
+  /* Attention: something to act on that isn't an error (e.g. uncategorized
+     transactions). A soft system-yellow fill with the darker yellow for icons. */
+  --status-attention: var(--sys-yellow-ic);
+  --status-attention-soft: color-mix(in srgb, var(--sys-yellow) 20%, transparent);
 
   /* Materials. Liquid Glass is reserved for the floating control layer
      (navigation, popovers, sheets); standard materials sit in the content. */
@@ -241,6 +246,7 @@
     --sys-green-ic: #4ad968;
     --sys-indigo-ic: #a7aaff;
     --sys-orange-ic: #ffa056;
+    --sys-yellow-ic: #fedf43;
     --sys-blue-ic: #5cb8ff;
 
     --sys-gray-2: #636366;
@@ -305,6 +311,7 @@
     --separator: var(--separator-opaque);
     --tint-fill: var(--brand-navy-ic);
     --tint-text: var(--brand-navy-ic);
+    --status-attention-soft: color-mix(in srgb, var(--sys-yellow) 32%, transparent);
     --stroke-control: var(--separator-opaque);
     --amount-positive: var(--sys-income-ic);
     --outflow: var(--sys-outflow-ic);
@@ -318,6 +325,7 @@
     --label-secondary: #ebebf5;
     --tint-fill: var(--brand-navy-ic-dark-fill);
     --tint-text: var(--brand-navy-ic-dark-text);
+    --status-attention-soft: color-mix(in srgb, var(--sys-yellow) 32%, transparent);
     --stroke-control: var(--separator-opaque);
     --amount-positive: var(--sys-income-ic-dark);
     --outflow: var(--sys-outflow-ic-dark);

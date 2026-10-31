@@ -1775,6 +1775,18 @@ dialog::backdrop {
   white-space: nowrap;
 }
 
+.txn-row-subline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 3px;
+}
+
+.txn-row-subline .txn-chip {
+  flex: 0 1 auto;
+}
+
 .txn-row-meta {
   font: var(--type-footnote);
   font-variant-numeric: tabular-nums;
@@ -1832,6 +1844,62 @@ dialog::backdrop {
   max-width: 12rem;
 }
 
+/* Category: a round icon; its name appears on hover, to the left so the
+   list's rounded edge never clips it. */
+.txn-category-icon {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--fill-tertiary);
+  color: var(--txn-muted);
+}
+
+.txn-category-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.txn-category-icon.is-empty {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--separator-opaque);
+}
+
+.txn-category-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 6px);
+  top: 50%;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--label-primary);
+  color: var(--bg);
+  font: var(--type-caption-1);
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(4px, -50%);
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.txn-category-icon:hover::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .txn-category-icon::after {
+    transition: opacity var(--duration-fast) linear;
+    transform: translate(0, -50%);
+  }
+}
+
 /* Uncategorized: an outlined (empty) capsule. */
 .txn-chip--category.is-empty {
   background: transparent;
@@ -1857,22 +1925,21 @@ dialog::backdrop {
   color: var(--txn-muted);
 }
 
-/* Narrow lists: description and date stack, chips drop below. */
+/* Narrow lists: description (+ account) above the date; the compact chips
+   (kind + category icon) sit at the end of the date line, under the amount. */
 @container (max-width: 720px) {
   .txn-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'description amount'
-      'date amount'
-      'chips chips';
+      'date chips';
     column-gap: 12px;
-    row-gap: 2px;
+    row-gap: 4px;
     padding: 10px 12px;
   }
 
-  .txn-row-chips {
-    justify-content: flex-start;
-    margin-top: 6px;
+  .txn-row-amount {
+    align-self: start;
   }
 }
 
@@ -2362,6 +2429,19 @@ dialog::backdrop {
 .notice-box-text span {
   color: var(--text-muted);
   font: var(--type-subhead);
+}
+
+/* Attention variant (e.g. uncategorized transactions): soft system yellow. */
+.notice-box--attention {
+  background: var(--status-attention-soft);
+}
+
+.notice-box--attention:hover {
+  background: color-mix(in srgb, var(--sys-yellow) 30%, transparent);
+}
+
+.notice-box--attention .notice-box-icon {
+  color: var(--status-attention);
 }
 
 /* ── Import review (last step of an import) ────────────────────────────── */

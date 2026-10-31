@@ -76,7 +76,19 @@ export function TransactionRow({
 
         <span className="txn-row-description-cell">
           <span className="txn-row-description">{description}</span>
-          {meta && <span className="txn-row-meta">{meta}</span>}
+          {(showAccount || meta) && (
+            <span className="txn-row-subline">
+              {showAccount && (
+                <span className="txn-chip txn-chip--account">
+                  <span className="txn-chip-icon" aria-hidden="true">
+                    {account ? accountTypeIcon(account.type) : <AccountIcon />}
+                  </span>
+                  <span className="txn-chip-label">{accountName}</span>
+                </span>
+              )}
+              {meta && <span className="txn-row-meta">{meta}</span>}
+            </span>
+          )}
         </span>
 
         <span className="txn-row-chips">
@@ -88,19 +100,9 @@ export function TransactionRow({
               <span className="txn-chip-label">{kindLabel}</span>
             </span>
           )}
-          {showAccount && (
-            <span className="txn-chip txn-chip--account">
-              <span className="txn-chip-icon" aria-hidden="true">
-                {account ? accountTypeIcon(account.type) : <AccountIcon />}
-              </span>
-              <span className="txn-chip-label">{accountName}</span>
-            </span>
-          )}
-          <span className={`txn-chip txn-chip--category${row.categoryId ? '' : ' is-empty'}`}>
-            <span className="txn-chip-icon" aria-hidden="true">
-              <CategoryIcon name={category?.icon ?? null} />
-            </span>
-            <span className="txn-chip-label">{categoryLabel}</span>
+          {/* Icon only; the name shows on hover (the row's aria-label already includes it). */}
+          <span className={`txn-category-icon${row.categoryId ? '' : ' is-empty'}`} data-tooltip={categoryLabel}>
+            <CategoryIcon name={category?.icon ?? null} />
           </span>
         </span>
 
