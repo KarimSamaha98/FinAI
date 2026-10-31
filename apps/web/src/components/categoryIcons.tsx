@@ -230,6 +230,18 @@ const PATHS: Record<CategoryIconKey, ReactNode> = {
       <path d="M8.5 6.5h.01M11.5 6.5h.01" strokeWidth="2.4" />
     </>
   ),
+  laptop: (
+    <>
+      <rect x="4" y="5" width="16" height="11" rx="1.6" />
+      <path d="M2 19h20" />
+    </>
+  ),
+  dots: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12h.01M12 12h.01M16 12h.01" strokeWidth="2.6" />
+    </>
+  ),
   tag: (
     <>
       <path d="M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8Z" />

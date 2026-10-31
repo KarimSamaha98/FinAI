@@ -47,6 +47,8 @@ export const categories = pgTable(
     // attached to the transactions that used it. Uniqueness is enforced only
     // among active rows so a name can be reused after archiving.
     isArchived: boolean('is_archived').notNull().default(false),
+    // User-chosen display order (Settings → Categories).
+    sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

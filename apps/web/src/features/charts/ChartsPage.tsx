@@ -5,6 +5,7 @@ import { PeriodSentence } from '../../components/PeriodSentence'
 import { formatPeriod, periodRange, shiftPeriod } from '../../lib/period'
 import { Card } from '../../components/Card'
 import { Alert } from '../../components/Alert'
+import { SegmentedControl } from '../../components/SegmentedControl'
 import { useProfile } from '../../hooks/useProfile'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
@@ -17,11 +18,10 @@ import { TransactionRow } from '../accounts/TransactionRow'
 import { CategoryBarChart } from './CategoryBarChart'
 import { CalendarHeatmap } from './CalendarHeatmap'
 import { MonthlyBarChart } from './MonthlyBarChart'
-import { DashboardMetrics } from './DashboardMetrics'
+import { SummaryCard } from './DashboardMetrics'
 import { IncomeExpenseChart } from './IncomeExpenseChart'
 import { InsightDrillPanel } from './InsightDrillPanel'
 import { SplitPanelCard } from './SplitPanelCard'
-import { CategoryChangesCard } from './ImportantThingsCards'
 import { categoryKey, rowKind } from './drillDown'
 
 const TREND_WINDOW = { monthly: 12, yearly: 5 } as const
@@ -30,11 +30,12 @@ const MIN_YEARLY_BARS = 6
 
 /** Wraps a Top-aggregate (latest occurrence + summed amount) so it renders
     through the standard ledger `TransactionRow`. */
-function topTxnRow(item: TopTransaction): DisplayRow {
+/** The API reports top totals as positive amounts; expenses are signed negative so the row shows them in the expense colour. */
+function topTxnRow(item: TopTransaction, kind: 'expense' | 'income'): DisplayRow {
   return {
     kind: 'plain',
     date: item.mostRecentDate,
-    amount: item.amount,
+    amount: kind === 'expense' ? -Math.abs(item.amount) : Math.abs(item.amount),
     currencyCode: item.currencyCode,
     description: item.description,
     categoryId: item.categoryId,
@@ -59,6 +60,13 @@ export function ChartsPage() {
   const [period, setPeriod] = useState<string>(() => format(new Date(), 'yyyy-MM'))
   const [trendAnchor, setTrendAnchor] = useState<string>(period)
   const [activeSplit, setActiveSplit] = useState<ActiveSplit | null>(null)
+  // Which side's sections show below the summary: expenses (default) or income.
+  const [flowTab, setFlowTab] = useState<'expense' | 'income'>('expense')
+
+  const handleFlowTabChange = (tab: 'expense' | 'income') => {
+    setFlowTab(tab)
+    setActiveSplit(null)
+  }
   const { profile } = useProfile()
   const { categories } = useCategories()
   const { accounts } = useAccounts()
@@ -215,6 +223,7 @@ export function ChartsPage() {
         currencyCode={currencyCode}
         title={title}
         showAllHref={showAllHref}
+        onClose={() => setActiveSplit(null)}
       />
     )
   }
@@ -249,12 +258,106 @@ export function ChartsPage() {
         />
       </Card>
 
-      {/* Metrics */}
-      <DashboardMetrics current={summary} loading={summary.loading} currencyCode={currencyCode} />
+      {/* Summary: totals, then (below a keyline) the biggest category changes */}
+      <SummaryCard
+        current={summary}
+        loading={summary.loading}
+        changes={importantThings.categoryChanges}
+        changesLoading={importantThings.loading}
+        currencyCode={currencyCode}
+      />
 
-      {/* ─ Income Section ── */}
-      <h3 className="insights-section-header">Income</h3>
+      {/* Expenses | Income: every section below belongs to the selected side */}
+      <SegmentedControl
+        value={flowTab}
+        options={[
+          { value: 'expense', label: 'Expenses' },
+          { value: 'income', label: 'Income' },
+        ]}
+        onChange={handleFlowTabChange}
+        ariaLabel="Show expense or income insights"
+        className="insights-flow-tabs"
+      />
 
+      {flowTab === 'expense' ? (
+        <>
+      {/* Expenses — By Category */}
+      <SplitPanelCard
+        subheader="By Category"
+        hint="Click a category bar to see its transactions"
+        isSplit={isCategorySplit('expense')}
+        details={splitDetails('category', 'expense')}
+      >
+        <CategoryBarChart
+          title=""
+          points={expenseByCategory.points}
+          kind="expense"
+          currencyCode={currencyCode}
+          loading={expenseByCategory.loading}
+          selectedKey={isCategorySplit('expense') ? activeSplit?.itemKey : null}
+          onSelect={(key) => handleSplitSelect('category', key, 'expense')}
+        />
+      </SplitPanelCard>
+
+      {/* Expenses — By Date */}
+      <div style={{ marginTop: 'var(--space-5)' }}>
+        <SplitPanelCard
+          subheader="By Date"
+          hint="Click a date to see its transactions"
+          isSplit={isCalendarSplit('expense')}
+          details={splitDetails('calendar', 'expense')}
+        >
+          {mode === 'yearly' ? (
+            <MonthlyBarChart
+              title=""
+              days={expenseHeatmap.days}
+              kind="expense"
+              currencyCode={currencyCode}
+              loading={expenseHeatmap.loading}
+              selectedKey={isCalendarSplit('expense') ? activeSplit?.itemKey ?? null : null}
+              onSelect={(monthKey) => handleSplitSelect('calendar', monthKey, 'expense')}
+            />
+          ) : (
+            <CalendarHeatmap
+              title=""
+              days={expenseHeatmap.days}
+              kind="expense"
+              currencyCode={currencyCode}
+              period={period}
+              mode={mode}
+              loading={expenseHeatmap.loading}
+              selectedKey={isCalendarSplit('expense') ? activeSplit?.itemKey : null}
+              onSelect={(date) => handleSplitSelect('calendar', date, 'expense')}
+            />
+          )}
+        </SplitPanelCard>
+      </div>
+
+      {/* Expenses — Top Expenses */}
+      <div style={{ marginTop: 'var(--space-5)' }}>
+        <Card style={{ padding: 'var(--space-4)' }}>
+          <h4 className="insights-subheader">Top Expenses</h4>
+          {importantThings.loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+          {!importantThings.loading && importantThings.topExpenses.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No expenses for this period.</p>}
+          {!importantThings.loading && importantThings.topExpenses.length > 0 && (
+            <ul className="txn-list">
+              {importantThings.topExpenses.map((item) => (
+                <TransactionRow
+                  key={`${item.description}-${item.mostRecentDate}`}
+                  row={topTxnRow(item, 'expense')}
+                  categories={categories}
+                  accounts={accounts}
+                  showAccount={false}
+                />
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+        </>
+      ) : (
+        <>
       {/* Income — By Category */}
       <SplitPanelCard
         subheader="By Category"
@@ -318,7 +421,7 @@ export function ChartsPage() {
               {importantThings.topIncome.map((item) => (
                 <TransactionRow
                   key={`${item.description}-${item.mostRecentDate}`}
-                  row={topTxnRow(item)}
+                  row={topTxnRow(item, 'income')}
                   categories={categories}
                   accounts={accounts}
                   showAccount={false}
@@ -329,92 +432,8 @@ export function ChartsPage() {
         </Card>
       </div>
 
-      {/* ── Expenses Section ── */}
-      <h3 className="insights-section-header" style={{ marginTop: 'var(--space-6)' }}>Expenses</h3>
-
-      {/* Expenses — By Category */}
-      <SplitPanelCard
-        subheader="By Category"
-        hint="Click a category bar to see its transactions"
-        isSplit={isCategorySplit('expense')}
-        details={splitDetails('category', 'expense')}
-      >
-        <CategoryBarChart
-          title=""
-          points={expenseByCategory.points}
-          kind="expense"
-          currencyCode={currencyCode}
-          loading={expenseByCategory.loading}
-          selectedKey={isCategorySplit('expense') ? activeSplit?.itemKey : null}
-          onSelect={(key) => handleSplitSelect('category', key, 'expense')}
-        />
-      </SplitPanelCard>
-
-      {/* Expenses — By Date */}
-      <div style={{ marginTop: 'var(--space-5)' }}>
-        <SplitPanelCard
-          subheader="By Date"
-          hint="Click a date to see its transactions"
-          isSplit={isCalendarSplit('expense')}
-          details={splitDetails('calendar', 'expense')}
-        >
-          {mode === 'yearly' ? (
-            <MonthlyBarChart
-              title=""
-              days={expenseHeatmap.days}
-              kind="expense"
-              currencyCode={currencyCode}
-              loading={expenseHeatmap.loading}
-              selectedKey={isCalendarSplit('expense') ? activeSplit?.itemKey ?? null : null}
-              onSelect={(monthKey) => handleSplitSelect('calendar', monthKey, 'expense')}
-            />
-          ) : (
-            <CalendarHeatmap
-              title=""
-              days={expenseHeatmap.days}
-              kind="expense"
-              currencyCode={currencyCode}
-              period={period}
-              mode={mode}
-              loading={expenseHeatmap.loading}
-              selectedKey={isCalendarSplit('expense') ? activeSplit?.itemKey : null}
-              onSelect={(date) => handleSplitSelect('calendar', date, 'expense')}
-            />
-          )}
-        </SplitPanelCard>
-      </div>
-
-      {/* Expenses — Changes */}
-      <div style={{ marginTop: 'var(--space-5)' }}>
-        <CategoryChangesCard
-          changes={importantThings.categoryChanges}
-          filterKind="expense"
-          hint="Categories with the most significant change"
-          loading={importantThings.loading}
-        />
-      </div>
-
-      {/* Expenses — Top Expenses */}
-      <div style={{ marginTop: 'var(--space-5)' }}>
-        <Card style={{ padding: 'var(--space-4)' }}>
-          <h4 className="insights-subheader">Top Expenses</h4>
-          {importantThings.loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
-          {!importantThings.loading && importantThings.topExpenses.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No expenses for this period.</p>}
-          {!importantThings.loading && importantThings.topExpenses.length > 0 && (
-            <ul className="txn-list">
-              {importantThings.topExpenses.map((item) => (
-                <TransactionRow
-                  key={`${item.description}-${item.mostRecentDate}`}
-                  row={topTxnRow(item)}
-                  categories={categories}
-                  accounts={accounts}
-                  showAccount={false}
-                />
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+        </>
+      )}
     </main>
   )
 }

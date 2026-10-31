@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+import { format, parseISO } from 'date-fns'
 import type { Account, Category, DisplayRow, MonthSplit } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate, formatMonthYear } from '../../lib/formatDate'
@@ -72,11 +74,31 @@ export function TransactionRow({
         aria-label={ariaLabel}
         onClick={onClick}
       >
-        <span className="txn-row-date">{dateLabel}</span>
+        {/* A small calendar leaf; the full date shows on hover. */}
+        <span className="txn-row-date has-tooltip has-tooltip--right" data-tooltip={format(parseISO(row.date), 'MMMM do, yyyy')}>
+          <span className="txn-date-month">{format(parseISO(row.date), 'MMM')}</span>
+          <span className="txn-date-day">{format(parseISO(row.date), 'd')}</span>
+        </span>
 
         <span className="txn-row-description-cell">
           <span className="txn-row-description">{description}</span>
-          {meta && <span className="txn-row-meta">{meta}</span>}
+          {(showAccount || meta) && (
+            <span className="txn-row-subline">
+              {showAccount && (
+                <span
+                  className={`txn-chip txn-chip--account${account ? ' is-tinted' : ''}`}
+                  // A 25% layer of the account's card colour over the grey chip.
+                  style={account ? ({ '--chip-tint': account.cardColor } as CSSProperties) : undefined}
+                >
+                  <span className="txn-chip-icon" aria-hidden="true">
+                    {account ? accountTypeIcon(account.type) : <AccountIcon />}
+                  </span>
+                  <span className="txn-chip-label">{accountName}</span>
+                </span>
+              )}
+              {meta && <span className="txn-row-meta">{meta}</span>}
+            </span>
+          )}
         </span>
 
         <span className="txn-row-chips">
@@ -88,19 +110,9 @@ export function TransactionRow({
               <span className="txn-chip-label">{kindLabel}</span>
             </span>
           )}
-          {showAccount && (
-            <span className="txn-chip txn-chip--account">
-              <span className="txn-chip-icon" aria-hidden="true">
-                {account ? accountTypeIcon(account.type) : <AccountIcon />}
-              </span>
-              <span className="txn-chip-label">{accountName}</span>
-            </span>
-          )}
-          <span className={`txn-chip txn-chip--category${row.categoryId ? '' : ' is-empty'}`}>
-            <span className="txn-chip-icon" aria-hidden="true">
-              <CategoryIcon name={category?.icon ?? null} />
-            </span>
-            <span className="txn-chip-label">{categoryLabel}</span>
+          {/* Icon only; the name shows on hover (the row's aria-label already includes it). */}
+          <span className={`txn-category-icon has-tooltip has-tooltip--left${row.categoryId ? '' : ' is-empty'}`} data-tooltip={categoryLabel}>
+            <CategoryIcon name={category?.icon ?? null} />
           </span>
         </span>
 

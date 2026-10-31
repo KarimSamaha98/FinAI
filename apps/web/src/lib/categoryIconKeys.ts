@@ -1,6 +1,6 @@
 import type { CategoryIconKey } from 'shared-types'
 
-/** Fallback when a category has no icon (or an unknown key). */
+/** Fallback when a category has no icon (or an unknown key); also marks Uncategorized, so it isn't pickable. */
 export const DEFAULT_CATEGORY_ICON: CategoryIconKey = 'tag'
 
 /** Pickable icons with human labels, in the order shown in the picker. */
@@ -27,6 +27,7 @@ export const CATEGORY_ICON_KEYS: { key: CategoryIconKey; label: string }[] = [
   { key: 'film', label: 'Entertainment' },
   { key: 'music', label: 'Music' },
   { key: 'gamepad', label: 'Games' },
+  { key: 'laptop', label: 'Gadgets / Tech' },
   { key: 'book', label: 'Books' },
   { key: 'graduation-cap', label: 'Education' },
   { key: 'wallet', label: 'Wallet' },
@@ -44,5 +45,5 @@ export const CATEGORY_ICON_KEYS: { key: CategoryIconKey; label: string }[] = [
   { key: 'sparkles', label: 'Beauty' },
   { key: 'tool', label: 'Repairs' },
   { key: 'laundry', label: 'Laundry' },
-  { key: 'tag', label: 'Other' },
+  { key: 'dots', label: 'Other' },
 ]

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { format, startOfMonth, subMonths } from 'date-fns'
-import type { AccountType, ColumnMapping } from 'shared-types'
+import type { AccountType, CategoryIconKey, ColumnMapping } from 'shared-types'
 
 /**
  * Deterministic demo dataset generator (see demo-seed.ts for the CLI that
@@ -94,7 +94,7 @@ export interface DemoImportProfile {
 export interface DemoDataset {
   displayName: string
   accounts: DemoAccount[]
-  customCategories: string[]
+  customCategories: { name: string; icon: CategoryIconKey }[]
   transactions: DemoTransaction[]
   reconciliationGroups: DemoReconciliationGroup[]
   monthSplits: DemoMonthSplit[]
@@ -197,7 +197,10 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   }
   const accounts: DemoAccount[] = [checking, savings, visa, brokerage, tfsa, eurWallet, gbpLegacy]
 
-  const customCategories = ['Coffee', 'Gadgets']
+  const customCategories: { name: string; icon: CategoryIconKey }[] = [
+    { name: 'Coffee', icon: 'coffee' },
+    { name: 'Gadgets', icon: 'laptop' },
+  ]
 
   const transactions: DemoTransaction[] = []
   const add = (

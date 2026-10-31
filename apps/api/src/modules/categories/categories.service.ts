@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common'
-import { count, eq } from 'drizzle-orm'
+import { asc, count, eq, inArray, max } from 'drizzle-orm'
 import type { Category, CreateCategoryInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
@@ -14,6 +14,7 @@ function toCategory(row: typeof categories.$inferSelect): Category {
     name: row.name,
     icon: (row.icon as Category['icon']) ?? null,
     isArchived: row.isArchived,
+    sortOrder: row.sortOrder,
     createdAt: row.createdAt.toISOString(),
   }
 }
@@ -25,7 +26,7 @@ export class CategoriesService {
   /** Every category the user owns, archived included — callers filter archived out of pickers but need them to resolve historical transactions. */
   async list(userId: string): Promise<Category[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
-      const rows = await tx.select().from(categories).orderBy(categories.name)
+      const rows = await tx.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name))
       return rows.map(toCategory)
     })
   }
@@ -33,7 +34,12 @@ export class CategoriesService {
   async create(userId: string, input: CreateCategoryInput): Promise<Category> {
     return runInTenantContext(this.db, userId, async (tx) => {
       try {
-        const [row] = await tx.insert(categories).values({ userId, name: input.name, icon: input.icon ?? null }).returning()
+        // New categories go to the end of the user's order.
+        const [{ last }] = await tx.select({ last: max(categories.sortOrder) }).from(categories)
+        const [row] = await tx
+          .insert(categories)
+          .values({ userId, name: input.name, icon: input.icon ?? null, sortOrder: (last ?? 0) + 1 })
+          .returning()
         return toCategory(row)
       } catch (error) {
         mapPostgresError(error)
@@ -56,6 +62,25 @@ export class CategoriesService {
       } catch (error) {
         mapPostgresError(error)
       }
+    })
+  }
+
+  /**
+   * Saves the user's arrangement: `ids` lists their categories in the new
+   * order. Ids not listed (e.g. archived ones) keep their place after these.
+   */
+  async reorder(userId: string, ids: string[]): Promise<Category[]> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const owned = await tx.select({ id: categories.id }).from(categories).where(inArray(categories.id, ids))
+      if (owned.length !== new Set(ids).size) {
+        throw new NotFoundException('Category not found')
+      }
+      // A user has a few dozen categories at most, so one update each is fine.
+      for (const [index, id] of ids.entries()) {
+        await tx.update(categories).set({ sortOrder: index + 1 }).where(eq(categories.id, id))
+      }
+      const rows = await tx.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name))
+      return rows.map(toCategory)
     })
   }
 

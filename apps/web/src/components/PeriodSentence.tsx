@@ -136,7 +136,9 @@ function PeriodInlineDropdown({ mode, period, onChange }: { mode: InsightMode; p
 export function PeriodSentence({ mode, period, onModeChange, onPeriodChange }: PeriodSentenceProps) {
   return (
     <p className="insights-period-sentence" style={{ margin: '0 0 var(--space-5) 0' }}>
-      Your <ModeInlineDropdown mode={mode} onChange={onModeChange} /> report for{' '}
+      <span>Your</span>
+      <ModeInlineDropdown mode={mode} onChange={onModeChange} />
+      <span>report for</span>
       <PeriodInlineDropdown mode={mode} period={period} onChange={onPeriodChange} />
     </p>
   )
