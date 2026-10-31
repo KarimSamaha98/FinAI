@@ -87,7 +87,7 @@ export function TransactionRow({
               {showAccount && (
                 <span
                   className={`txn-chip txn-chip--account${account ? ' is-tinted' : ''}`}
-                  // A 50% layer of the account's card colour over the grey chip.
+                  // A 25% layer of the account's card colour over the grey chip.
                   style={account ? ({ '--chip-tint': account.cardColor } as CSSProperties) : undefined}
                 >
                   <span className="txn-chip-icon" aria-hidden="true">

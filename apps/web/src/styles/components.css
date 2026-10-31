@@ -1855,10 +1855,10 @@ dialog::backdrop {
   height: 13px;
 }
 
-/* Account pill: a 50% layer of the account's card colour over the grey fill. */
+/* Account pill: a 25% layer of the account's card colour over the grey fill. */
 .txn-chip--account.is-tinted {
   background:
-    linear-gradient(color-mix(in srgb, var(--chip-tint) 50%, transparent), color-mix(in srgb, var(--chip-tint) 50%, transparent)),
+    linear-gradient(color-mix(in srgb, var(--chip-tint) 25%, transparent), color-mix(in srgb, var(--chip-tint) 25%, transparent)),
     var(--fill-tertiary);
 }
 
