@@ -45,6 +45,8 @@ export const CategoryIconKeySchema = z.enum([
   "sparkles",
   "tool",
   "laundry",
+  "laptop",
+  "dots",
   "tag",
 ]);
 export type CategoryIconKey = z.infer<typeof CategoryIconKeySchema>;

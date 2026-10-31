@@ -15,6 +15,7 @@ function CategoryNameModal({
   submitLabel,
   initialName,
   initialIcon,
+  takenIcons,
   onSubmit,
   onClose,
 }: {
@@ -22,11 +23,16 @@ function CategoryNameModal({
   submitLabel: string
   initialName: string
   initialIcon: CategoryIconKey | null
+  /** Icons other categories already use; they're shown but can't be picked, so every icon stays unique. */
+  takenIcons: Set<CategoryIconKey>
   onSubmit: (name: string, icon: CategoryIconKey) => Promise<void>
   onClose: () => void
 }) {
   const [name, setName] = useState(initialName)
-  const [icon, setIcon] = useState<CategoryIconKey>(initialIcon ?? DEFAULT_CATEGORY_ICON)
+  // A new category starts on the first free icon rather than the Uncategorized tag.
+  const [icon, setIcon] = useState<CategoryIconKey>(
+    () => initialIcon ?? CATEGORY_ICON_KEYS.find((o) => !takenIcons.has(o.key))?.key ?? DEFAULT_CATEGORY_ICON,
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const trimmed = name.trim()
@@ -56,20 +62,24 @@ function CategoryNameModal({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Icon</span>
           <div className="icon-picker" role="radiogroup" aria-label="Category icon">
-            {CATEGORY_ICON_KEYS.map((option) => (
+            {CATEGORY_ICON_KEYS.map((option) => {
+              const taken = takenIcons.has(option.key)
+              return (
               <button
                 key={option.key}
                 type="button"
                 role="radio"
                 aria-checked={icon === option.key}
-                aria-label={option.label}
-                title={option.label}
+                aria-label={taken ? `${option.label} (used by another category)` : option.label}
+                title={taken ? `${option.label} — used by another category` : option.label}
                 className={`icon-picker-option${icon === option.key ? ' is-selected' : ''}`}
+                disabled={taken}
                 onClick={() => setIcon(option.key)}
               >
                 <CategoryIcon name={option.key} size={18} />
               </button>
-            ))}
+              )
+            })}
           </div>
         </div>
         {error && <Alert variant="error">{error}</Alert>}
@@ -212,6 +222,7 @@ export function CategoriesSection() {
           submitLabel="Add"
           initialName=""
           initialIcon={null}
+          takenIcons={new Set(activeCategories.flatMap((c) => (c.icon ? [c.icon] : [])))}
           onSubmit={async (name, icon) => {
             await createCategory({ name, icon })
           }}
@@ -224,6 +235,7 @@ export function CategoriesSection() {
           submitLabel="Save"
           initialName={dialog.category.name}
           initialIcon={dialog.category.icon}
+          takenIcons={new Set(activeCategories.flatMap((c) => (c.icon && c.id !== dialog.category.id ? [c.icon] : [])))}
           onSubmit={async (name, icon) => {
             await renameCategory(dialog.category.id, name, icon)
           }}

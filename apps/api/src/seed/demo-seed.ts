@@ -137,7 +137,7 @@ async function main(): Promise<void> {
       if (missing.length > 0) {
         throw new Error(`Default categories missing for the demo user: ${missing.join(', ')} — apply migrations (\`pnpm exec supabase migration up\`) so the signup trigger seeds them, then re-run the seeder.`)
       }
-      const customRows = await tx.insert(categories).values(dataset.customCategories.map((name) => ({ userId, name }))).returning({ id: categories.id, name: categories.name })
+      const customRows = await tx.insert(categories).values(dataset.customCategories.map(({ name, icon }) => ({ userId, name, icon }))).returning({ id: categories.id, name: categories.name })
       for (const row of customRows) categoryIdByName.set(row.name, row.id)
 
       await tx.insert(accounts).values(
