@@ -2654,6 +2654,36 @@ dialog::backdrop {
   border-top: 1px solid var(--separator);
 }
 
+/* Arranging: the grip drags (no page scroll under a finger); rows slide aside. */
+.category-grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+.category-list.is-arranging,
+.category-list.is-arranging .category-grip {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.category-list.is-arranging .category-list-row:not(.is-dragging) {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.category-list-row.is-dragging {
+  position: relative;
+  z-index: 1;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-list.is-arranging .category-list-row:not(.is-dragging) {
+    transition: none;
+  }
+}
+
 .category-list-name {
   flex: 1;
   min-width: 0;

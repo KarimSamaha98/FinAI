@@ -140,6 +140,12 @@ async function main(): Promise<void> {
       const customRows = await tx.insert(categories).values(dataset.customCategories.map(({ name, icon }) => ({ userId, name, icon }))).returning({ id: categories.id, name: categories.name })
       for (const row of customRows) categoryIdByName.set(row.name, row.id)
 
+      // Start the demo user's arrangement alphabetical with "Other" last (as the migration does for existing users).
+      const arranged = [...categoryIdByName.keys()].sort((a, b) => Number(a === 'Other') - Number(b === 'Other') || a.localeCompare(b))
+      for (const [index, name] of arranged.entries()) {
+        await tx.update(categories).set({ sortOrder: index + 1 }).where(eq(categories.id, categoryIdByName.get(name)!))
+      }
+
       await tx.insert(accounts).values(
         dataset.accounts.map((a, index) => ({
           id: a.id,

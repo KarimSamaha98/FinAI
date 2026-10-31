@@ -3,11 +3,8 @@ import type { Category, CandidateRow } from 'shared-types'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
 import { CategoryIcon } from '../../components/categoryIcons'
-import { useTopCategories } from '../../hooks/useTopCategories'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
-
-const TOP_CATEGORY_COUNT = 6
 
 export interface CategorizedRow {
   rowIndex: number
@@ -30,16 +27,10 @@ interface CategorizationDeckProps {
 export function CategorizationDeck({ rows, categories, onDone, onProgress, showSkipAll = true, skipHint }: CategorizationDeckProps) {
   const [cursor, setCursor] = useState(0)
   const [choices, setChoices] = useState<Record<number, string | null>>({})
-  const topCategories = useTopCategories(categories, TOP_CATEGORY_COUNT)
 
   const currentRow = rows[cursor]
-  // Every category is always shown: the user's most-used ones first, then the
-  // rest alphabetically, with "Other" always last as the catch-all.
-  const isOther = (c: Category) => c.name.trim().toLowerCase() === 'other'
-  const topIds = new Set(topCategories.map((c) => c.id))
-  const restCategories = categories.filter((c) => !topIds.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
-  const ordered = [...topCategories, ...restCategories]
-  const allCategories = [...ordered.filter((c) => !isOther(c)), ...ordered.filter(isOther)]
+  // Every category is shown, in the order the user arranged them in Settings.
+  const allCategories = categories
   const selectedCategoryId = currentRow ? choices[currentRow.rowIndex] : undefined
 
   function toCategorized(next: Record<number, string | null>): CategorizedRow[] {
