@@ -3119,13 +3119,21 @@ dialog::backdrop {
 }
 
 
-/* Clickable charts: axis labels sit above the hit targets, so let clicks through them. */
-.recharts-wrapper:has(.chart-hit-targets) text {
+/* Clickable charts: axis labels and the bars themselves are drawn above the
+   hit targets, so let clicks through them — a bar click selects its column. */
+.recharts-wrapper:has(.chart-hit-targets) text,
+.recharts-wrapper:has(.chart-hit-targets) .recharts-bar {
   pointer-events: none;
 }
 
 /* ── Insights page typography hierarchy ──────────────────────────── */
 .insights-period-sentence {
+  /* A centred row so the words and the dropdown pills share one centre line. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.4rem;
+  row-gap: var(--space-1);
   font: var(--type-title-3);
   letter-spacing: -0.01em;
   color: var(--text-muted);
