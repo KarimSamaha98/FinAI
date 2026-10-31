@@ -215,6 +215,7 @@ export function ChartsPage() {
         currencyCode={currencyCode}
         title={title}
         showAllHref={showAllHref}
+        onClose={() => setActiveSplit(null)}
       />
     )
   }
