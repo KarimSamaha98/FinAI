@@ -201,7 +201,7 @@ export function IncomeExpenseChart({ title, subtitle, points, currencyCode, curr
               )
             })}
           </Bar>
-          <Bar dataKey="expense" stackId="expense-split" maxBarSize={20} radius={[0, 0, 4, 4]}>
+          <Bar dataKey="expense" stackId="expense-split" maxBarSize={20} radius={[4, 4, 0, 0]}>
             {data.map((p, i) => {
               const isSelected = currentPeriod ? p.period === currentPeriod : false
               return (
