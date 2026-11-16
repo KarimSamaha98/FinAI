@@ -11,3 +11,7 @@ apps/web/dist/
 apps/api/dist/
 supabase/.branches/
 supabase/.temp/
+apps/extension/.wxt/
+.playwright-cli/
+extension-e2e-failure-*.png
+e2e-*.png

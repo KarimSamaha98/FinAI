@@ -164,6 +164,14 @@ export const ParseWithProfileResultSchema = z.object({
   importRunId: z.string().uuid(),
   rows: z.array(CandidateRowSchema),
   skippedDuplicateCount: z.number().int().nonnegative(),
+  /**
+   * The parsed file's own date span (before duplicate filtering). Populated
+   * even when every row was skipped as a duplicate, so the UI can point the
+   * user at the range where the data actually lives — bank exports often
+   * cover months outside the app's default "current month" filter.
+   */
+  earliestDate: z.string().date().nullable(),
+  latestDate: z.string().date().nullable(),
 });
 export type ParseWithProfileResult = z.infer<typeof ParseWithProfileResultSchema>;
 

@@ -12,6 +12,7 @@ import { FieldDatePicker } from '../../components/FieldDatePicker'
 import { useCurrencies } from '../../hooks/useCurrencies'
 import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
 import { UpdateBalanceModal } from './UpdateBalanceModal'
+import { BankSyncSection } from '../settings/BankSyncSection'
 
 export function AccountSettingsPage() {
   const { id } = useParams<{ id: string }>()
@@ -218,6 +219,8 @@ export function AccountSettingsPage() {
           onRemovePhoto={handleRemoveCardPhoto}
         />
       </Card>
+
+      <BankSyncSection accountId={id} />
 
       <Card style={{ marginTop: 'var(--space-4)' }}>
         <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Import profile</h2>

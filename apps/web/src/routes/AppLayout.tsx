@@ -6,6 +6,7 @@ import { Avatar } from '../components/Avatar'
 import { CloseIcon, HomeIcon, InsightsIcon, LogoutIcon, MenuIcon, SettingsIcon, TransactionIcon } from '../components/icons'
 import { useProfile } from '../hooks/useProfile'
 import { DrawerProvider } from '../context/DrawerContext'
+import { BankSyncOverlay } from '../features/bank-sync/BankSyncOverlay'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home', icon: HomeIcon },
@@ -115,6 +116,7 @@ export function AppLayout() {
           <Outlet />
         </DrawerProvider>
       </div>
+      <BankSyncOverlay />
     </div>
   )
 }

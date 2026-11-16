@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mock Bank — one-time export link</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; background: #e8ebf2; display: grid; place-items: center; height: 100vh; }
+      .card { background: #fff; border-radius: 12px; padding: 24px; width: 340px; box-shadow: 0 2px 14px rgba(0,0,0,.08); text-align: center; }
+      h1 { font-size: 16px; margin: 0 0 8px; }
+      p { color: #555; font-size: 13px; margin: 0 0 16px; }
+      button { width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #1e4d92; color: #fff; font-weight: 600; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Download statement export</h1>
+      <p>
+        This export link works exactly once (like real banks' one-time tokens).
+        Frugal AI must read the file Chrome saves to Downloads.
+      </p>
+      <button id="btn-onetime">Download CSV</button>
+    </div>
+    <script>
+      document.getElementById('btn-onetime')?.addEventListener('click', () => {
+        location.href = '/mock-onetime.csv?token=' + Date.now() + '-' + Math.random().toString(36).slice(2)
+      })
+    </script>
+  </body>
+</html>

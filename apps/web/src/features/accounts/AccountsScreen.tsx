@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
+import { CARD_COLOR_PALETTE, type AccountSummary, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { SelectDropdown } from '../../components/SelectDropdown'
 import { SearchInput } from '../../components/SearchInput'
 import { SortControl } from '../../components/SortControl'
@@ -23,6 +23,7 @@ import { useUncategorizedTransactions } from '../../hooks/useUncategorizedTransa
 import { CategorizationDeck, type CategorizedRow } from '../import/CategorizationDeck'
 import { UncategorizedNotice } from './UncategorizedNotice'
 import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
+import { useBankSync } from '../../hooks/useBankSync'
 import { useMonthSplits } from '../../hooks/useMonthSplits'
 import { TransactionForm, type TransactionFormValues } from '../transactions/TransactionForm'
 import { AddTransactionDialog } from '../transactions/AddTransactionDialog'
@@ -100,6 +101,15 @@ export function AccountsScreen() {
 
   const { categories, activeCategories } = useCategories()
   const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
+  const { connectionFor, startSync, activeSync } = useBankSync()
+
+  /** Per-account "Sync bank" affordance: undefined when no active connection; disabled while its sync runs. */
+  function bankSyncFor(account: AccountSummary) {
+    const connection = connectionFor(account.id)
+    if (!connection) return undefined
+    const running = activeSync?.connectionId === connection.id && ['waiting', 'capturing'].includes(activeSync.status)
+    return { onClick: () => startSync(connection), disabled: running }
+  }
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
   const { profiles: accountProfiles, loading: accountProfilesLoading } = useImportProfiles(singleSelectedId ?? undefined)
@@ -296,6 +306,7 @@ export function AccountsScreen() {
         <AccountHeader
           account={selectedAccount}
           hasProfile={accountProfilesLoading ? null : accountProfiles.length > 0}
+          syncAction={bankSyncFor(selectedAccount)}
         />
       ) : (
         <SelectionSummary

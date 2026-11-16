@@ -124,6 +124,24 @@ export const importRuns = pgTable('import_runs', {
   committedAt: timestamp('committed_at', { withTimezone: true }),
 })
 
+// Bank Sync (see supabase/migrations/20261108120000_bank_sync_connections.sql):
+// a connection binds one account to the pasted online-banking sign-on URL.
+// One connection per account (unique index). Sync is manual: the app opens
+// the URL, the user downloads the CSV, the extension captures that download.
+export const bankConnections = pgTable('bank_connections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  accountId: uuid('account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  bankSlug: text('bank_slug').notNull(),
+  loginUrl: text('login_url').notNull(),
+  status: text('status', { enum: ['active', 'disconnected'] }).notNull().default('active'),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const transactions = pgTable('transactions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull(),
