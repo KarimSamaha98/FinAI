@@ -133,6 +133,8 @@ async function api(path: string, init?: { method?: string; body?: FormData | str
  * storage when the in-memory copy is gone.
  */
 let session: Session | null = null
+/** Per-tab last-injection timestamps for the navigation listener above. */
+const lastInjectionAt = new Map<number, number>()
 
 async function persistSession() {
   if (session) await chrome.storage.session.set({ [SESSION_KEY]: session })
@@ -340,6 +342,7 @@ async function startSync(msg: { connectionId: string; originPattern: string }) {
     windowId: popup?.id ?? null,
     startedAt: Date.now(),
   }
+  lastInjectionAt.clear()
   await persistSession()
   await startSessionWatch()
   // Inject immediately: the hook only patches blob-url clicks and the relay
@@ -433,12 +436,21 @@ async function injectAcrossSession() {
  * popup window, only for the popup the sync opened. Random browsing is never
  * interrupted.
  */
+// SPA hash-route changes fire tabs.onUpdated with a new `url` but do NOT
+// create a new document — the scripts injected earlier are still alive and
+// their per-frame flags make re-runs no-ops. Re-injecting on every one of
+// those events caused an all-frames executeScript storm inside the bank
+// popup (the lag users feel vs. browsing the bank normally), so injection
+// happens only on document-creating loads, debounced per tab.
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   void (async () => {
     try {
+      if (changeInfo.status !== 'complete') return // only document loads need (re-)injection
+      const now = Date.now()
+      if (now - (lastInjectionAt.get(tabId) ?? 0) < 1000) return // debounce double-fires
       const current = await hydrateSession()
       if (!current || current.captured) return
-      if (changeInfo.status !== 'complete' && !changeInfo.url) return
       const url = changeInfo.url ?? tab.url ?? ''
       if (!url.startsWith('http')) return
       let origin: string
@@ -448,6 +460,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         return
       }
       if (await originGranted(origin)) {
+        lastInjectionAt.set(tabId, now)
         await injectCapture(tabId)
         return
       }
