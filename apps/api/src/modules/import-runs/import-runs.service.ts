@@ -175,7 +175,14 @@ export class ImportRunsService {
         .insert(importRuns)
         .values({ userId, uploadedFileId, importProfileId, status: 'pending_review' })
         .returning()
-      return { importRunId: run.id, rows, skippedDuplicateCount }
+      const dates = parsedRows.map(([, row]) => row.date)
+      return {
+        importRunId: run.id,
+        rows,
+        skippedDuplicateCount,
+        earliestDate: dates.length > 0 ? dates.reduce((a, b) => (b < a ? b : a)) : null,
+        latestDate: dates.length > 0 ? dates.reduce((a, b) => (b > a ? b : a)) : null,
+      }
     })
   }
 

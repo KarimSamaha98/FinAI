@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, UseGuards } from '@nestjs/common'
-import { CreateCategoryInputSchema, RenameCategoryInputSchema } from 'shared-types'
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, UseGuards } from '@nestjs/common'
+import { CreateCategoryInputSchema, RenameCategoryInputSchema, ReorderCategoriesInputSchema } from 'shared-types'
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard.js'
 import { CurrentUserId } from '../auth/current-user-id.decorator.js'
 import { CategoriesService } from './categories.service.js'
@@ -18,6 +18,13 @@ export class CategoriesController {
   create(@CurrentUserId() userId: string, @Body() body: unknown) {
     const input = CreateCategoryInputSchema.parse(body)
     return this.categoriesService.create(userId, input)
+  }
+
+  /** Saves the user's arrangement; body lists category ids in the new order. */
+  @Put('order')
+  reorder(@CurrentUserId() userId: string, @Body() body: unknown) {
+    const input = ReorderCategoriesInputSchema.parse(body)
+    return this.categoriesService.reorder(userId, input.ids)
   }
 
   @Patch(':id')

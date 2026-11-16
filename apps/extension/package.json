@@ -1,0 +1,22 @@
+{
+  "name": "extension",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "dev": "wxt",
+    "lint": "oxlint",
+    "typecheck": "wxt prepare && tsc --noEmit"
+  },
+  "dependencies": {
+    "shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.7",
+    "oxlint": "^1.79.0",
+    "typescript": "~5.6.3",
+    "wxt": "^0.21.5"
+  }
+}

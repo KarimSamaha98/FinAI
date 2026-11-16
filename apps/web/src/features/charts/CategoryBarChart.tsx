@@ -3,6 +3,7 @@ import type { AmountKind, CategoryBreakdownPoint } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { categoryKey } from './drillDown'
 import { ColumnHitTargets } from './ColumnHitTargets'
+import { useAnimateOnDataChange } from './useAnimateOnDataChange'
 
 interface CategoryBarChartProps {
   title: string
@@ -51,6 +52,7 @@ const TONE_COLOR: Record<AmountKind, string> = {
 const BAR_HEIGHT = 20
 
 export function CategoryBarChart({ title, points, kind, currencyCode, loading, onSelect, selectedKey }: CategoryBarChartProps) {
+  const barAnimation = useAnimateOnDataChange(points)
   if (loading) {
     const skeletonCount = 4
     const skeletonPoints = Array.from({ length: skeletonCount }, (_, i) => ({
@@ -118,7 +120,7 @@ export function CategoryBarChart({ title, points, kind, currencyCode, loading, o
             axisLine={false}
           />
           <Tooltip content={<CategoryBarTooltip currencyCode={currencyCode} />} cursor={{ fill: 'var(--border)', opacity: 0.2 }} isAnimationActive={false} />
-          <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+          <Bar dataKey="total" radius={[0, 4, 4, 0]} {...barAnimation}>
             {points.map((point) => {
               const isSelected = selectedKey === categoryKey(point.categoryId)
               return (

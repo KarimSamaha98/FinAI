@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mock Bank — framed online banking</title>
+    <style>
+      body { margin: 0; background: #e8ebf2; height: 100vh; }
+      iframe { border: 0; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <!-- EQ-like pattern: the entire online-banking UI (sign-on, MFA, download)
+         renders inside an iframe of the outer page. Capture must work in the
+         frame, not just the top document. -->
+    <iframe id="bank-frame" src="http://online.mock-bank.test:5173/mock-bank/index.html"></iframe>
+  </body>
+</html>

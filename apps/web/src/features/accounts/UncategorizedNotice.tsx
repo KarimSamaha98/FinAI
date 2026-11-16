@@ -9,7 +9,7 @@ interface UncategorizedNoticeProps {
 export function UncategorizedNotice({ count, onOpen }: UncategorizedNoticeProps) {
   if (count === 0) return null
   return (
-    <button type="button" className="notice-box" onClick={onOpen}>
+    <button type="button" className="notice-box notice-box--attention" onClick={onOpen}>
       <span className="notice-box-icon">
         <InfoIcon />
       </span>

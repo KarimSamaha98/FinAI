@@ -11,9 +11,11 @@ interface AccountHeaderProps {
   account: AccountSummary
   /** Whether the account can already read CSVs; null while unknown (no button flashes in). */
   hasProfile: boolean | null
+  /** Present when the account has an active bank sync connection — "Sync bank" lives here, not buried in Settings. */
+  syncAction?: { onClick: () => void; disabled?: boolean }
 }
 
-export function AccountHeader({ account, hasProfile }: AccountHeaderProps) {
+export function AccountHeader({ account, hasProfile, syncAction }: AccountHeaderProps) {
   const navigate = useNavigate()
   const setupState: ImportLocationState = { setupAccountId: account.id }
 
@@ -30,9 +32,14 @@ export function AccountHeader({ account, hasProfile }: AccountHeaderProps) {
         {formatCurrency(account.balance, account.balanceCurrencyCode)}
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1) var(--space-3)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-        <span>Last transaction updated: {account.lastTransactionUpdatedAt ? formatDate(account.lastTransactionUpdatedAt.slice(0, 10)) : '—'}</span>
+        <span>Newest transaction: {account.lastTransactionDate ? formatDate(account.lastTransactionDate) : '—'}</span>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-1)' }}>
+        {syncAction && (
+          <Button variant="primary" onClick={syncAction.onClick} disabled={syncAction.disabled}>
+            Sync bank
+          </Button>
+        )}
         {hasProfile === false && (
           <Button variant="primary" onClick={() => navigate('/import', { state: setupState })}>
             Add CSV profile

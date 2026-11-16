@@ -19,6 +19,17 @@ FinAI: personal finance tracker. pnpm monorepo — `apps/web` (React 19 + Vite P
 3. Copy `apps/api/.env.example` → `.env`, `apps/web/.env.local.example` → `.env.local`; fill from `supabase start` output. Note: the web example has a typo — `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are mashed onto one line.
 4. `pnpm dev`
 
+## UI verification (playwright-cli)
+
+Use `playwright-cli` (installed via Homebrew) to visually verify every UI change — do not ask the user to check the app or provide screenshots.
+
+- Use named session `finai` (`-s=finai`) so browser state persists across commands; `playwright-cli -s=finai close` when done.
+- Login credentials for the demo user: `demo@finai.test` / `demo-password-123` (defaults in `apps/api/src/seed/demo-seed.ts`).
+- Screenshots require `--filename` (a bare path arg is treated as a target ref): `playwright-cli -s=finai screenshot --filename <path>`. Default `.playwright-cli/` dir also works.
+- Workflow: `open`/`goto http://localhost:5173/<route>` → `snapshot` (element refs) → interact (`click`/`fill`) → `screenshot` → view screenshot + check console log output for errors → fix → re-verify.
+- Requires dev server (`pnpm dev`, web on 5173) + Supabase running; verify auth-gated routes open with a URL so the page doesn't load blank.
+- `find <text>` asserts on-page content; snapshot yaml and console logs are written to `.playwright-cli/`.
+
 ## Hard-won invariants (violating these breaks security or correctness)
 
 - **`DATABASE_URL` must use the `app_service` role, never `postgres`/superuser/table-owner** — Postgres silently bypasses RLS for those roles, disabling tenant isolation. Local: `postgresql://app_service:app_service_password@127.0.0.1:54322/postgres` (created by `supabase/migrations/*_create_app_service_role.sql`).

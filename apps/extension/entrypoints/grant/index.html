@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Frugal AI — bank access</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; display: grid; place-items: center; min-height: 100vh; background: #f7f7f8; }
+      .card { background: #fff; border-radius: 12px; padding: 28px; width: 340px; box-shadow: 0 2px 14px rgba(0,0,0,.08); }
+      h1 { font-size: 16px; margin: 0 0 8px; }
+      p { color: #555; font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
+      code { background: #f1f1f4; padding: 2px 6px; border-radius: 4px; font-size: 12px; word-break: break-all; }
+      button { width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #166534; color: #fff; font-weight: 600; cursor: pointer; }
+      button.secondary { background: #e5e7eb; color: #111; margin-top: 8px; font-weight: 500; }
+      .ok { color: #166534; font-weight: 600; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Allow Frugal AI to watch downloads on this bank</h1>
+      <p>
+        Frugal AI will be able to read downloads from the site(s) below — <code id="origin">…</code> — and nothing else.
+        You sign in to the bank yourself; the extension never reads passwords or codes, only the CSV file you download.
+      </p>
+      <button id="grant">Grant access</button>
+      <button id="close" class="secondary">Not now</button>
+      <p id="done" class="ok" hidden>Done — opening your bank.</p>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

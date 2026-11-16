@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type CommitImportRunResult, type CreateImportProfileInput, type ParseWithProfileResult } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
@@ -12,6 +12,7 @@ import { AccountForm } from '../accounts/AccountForm'
 import { CategorizationDeck, type CategorizedRow } from './CategorizationDeck'
 import { ImportReview } from './ImportReview'
 import { Alert } from '../../components/Alert'
+import { formatDate } from '../../lib/formatDate'
 import { Button } from '../../components/Button'
 import { PageHeader } from '../../components/BackButton'
 
@@ -32,6 +33,8 @@ export type ImportLocationState =
       fileName: string
       /** Pre-selects the account question (e.g. the one card selected on the Transaction page). */
       accountId?: string | null
+      /** A bank-sync capture just arrived: continue parsing as soon as the account's profile loads, skipping the account question. */
+      autoParse?: boolean
     }
   | { setupAccountId: string }
 
@@ -45,6 +48,7 @@ type Step =
   | ({ name: 'choose-account' } & UploadedFile)
   | ({ name: 'needs-profile'; accountId: string } & UploadedFile)
   | ({ name: 'build-profile'; accountId: string } & UploadedFile)
+  | ({ name: 'all-imported'; accountId: string; parseResult: ParseWithProfileResult })
   | { name: 'categorize'; accountId: string; parseResult: ParseWithProfileResult }
   | { name: 'review'; accountId: string; parseResult: ParseWithProfileResult; choices: Record<number, string | null> }
 
@@ -53,6 +57,7 @@ const TITLES: Record<Step['name'], string> = {
   'choose-account': 'Which account is this CSV for?',
   'needs-profile': 'This account needs a CSV profile',
   'build-profile': 'Set up CSV profile',
+  'all-imported': 'Nothing new to import',
   categorize: 'Import transactions',
   review: 'Review import',
 }
@@ -85,14 +90,37 @@ export function ImportWizardPage() {
   const profileFor = (accountId: string) => profiles.find((p) => p.accountId === accountId) ?? null
   const accountOf = (accountId: string) => accounts.find((a) => a.id === accountId) ?? null
 
+  // Bank sync hands the captured CSV in with autoParse + accountId: the
+  // wizard skips the "which account?" question and parses immediately (or
+  // opens profile setup if this account has none yet).
+  const autoParseRef = useRef(false)
+  useEffect(() => {
+    if (
+      !autoParseRef.current &&
+      uploadedHandoff?.autoParse &&
+      uploadedHandoff.accountId &&
+      !profilesLoading &&
+      step.name === 'choose-account'
+    ) {
+      autoParseRef.current = true
+      void continueWithAccount(uploadedHandoff.accountId, { uploadedFileId: uploadedHandoff.uploadedFileId, fileName: uploadedHandoff.fileName })
+    }
+  }, [uploadedHandoff?.autoParse, uploadedHandoff?.accountId, uploadedHandoff?.uploadedFileId, uploadedHandoff?.fileName, profilesLoading, step.name, profiles.length, accounts.length])
+
   async function parseWithProfile(accountId: string, uploadedFileId: string, importProfileId: string) {
     setError(null)
     try {
       const parseResult = await apiClient.post<ParseWithProfileResult>('/import-runs/parse', { uploadedFileId, importProfileId })
-      setSkippedNote(parseResult.skippedDuplicateCount > 0 ? `Skipped ${parseResult.skippedDuplicateCount} likely duplicates` : null)
+      setSkippedNote(parseResult.rows.length > 0 && parseResult.skippedDuplicateCount > 0 ? `Skipped ${parseResult.skippedDuplicateCount} likely duplicates` : null)
+      if (parseResult.rows.length === 0) {
+        // Entire file deduped: not an error — send the user to the range their
+        // data actually lives in, instead of an empty review deck.
+        setStep({ name: 'all-imported', accountId, parseResult })
+        return
+      }
       // Rows whose name matches an earlier categorized transaction arrive with
       // that category; the deck only asks about the rest, then everything is reviewed.
-      if (parseResult.rows.length > 0 && parseResult.rows.every((row) => row.suggestedCategoryId)) {
+      if (parseResult.rows.every((row) => row.suggestedCategoryId)) {
         setStep({ name: 'review', accountId, parseResult, choices: suggestedChoices(parseResult) })
       } else {
         setStep({ name: 'categorize', accountId, parseResult })
@@ -252,6 +280,41 @@ export function ImportWizardPage() {
             setupAccountId ? setStep({ name: 'upload' }) : setStep({ name: 'choose-account', uploadedFileId: step.uploadedFileId, fileName: step.fileName })
           }
         />
+      )}
+
+      {step.name === 'all-imported' && (
+        <section className="wizard-question">
+          <h2>All {step.parseResult.skippedDuplicateCount} transactions were already imported</h2>
+          <p className="wizard-hint">
+            Every row in this file matches transactions already in {accountOf(step.accountId)?.name ?? 'the account'}.
+            {step.parseResult.earliestDate && step.parseResult.latestDate && (
+              <>
+                {' '}They cover <strong>{formatDate(step.parseResult.earliestDate)} – {formatDate(step.parseResult.latestDate)}</strong> — if your current
+                transaction view shows a different range filter, they won’t appear until you widen it.
+              </>
+            )}
+          </p>
+          <div className="wizard-nav">
+            {step.parseResult.earliestDate && step.parseResult.latestDate && (
+              <Button
+                variant="primary"
+                onClick={() =>
+                  navigate(`/accounts?selected=${step.accountId}&from=${step.parseResult.earliestDate}&to=${step.parseResult.latestDate}`)
+                }
+              >
+                View them in that range
+              </Button>
+            )}
+            {!step.parseResult.earliestDate && (
+              <Button variant="primary" onClick={() => navigate(`/accounts?selected=${step.accountId}`)}>
+                View account
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => setStep({ name: 'upload' })}>
+              Import a different file
+            </Button>
+          </div>
+        </section>
       )}
 
       {step.name === 'categorize' && (

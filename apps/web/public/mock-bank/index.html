@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mock Bank — Online Banking</title>
+    <!-- Open on www.mock-bank.test (public site); its sign-on redirects to online.mock-bank.test (online-banking host). Both share the registrable domain mock-bank.test. -->
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; background: #eef1f6; }
+      .screen { display: none; max-width: 420px; margin: 8vh auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 14px rgba(0,0,0,.08); }
+      .screen.active { display: block; }
+      h1 { font-size: 18px; margin-top: 0; }
+      label { display: block; margin: 12px 0 4px; font-size: 13px; color: #444; }
+      input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+      button { margin-top: 16px; width: 100%; padding: 10px; background: #1e4d92; border: 0; color: #fff; font-weight: 600; border-radius: 8px; cursor: pointer; }
+      .mfa-wait { color: #7a5c00; background: #fff8dc; padding: 8px; border-radius: 6px; font-size: 13px; }
+      table { font-size: 12px; border-collapse: collapse; width: 100%; margin-top: 12px; }
+      td { border-bottom: 1px solid #eee; padding: 4px; }
+      .toolbar { display: flex; gap: 10px; align-items: center; }
+      .toolbar button { width: auto; padding: 6px 12px; margin: 0; background: #f0f3f7; color: #1e4d92; }
+    </style>
+  </head>
+  <body>
+    <!-- Screen 1: sign-on. Credentials typed here are NEVER recorded (password-type input + otp-ish names). -->
+    <div id="screen-login" class="screen active">
+      <h1>Mock Bank — Sign on</h1>
+      <label>Card number</label>
+      <input id="card" type="text" name="cardNumber" value="4506 4460 2241 7" />
+      <label>Password</label>
+      <input id="password" type="password" name="password" placeholder="Password" />
+      <button id="btn-signon">Sign on</button>
+    </div>
+
+    <!-- Screen 2: simulated MFA — name deliberately matches the recorder's secret heuristic so its value isn't captured. -->
+    <div id="screen-mfa" class="screen">
+      <h1>Verify it’s you</h1>
+      <p class="mfa-wait">(Simulated) Enter the code sent to your phone: the demo code is <strong>246810</strong></p>
+      <label>One-time passcode</label>
+      <input id="otpCode" type="text" name="mfaCode" autocomplete="one-time-code" />
+      <button id="btn-mfa">Continue</button>
+    </div>
+
+    <!-- Screen 3: authenticated home — the recorder's post-login landmark lives here. -->
+    <div id="screen-home" class="screen">
+      <div class="toolbar">
+        <span id="acctLabel">Visa Classic 4510</span>
+        <button id="btn-signout">Sign out</button>
+      </div>
+      <h1>My Accounts</h1>
+      <button id="btn-download">Download Transactions (blob)</button>
+      <button id="btn-download-direct">Download Transactions (direct)</button>
+      <a id="btn-download-anchor" href="export.csv" download="export.csv" style="display:block;text-align:center;margin-top:10px;padding:10px;background:#1e4d92;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Download Transactions (anchor)</a>
+      <button id="btn-download-data">Download Transactions (data URL)</button>
+      <table id="txtable"></table>
+    </div>
+
+    <script type="module" src="./mock-bank.js"></script>
+  </body>
+</html>

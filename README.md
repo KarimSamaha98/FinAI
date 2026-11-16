@@ -233,6 +233,7 @@ flowchart LR
 | M10 | Cross-account polish | Reconciliation picker shows account badges/filter across accounts, reconciliation-group viewer/manager modal, Insights migrated onto the M8 design system | ✅ Done |
 | M11 | Settings polish | Category rename/delete guards, home-currency change | Pending |
 | M12 | PWA polish + deploy | Manifest/service worker icons, responsive pass, Vercel (web) + Render (api) + Supabase (data) production wiring | Pending |
+| M13 | Bank sync extension (MVP) | Chrome MV3 extension (`apps/extension`): pairing bridge (app-origin content script), per-user `bank_connections` table + API, **fully manual sync** — app opens the bank sign-on popup, user logs in and downloads the CSV themselves, the extension passively captures that one download (page-context blob hook + `downloads.onCreated`) and hands it to the existing import wizard, mock bank site + automated E2E for local testing | ✅ Done (MVP) |
 
 Each milestone after M1 builds pure API/UI logic on top of the schema laid down in M1 (M7 being the one exception — it adds the `accounts` table) — no further migrations are expected to be needed until the (future, out-of-scope) investment-tracking feature.
 
@@ -243,14 +244,32 @@ finai/
 ├── apps/
 │   ├── web/            # React + TS + Vite, PWA (vite-plugin-pwa)
 │   │   └── src/{routes,features,lib,components}/
-│   └── api/             # NestJS (Fastify adapter)
-│       └── src/{modules,db,common,config}/
+│   ├── api/             # NestJS (Fastify adapter)
+│   │   └── src/{modules,db,common,config}/
+│   └── extension/      # Bank Sync browser extension (Chrome MV3, WXT)
+│       └── {entrypoints,lib}/
 ├── packages/
 │   └── shared-types/    # zod schemas + inferred types, used by both apps
 └── supabase/
     ├── migrations/       # timestamped SQL (schema + RLS)
     └── seed.sql          # reference currencies + preset categories
 ```
+
+### Bank sync browser extension (MVP)
+
+> Full design reference — overview, user journey, architecture diagrams, capture channels, security model, browser quirks and testing: **[docs/bank-sync.md](docs/bank-sync.md)**.
+
+A Chrome/Edge MV3 extension, **`pnpm --filter extension run build`** → load `apps/extension/dist/chrome-mv3` unpacked, that pulls bank CSVs into the import pipeline — **fully manual by design**, with no credential handling anywhere:
+
+1. **Pair** (account Settings → Bank sync — the feature lives per-account under *Transaction* → account card → *Settings*, not in main Settings): the app detects the extension and shares its API base URL + current Supabase session tokens with the extension over a same-origin content-script bridge.
+2. **Connect a bank** (paste the sign-on URL — no curated bank list): Chrome asks for permission for that one origin.
+3. **Sync bank**: FinAI opens the bank sign-on URL in a popup. The *user* signs in, approves any MFA prompt, and downloads the CSV the way they normally would — no recording, no scripted steps, no recipes. The extension passively watches for the CSV download (a `URL.createObjectURL`/anchor patch in the page's own context, plus `downloads.onCreated` for direct downloads on the granted origin — content shape checked, not filenames, since bank export URLs rarely look like CSVs), uploads it through the **existing** `/api/import-runs/upload` endpoint, closes the popup and navigates the user into the app's standard import review (profile parsing → categorization → commit). While signing on, watch that the pasted URL is the domain the bank actually serves sign-on from (e.g. CIBC signs on at `www.cibconline.cibc.com`, not `www.cibc.com`).
+
+**One grant, ever.** At connect FinAI requests the pasted origin **plus a wildcard over its registrable domain** (`cibc.com` → `*.cibc.com`), so banks that redirect between their own subdomains during sign-on (CIBC's `cibconline.cibc.com`) are covered by the single initial grant — no mid-flow permission prompts, ever. The grant appears as a small popup window: press *Sync bank* → Allow → the bank popup opens immediately.
+
+State is minimal: one `bank_connections` row per account (bank slug, login URL, last-synced), RLS-scoped, no recipe storage. The session survives MV3 service-worker idle-death via `chrome.storage.session`, so a long sign-on doesn't kill an in-flight sync.
+
+Security posture: install-time permissions are limited to the app's origin; bank origins are granted per-connection (`optional_host_permissions`), the extension only observes *downloads* — never login forms, passwords or MFA codes — and can only upload files; committing to the ledger still happens in the app's review UI. `apps/web/public/mock-bank/` serves a fake online-banking site at `http://localhost:5173/mock-bank/index.html` (demo sign-on code 246810) for exercising the flow locally without touching a real bank; with it connected as a "bank", the whole loop runs unattended: `node scripts/extension-e2e.mjs`.
 
 ## 6. Local development
 

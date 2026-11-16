@@ -45,6 +45,8 @@ export const CategoryIconKeySchema = z.enum([
   "sparkles",
   "tool",
   "laundry",
+  "laptop",
+  "dots",
   "tag",
 ]);
 export type CategoryIconKey = z.infer<typeof CategoryIconKeySchema>;
@@ -58,9 +60,17 @@ export const CategorySchema = z.object({
   // Soft-deleted categories are hidden from pickers but still resolve by id
   // for the historical transactions that used them.
   isArchived: z.boolean(),
+  // The user's chosen display order (Settings → Categories); lists come back sorted by it.
+  sortOrder: z.number().int(),
   createdAt: z.string().datetime(),
 });
 export type Category = z.infer<typeof CategorySchema>;
+
+/** Every active category id, in the order the user arranged them. */
+export const ReorderCategoriesInputSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+});
+export type ReorderCategoriesInput = z.infer<typeof ReorderCategoriesInputSchema>;
 
 export const CreateCategoryInputSchema = CategorySchema.pick({ name: true }).extend({
   icon: CategoryIconKeySchema.nullable().optional(),

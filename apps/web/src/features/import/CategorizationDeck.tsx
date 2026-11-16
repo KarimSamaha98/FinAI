@@ -3,11 +3,8 @@ import type { Category, CandidateRow } from 'shared-types'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
 import { CategoryIcon } from '../../components/categoryIcons'
-import { useTopCategories } from '../../hooks/useTopCategories'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
-
-const TOP_CATEGORY_COUNT = 6
 
 export interface CategorizedRow {
   rowIndex: number
@@ -30,14 +27,10 @@ interface CategorizationDeckProps {
 export function CategorizationDeck({ rows, categories, onDone, onProgress, showSkipAll = true, skipHint }: CategorizationDeckProps) {
   const [cursor, setCursor] = useState(0)
   const [choices, setChoices] = useState<Record<number, string | null>>({})
-  const topCategories = useTopCategories(categories, TOP_CATEGORY_COUNT)
 
   const currentRow = rows[cursor]
-  // Every category is always shown: the user's most-used ones first, then the
-  // rest alphabetically.
-  const topIds = new Set(topCategories.map((c) => c.id))
-  const restCategories = categories.filter((c) => !topIds.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
-  const allCategories = [...topCategories, ...restCategories]
+  // Every category is shown, in the order the user arranged them in Settings.
+  const allCategories = categories
   const selectedCategoryId = currentRow ? choices[currentRow.rowIndex] : undefined
 
   function toCategorized(next: Record<number, string | null>): CategorizedRow[] {
@@ -78,7 +71,7 @@ export function CategorizationDeck({ rows, categories, onDone, onProgress, showS
   const remaining = rows.length - cursor
 
   return (
-    <div style={{ maxWidth: 460, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+    <div className="categorize-deck">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button type="button" className="text-button" onClick={goBack} disabled={cursor === 0}>
           ← Previous
@@ -88,35 +81,24 @@ export function CategorizationDeck({ rows, categories, onDone, onProgress, showS
         </span>
       </div>
 
-      <Card style={{ padding: 'var(--space-5)', textAlign: 'center' }}>
-        <div className="mono" style={{ fontSize: '2rem', fontWeight: 700, color: isIncome ? 'var(--amount-positive)' : 'var(--outflow)' }}>
+      <Card className="categorize-deck-txn">
+        <div className="mono categorize-deck-amount" style={{ color: isIncome ? 'var(--amount-positive)' : 'var(--outflow)' }}>
           {formatCurrency(currentRow.amount, currentRow.currencyCode)}
         </div>
-        <div style={{ color: 'var(--text-muted)', marginTop: 'var(--space-2)' }}>{formatDate(currentRow.date)}</div>
-        <div style={{ marginTop: 'var(--space-1)', overflowWrap: 'anywhere' }}>{currentRow.description || 'Untitled'}</div>
+        <div className="categorize-deck-date">{formatDate(currentRow.date)}</div>
+        <div className="categorize-deck-description">{currentRow.description || 'Untitled'}</div>
       </Card>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-        <h2
-          style={{
-            fontSize: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            color: 'var(--text-muted)',
-            margin: 0,
-            textAlign: 'center',
-          }}
-        >
-          Categorize this transaction
-        </h2>
-        <div role="group" aria-label="Categories" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', justifyContent: 'center' }}>
+        <h2 className="categorize-deck-heading">Categorize this transaction</h2>
+        <div role="group" aria-label="Categories" className="categorize-deck-options">
           {allCategories.map((category) => {
             const isSelected = category.id === selectedCategoryId
             return (
               <Button
                 key={category.id}
                 variant="secondary"
-                className={isSelected ? 'chip-selected' : undefined}
+                className={`categorize-deck-option${isSelected ? ' chip-selected' : ''}`}
                 aria-label={isSelected ? `${category.name} (selected)` : undefined}
                 onClick={() => choose(category.id)}
               >
@@ -143,7 +125,7 @@ export function CategorizationDeck({ rows, categories, onDone, onProgress, showS
             </Button>
           )}
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textAlign: 'center', margin: 0 }}>
+        <p className="categorize-deck-hint">
           {skipHint ?? 'Skipped rows import as Uncategorized — you can recategorize them anytime.'}
         </p>
       </div>

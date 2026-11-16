@@ -4,6 +4,7 @@ import type { AmountKind, HeatmapDay } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { format, parseISO } from 'date-fns'
 import { ColumnHitTargets } from './ColumnHitTargets'
+import { useAnimateOnDataChange } from './useAnimateOnDataChange'
 
 interface MonthlyBarChartProps {
   title: string
@@ -57,6 +58,7 @@ export function MonthlyBarChart({ title, days, kind, currencyCode, loading, onSe
         total,
       }))
   }, [days])
+  const barAnimation = useAnimateOnDataChange(monthlyData)
 
   if (loading) {
     const skeletonData = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((label, i) => ({
@@ -126,7 +128,7 @@ export function MonthlyBarChart({ title, days, kind, currencyCode, loading, onSe
             cursor={{ fill: 'var(--border)', opacity: 0.2 }}
             isAnimationActive={false}
           />
-          <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+          <Bar dataKey="total" radius={[4, 4, 0, 0]} {...barAnimation}>
             {monthlyData.map((m, i) => {
               const isSelected = selectedKey === m.monthKey
               return (
