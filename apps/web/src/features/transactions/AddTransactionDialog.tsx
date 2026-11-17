@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Account, Category, CreateTransactionInput } from 'shared-types'
+import type { AccountSummary, Category, CreateTransactionInput } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
 import { Modal } from '../../components/Modal'
 import { Alert } from '../../components/Alert'
@@ -12,7 +12,7 @@ interface AddTransactionDialogProps {
   open: boolean
   onClose: () => void
   categories: Category[]
-  accounts: Account[]
+  accounts: AccountSummary[]
   /** The one account selected on the Transaction page, if any — fixes the manual form and pre-selects the import's account question. */
   fixedAccountId: string | null
   onCreate: (input: CreateTransactionInput) => Promise<void>

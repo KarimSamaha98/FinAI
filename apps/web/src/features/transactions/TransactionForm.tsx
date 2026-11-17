@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import type { Account, Category, CreateTransactionInput } from 'shared-types'
+import type { AccountSummary, Category, CreateTransactionInput } from 'shared-types'
 import { CategorySelect } from '../../components/CategorySelect'
 import { AccountSelect } from '../../components/AccountSelect'
 import { Button } from '../../components/Button'
@@ -25,12 +25,22 @@ export interface TransactionFormValues {
   fxRateOverride: string
 }
 
-function emptyValues(fixedAccountId: string | null): TransactionFormValues {
+function getDefaultCurrencyForAccount(accountId: string | null, accounts: AccountSummary[], homeCurrency: string): string {
+  if (!accountId) return homeCurrency
+  
+  const account = accounts.find((a) => a.id === accountId)
+  if (!account) return homeCurrency
+  
+  const isMultiCurrency = account.balanceCurrencyCode !== account.currencyCode
+  return isMultiCurrency ? homeCurrency : account.currencyCode
+}
+
+function emptyValues(fixedAccountId: string | null, accounts: AccountSummary[], homeCurrency: string): TransactionFormValues {
   return {
     date: new Date().toISOString().slice(0, 10),
     type: 'expense',
     amount: '',
-    currencyCode: 'USD',
+    currencyCode: getDefaultCurrencyForAccount(fixedAccountId, accounts, homeCurrency),
     description: '',
     categoryId: null,
     accountId: fixedAccountId,
@@ -46,7 +56,7 @@ function formatRate(rate: number): string {
 
 interface TransactionFormProps {
   categories: Category[]
-  accounts: Account[]
+  accounts: AccountSummary[]
   /** When set (a specific account is selected, not "ALL"), the account is fixed and not shown as a picker. */
   fixedAccountId: string | null
   initialValues?: TransactionFormValues
@@ -68,7 +78,9 @@ export function TransactionForm({
   const { profile } = useProfile()
   const { options: currencyOptions } = useCurrencies()
   const homeCurrency = profile?.homeCurrencyCode ?? null
-  const [values, setValues] = useState<TransactionFormValues>(initialValues ?? emptyValues(fixedAccountId))
+  const [values, setValues] = useState<TransactionFormValues>(
+    initialValues ?? emptyValues(fixedAccountId, accounts, homeCurrency ?? 'USD')
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -84,6 +96,16 @@ export function TransactionForm({
     // Entering Manual: seed the field with the current market rate (or keep what's typed).
     const seed = mode === 'manual' && values.fxRateOverride.trim() === '' && autoRate != null ? formatRate(autoRate) : values.fxRateOverride
     setValues({ ...values, fxMode: mode, fxRateOverride: seed })
+  }
+
+  function handleAccountChange(accountId: string | null) {
+    if (!homeCurrency) {
+      setValues({ ...values, accountId })
+      return
+    }
+    
+    const newCurrency = getDefaultCurrencyForAccount(accountId, accounts, homeCurrency)
+    setValues({ ...values, accountId, currencyCode: newCurrency })
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -131,7 +153,7 @@ export function TransactionForm({
       {!fixedAccountId && (
         <label>
           Account
-          <AccountSelect accounts={accounts} value={values.accountId} onChange={(accountId) => setValues({ ...values, accountId })} />
+          <AccountSelect accounts={accounts} value={values.accountId} onChange={handleAccountChange} />
         </label>
       )}
       <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
