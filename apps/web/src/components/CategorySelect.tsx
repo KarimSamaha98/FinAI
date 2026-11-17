@@ -15,7 +15,7 @@ export function CategorySelect({ categories, value, onChange, 'aria-label': aria
       value={value ?? ''}
       aria-label={ariaLabel}
       options={[
-        { value: '', label: 'Uncategorized' },
+        { value: '', label: 'Uncategorized', icon: <CategoryIcon name={null} /> },
         ...categories.map((category) => ({ value: category.id, label: category.name, icon: <CategoryIcon name={category.icon} /> })),
       ]}
       onChange={(id) => onChange(id || null)}
