@@ -3,6 +3,7 @@ import type { Category, DisplayRow } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { useInsightTransactions } from '../../hooks/useInsightTransactions'
 import { CategoryIcon } from '../../components/categoryIcons'
+import { CloseIcon } from '../../components/icons'
 
 /** At most this many transactions render in the drawer; beyond it, "Show All" hands off. */
 const MAX_VISIBLE_ROWS = 10
@@ -15,6 +16,8 @@ interface InsightDrillPanelProps {
   title?: string
   /** Destination for the "Show All" hand-off — the Transactions view carrying this drill's filters. */
   showAllHref?: string
+  /** Shows a close ✕ at the panel's top right. */
+  onClose?: () => void
 }
 
 /** Largest transactions first, measured by home-currency value. */
@@ -30,7 +33,7 @@ function homeValue(row: DisplayRow): number {
  * amount and capped at 10 — beyond that, "Show All" links to the full
  * Transactions view with the identical filters.
  */
-export function InsightDrillPanel({ range, match, categories, currencyCode, title, showAllHref }: InsightDrillPanelProps) {
+export function InsightDrillPanel({ range, match, categories, currencyCode, title, showAllHref, onClose }: InsightDrillPanelProps) {
   const { rows, loading, error } = useInsightTransactions(range)
   const filtered = rows.filter(match).sort((a, b) => homeValue(b) - homeValue(a))
   const total = filtered.reduce((sum, row) => sum + (row.convertedValue ?? row.amount), 0)
@@ -38,7 +41,16 @@ export function InsightDrillPanel({ range, match, categories, currencyCode, titl
 
   return (
     <div className="insight-drill-content">
-      {title && <p className="insight-drill-title">{title}</p>}
+      {(title || onClose) && (
+        <div className="insight-drill-top">
+          {title && <p className="insight-drill-title">{title}</p>}
+          {onClose && (
+            <button type="button" className="sheet-close insight-drill-close" onClick={onClose} aria-label="Close transactions">
+              <CloseIcon />
+            </button>
+          )}
+        </div>
+      )}
       {!loading && !error && (
         <p className="insight-drill-summary">
           {filtered.length} {filtered.length === 1 ? 'transaction' : 'transactions'} ·{' '}

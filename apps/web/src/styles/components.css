@@ -1708,7 +1708,7 @@ dialog::backdrop {
   display: grid;
   /* The amount column has a fixed minimum so the category pill (to its left)
      stays aligned across rows regardless of how many digits each amount has. */
-  grid-template-columns: 96px minmax(0, 1fr) auto minmax(6.5rem, max-content);
+  grid-template-columns: 40px minmax(0, 1fr) auto minmax(6.5rem, max-content);
   grid-template-areas: 'date description chips amount';
   align-items: center;
   column-gap: 16px;
@@ -1748,10 +1748,27 @@ dialog::backdrop {
 
 .txn-row-date {
   grid-area: date;
-  font: var(--type-footnote);
-  font-variant-numeric: tabular-nums;
-  color: var(--txn-muted);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  min-width: 36px;
   white-space: nowrap;
+}
+
+.txn-date-month {
+  font: 600 0.6875rem/1 var(--font-text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txn-muted);
+}
+
+.txn-date-day {
+  margin-top: 2px;
+  font: 700 1.375rem/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--txn-text);
 }
 
 .txn-row-description-cell {
@@ -1773,6 +1790,18 @@ dialog::backdrop {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.txn-row-subline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 3px;
+}
+
+.txn-row-subline .txn-chip {
+  flex: 0 1 auto;
 }
 
 .txn-row-meta {
@@ -1826,10 +1855,93 @@ dialog::backdrop {
   height: 13px;
 }
 
+/* Account pill: a 25% layer of the account's card colour over the grey fill. */
+.txn-chip--account.is-tinted {
+  background:
+    linear-gradient(color-mix(in srgb, var(--chip-tint) 25%, transparent), color-mix(in srgb, var(--chip-tint) 25%, transparent)),
+    var(--fill-tertiary);
+}
+
+.txn-chip--account.is-tinted .txn-chip-icon {
+  color: inherit;
+}
+
 /* Account pill and category pill both truncate rather than blow out the row. */
 .txn-chip--account,
 .txn-chip--category {
   max-width: 12rem;
+}
+
+/* Category: a round icon; its name appears on hover, to the left so the
+   list's rounded edge never clips it. */
+.txn-category-icon {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--fill-tertiary);
+  color: var(--txn-muted);
+}
+
+.txn-category-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Uncategorized: the attention yellow, matching the "uncategorized" notice. */
+.txn-category-icon.is-empty {
+  background: var(--status-attention-soft);
+  color: var(--status-attention);
+}
+
+/* Hover labels: data-tooltip text beside the element (--left or --right). */
+.has-tooltip {
+  position: relative;
+}
+
+.has-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--label-primary);
+  color: var(--bg);
+  font: var(--type-caption-1);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.has-tooltip--left::after {
+  right: calc(100% + 6px);
+  transform: translate(4px, -50%);
+}
+
+.has-tooltip--right::after {
+  left: calc(100% + 6px);
+  transform: translate(-4px, -50%);
+}
+
+.has-tooltip:hover::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .has-tooltip::after {
+    transition: opacity var(--duration-fast) linear;
+    transform: translate(0, -50%);
+  }
 }
 
 /* Uncategorized: an outlined (empty) capsule. */
@@ -1857,22 +1969,37 @@ dialog::backdrop {
   color: var(--txn-muted);
 }
 
-/* Narrow lists: description and date stack, chips drop below. */
+/* Narrow lists: description (+ account) above the date; the compact chips
+   (kind + category icon) sit at the end of the date line, under the amount. */
 @container (max-width: 720px) {
   .txn-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
     grid-template-areas:
-      'description amount'
-      'date amount'
-      'chips chips';
+      'date description amount'
+      'date description chips';
     column-gap: 12px;
-    row-gap: 2px;
+    row-gap: 4px;
     padding: 10px 12px;
   }
 
+  .txn-row-amount {
+    align-self: end;
+  }
+
   .txn-row-chips {
-    justify-content: flex-start;
-    margin-top: 6px;
+    align-self: start;
+  }
+
+  /* Linked/Split collapse to their icon so the description keeps its width. */
+  .txn-chip--kind {
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    justify-content: center;
+  }
+
+  .txn-chip--kind .txn-chip-label {
+    display: none;
   }
 }
 
@@ -2364,6 +2491,19 @@ dialog::backdrop {
   font: var(--type-subhead);
 }
 
+/* Attention variant (e.g. uncategorized transactions): soft system yellow. */
+.notice-box--attention {
+  background: var(--status-attention-soft);
+}
+
+.notice-box--attention:hover {
+  background: color-mix(in srgb, var(--sys-yellow) 30%, transparent);
+}
+
+.notice-box--attention .notice-box-icon {
+  color: var(--status-attention);
+}
+
 /* ── Import review (last step of an import) ────────────────────────────── */
 .import-review-list {
   list-style: none;
@@ -2514,6 +2654,36 @@ dialog::backdrop {
   border-top: 1px solid var(--separator);
 }
 
+/* Arranging: the grip drags (no page scroll under a finger); rows slide aside. */
+.category-grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+.category-list.is-arranging,
+.category-list.is-arranging .category-grip {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.category-list.is-arranging .category-list-row:not(.is-dragging) {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.category-list-row.is-dragging {
+  position: relative;
+  z-index: 1;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-list.is-arranging .category-list-row:not(.is-dragging) {
+    transition: none;
+  }
+}
+
 .category-list-name {
   flex: 1;
   min-width: 0;
@@ -2557,6 +2727,13 @@ dialog::backdrop {
   color: var(--accent-text);
   background: var(--tint-soft);
   box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/* Used by another category: visible but not pickable. */
+.icon-picker-option:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  background: transparent;
 }
 
 .category-delete-question {
@@ -2942,13 +3119,21 @@ dialog::backdrop {
 }
 
 
-/* Clickable charts: axis labels sit above the hit targets, so let clicks through them. */
-.recharts-wrapper:has(.chart-hit-targets) text {
+/* Clickable charts: axis labels and the bars themselves are drawn above the
+   hit targets, so let clicks through them — a bar click selects its column. */
+.recharts-wrapper:has(.chart-hit-targets) text,
+.recharts-wrapper:has(.chart-hit-targets) .recharts-bar {
   pointer-events: none;
 }
 
 /* ── Insights page typography hierarchy ──────────────────────────── */
 .insights-period-sentence {
+  /* A centred row so the words and the dropdown pills share one centre line. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.4rem;
+  row-gap: var(--space-1);
   font: var(--type-title-3);
   letter-spacing: -0.01em;
   color: var(--text-muted);
@@ -3120,6 +3305,30 @@ dialog::backdrop {
   gap: var(--space-2);
 }
 
+/* Title row with the close ✕ pinned top right. */
+.insight-drill-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.insight-drill-top .insight-drill-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sheet-close.insight-drill-close {
+  width: 24px;
+  height: 24px;
+  margin: -2px -6px 0 0;
+}
+
+.sheet-close.insight-drill-close svg {
+  width: 12px;
+  height: 12px;
+}
+
 .split-panel-details .insight-drill-title {
   font-size: 0.8rem;
   font-weight: 700;
@@ -3228,4 +3437,124 @@ dialog::backdrop {
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--bg-grouped);
+}
+
+/* ── Categorize deck (import + "uncategorized" modal) ─────────────────── */
+/* Compact enough that the whole deck fits in the sheet without scrolling. */
+.categorize-deck {
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.categorize-deck-txn {
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+}
+
+.categorize-deck-amount {
+  font: 700 1.5rem/1.2 var(--font-display);
+}
+
+.categorize-deck-date {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.categorize-deck-description {
+  margin-top: 2px;
+  font: var(--type-subhead);
+  overflow-wrap: anywhere;
+}
+
+.categorize-deck-heading {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.categorize-deck-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn.categorize-deck-option {
+  min-height: 0;
+  height: 30px;
+  padding: 0 10px;
+  font: var(--type-footnote);
+  font-weight: 500;
+}
+
+.categorize-deck-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* Phones: tighter still, so all categories fit without scrolling. */
+@media (max-width: 480px) {
+  .sheet-body:has(.categorize-deck) {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .categorize-deck {
+    gap: var(--space-2);
+  }
+
+  .categorize-deck-txn {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .categorize-deck-amount {
+    font-size: 1.25rem;
+  }
+
+  .categorize-deck-options {
+    gap: 4px;
+  }
+
+  .btn.categorize-deck-option {
+    height: 28px;
+    padding: 0 8px;
+    font: var(--type-caption-1);
+    font-weight: 500;
+  }
+
+  .categorize-deck-hint {
+    font-size: 0.6875rem;
+  }
+}
+
+/* Insights: hairline between the Summary totals and Changes in one card. */
+.insights-keyline {
+  margin: var(--space-4) 0;
+  border: 0;
+  border-top: 1px solid var(--separator);
+}
+
+.insights-empty {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Expenses | Income switch: full width, between Top Expenses and the per-side sections. */
+.segmented.insights-flow-tabs {
+  display: flex;
+  margin: var(--space-5) 0;
+}
+
+.segmented.insights-flow-tabs .segmented-option {
+  flex: 1;
 }

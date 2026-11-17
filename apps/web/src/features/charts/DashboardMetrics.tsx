@@ -1,14 +1,33 @@
-import type { DashboardSummary } from 'shared-types'
+import type { CategoryChange, DashboardSummary } from 'shared-types'
+import { Card } from '../../components/Card'
 import { formatCurrency } from '../../lib/formatCurrency'
-import { StatGrid } from './StatGrid'
+import { StatTiles } from './StatGrid'
+import { significantChangeTiles } from './categoryChanges'
 
-interface DashboardMetricsProps {
+interface SummaryCardProps {
   current: DashboardSummary
   loading?: boolean
+  changes: CategoryChange[]
+  changesLoading?: boolean
   currencyCode: string
 }
 
-export function DashboardMetrics({ current, loading, currencyCode }: DashboardMetricsProps) {
+/** Placeholder tiles while a group loads. */
+function SkeletonTiles() {
+  return (
+    <div className="changes-grid">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="change-tile" style={{ minHeight: '4.5rem' }} />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The period at a glance: the four totals, then — below a keyline, in the
+ * same card — the categories that changed the most.
+ */
+export function SummaryCard({ current, loading, changes, changesLoading, currencyCode }: SummaryCardProps) {
   const placeholder = loading || undefined
 
   const items = [
@@ -32,10 +51,25 @@ export function DashboardMetrics({ current, loading, currencyCode }: DashboardMe
       color: placeholder ? undefined : current.savingsRate !== null && current.savingsRate < 0 ? 'var(--danger)' : 'var(--amount-positive)',
     },
   ]
+  const changeTiles = significantChangeTiles(changes)
 
   return (
-    <div style={{ marginBottom: 'var(--space-5)' }}>
-      <StatGrid items={items} title="Summary" hint="What you should remember" />
-    </div>
+    <Card style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+      <h4 className="insights-subheader">Summary</h4>
+      <p className="insights-hint">What you should remember</p>
+      <StatTiles items={items} />
+
+      <hr className="insights-keyline" />
+
+      <h4 className="insights-subheader">Changes</h4>
+      <p className="insights-hint">Categories with the most significant change</p>
+      {changesLoading ? (
+        <SkeletonTiles />
+      ) : changeTiles.length > 0 ? (
+        <StatTiles items={changeTiles} />
+      ) : (
+        <p className="insights-empty">No big changes compared with recent periods.</p>
+      )}
+    </Card>
   )
 }

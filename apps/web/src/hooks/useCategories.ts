@@ -23,20 +23,37 @@ export function useCategories() {
     refresh()
   }, [refresh])
 
-  function sortByName(list: Category[]): Category[] {
-    return [...list].sort((a, b) => a.name.localeCompare(b.name))
+  /** The user's arrangement (Settings → Categories); name breaks ties. */
+  function sortByOrder(list: Category[]): Category[] {
+    return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
   }
 
   async function createCategory(input: CreateCategoryInput) {
     const category = await apiClient.post<Category>('/categories', input)
-    setCategories((prev) => sortByName([...prev, category]))
+    setCategories((prev) => sortByOrder([...prev, category]))
     return category
   }
 
   async function renameCategory(id: string, name: string, icon?: CategoryIconKey | null) {
     const updated = await apiClient.patch<Category>(`/categories/${id}`, icon === undefined ? { name } : { name, icon })
-    setCategories((prev) => sortByName(prev.map((c) => (c.id === id ? updated : c))))
+    setCategories((prev) => sortByOrder(prev.map((c) => (c.id === id ? updated : c))))
     return updated
+  }
+
+  /**
+   * Saves a new arrangement. `ids` are the active categories in their new
+   * order; the list updates immediately and rolls back if the save fails.
+   */
+  async function reorderCategories(ids: string[]) {
+    const previous = categories
+    const position = new Map(ids.map((id, index) => [id, index + 1]))
+    setCategories((prev) => sortByOrder(prev.map((c) => (position.has(c.id) ? { ...c, sortOrder: position.get(c.id)! } : c))))
+    try {
+      setCategories(await apiClient.put<Category[]>('/categories/order', { ids }))
+    } catch (err) {
+      setCategories(previous)
+      throw err
+    }
   }
 
   /** Soft delete — the category leaves the pickers but stays on past transactions. */
@@ -63,5 +80,5 @@ export function useCategories() {
   // archived categories still resolve their names on historical transactions.
   const activeCategories = useMemo(() => categories.filter((c) => !c.isArchived), [categories])
 
-  return { categories, activeCategories, loading, error, refresh, createCategory, renameCategory, archiveCategory, getCategoryUsage, removeCategory }
+  return { categories, activeCategories, loading, error, refresh, createCategory, renameCategory, reorderCategories, archiveCategory, getCategoryUsage, removeCategory }
 }
