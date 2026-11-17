@@ -1,7 +1,7 @@
+import { format, parseISO } from 'date-fns'
 import type { CandidateRow, Category } from 'shared-types'
 import { Button } from '../../components/Button'
-import { Badge } from '../../components/Badge'
-import { CategorySelect } from '../../components/CategorySelect'
+import { CategoryDropdown } from '../../components/CategoryDropdown'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
 
@@ -19,6 +19,8 @@ interface ImportReviewProps {
  * The last step of an import: every row with the category it will be saved
  * with — picked in the deck, or filled in from an earlier transaction with
  * the same name ("Auto") — each still changeable before the import is approved.
+ * Rows look like the ledger's transaction cards: a calendar date leaf, the
+ * round category icon pill (click to change), and the colour-coded amount.
  */
 export function ImportReview({ rows, categories, choices, onChange, onConfirm, committing }: ImportReviewProps) {
   const autoCount = rows.filter((row) => row.suggestedCategoryId && choices[row.rowIndex] === row.suggestedCategoryId).length
@@ -36,25 +38,36 @@ export function ImportReview({ rows, categories, choices, onChange, onConfirm, c
         {rows.map((row) => {
           const categoryId = choices[row.rowIndex] ?? null
           const isAuto = !!row.suggestedCategoryId && categoryId === row.suggestedCategoryId
+          const description = row.description || 'Untitled'
           return (
             <li key={row.rowIndex} className="import-review-row">
-              <div className="import-review-main">
-                <span className="import-review-description">{row.description || 'Untitled'}</span>
-                <span className="import-review-date">{formatDate(row.date)}</span>
-              </div>
-              <span className="mono import-review-amount" style={{ color: row.amount >= 0 ? 'var(--amount-positive)' : 'var(--outflow)' }}>
+              {/* A small calendar leaf; the full date shows on hover. */}
+              <span className="import-review-date has-tooltip has-tooltip--right" data-tooltip={formatDate(row.date)}>
+                <span className="import-review-date-month">{format(parseISO(row.date), 'MMM')}</span>
+                <span className="import-review-date-day">{format(parseISO(row.date), 'd')}</span>
+              </span>
+
+              <span className="import-review-main">
+                <span className="import-review-description">{description}</span>
+              </span>
+
+              <span className="import-review-chips">
+                <CategoryDropdown
+                  categories={categories}
+                  value={categoryId}
+                  onChange={(id) => onChange(row.rowIndex, id)}
+                  aria-label={`Category for ${description}`}
+                />
+                {isAuto && (
+                  <span className="import-review-chip import-review-chip--auto" title="Filled in from an earlier transaction with the same name">
+                    Auto
+                  </span>
+                )}
+              </span>
+
+              <span className={`import-review-amount${row.amount > 0 ? ' is-income' : ''}${row.amount === 0 ? ' is-zero' : ''}`}>
                 {formatCurrency(row.amount, row.currencyCode)}
               </span>
-              <div className="import-review-category">
-                <CategorySelect categories={categories} value={categoryId} onChange={(id) => onChange(row.rowIndex, id)} />
-                {isAuto ? (
-                  <Badge variant="accent" title="Filled in from an earlier transaction with the same name">
-                    Auto
-                  </Badge>
-                ) : (
-                  <span />
-                )}
-              </div>
             </li>
           )
         })}

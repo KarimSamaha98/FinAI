@@ -591,6 +591,47 @@
   transform: rotate(180deg);
 }
 
+/* CategoryDropdown's trigger label truncates rather than stretching its row. */
+.category-dropdown-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* CategoryDropdown sits inside transaction-card rows, so it uses their chip
+   scale (12px/500) rather than the filter bar's larger subhead. */
+.category-dropdown .dropdown-trigger {
+  position: relative;
+  min-height: 0;
+  padding: 3px 9px;
+  gap: 5px;
+  font: var(--type-caption-1);
+  font-weight: 500;
+}
+
+.category-dropdown .dropdown-trigger .option-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.category-dropdown .dropdown-trigger-chevron {
+  font-size: 0.6rem;
+}
+
+/* An invisible sponge that lifts the short capsule to the app's hit target. */
+.category-dropdown .dropdown-trigger::after {
+  content: '';
+  position: absolute;
+  inset: -11px -4px;
+}
+
+/* The panel's rows follow the same scale, just airy enough to tap. */
+.category-dropdown .dropdown-item {
+  min-height: 32px;
+  padding: 0.35rem 0.55rem;
+  font: var(--type-caption-1);
+}
+
 .dropdown-panel {
   position: absolute;
   z-index: 20;
@@ -2505,77 +2546,150 @@ dialog::backdrop {
 }
 
 /* ── Import review (last step of an import) ────────────────────────────── */
+/* Mirrors the ledger's transaction cards: an inset grouped list with a
+   calendar date leaf, the round category icon pill, and the amount. */
 .import-review-list {
   list-style: none;
   margin: 0;
-  padding: 0;
-  border: 0;
+  padding: var(--space-2);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  overflow: hidden;
+  container-type: inline-size;
 }
 
 .import-review-row {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    'main amount'
-    'category category';
-  gap: var(--space-2) var(--space-3);
+  /* Amount column has a fixed min so the category pill stays aligned. */
+  grid-template-columns: 40px minmax(0, 1fr) auto minmax(6.5rem, max-content);
+  grid-template-areas: 'date main chips amount';
   align-items: center;
-  padding: var(--space-3);
+  column-gap: 16px;
+  min-height: var(--hit-min);
+  padding: 10px 12px;
 }
 
-.import-review-row + .import-review-row {
-  border-top: 1px solid var(--separator);
+/* Inset hairline between rows. */
+.import-review-row + .import-review-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: var(--separator);
+  transform: scaleY(0.5);
+  transform-origin: top;
+  pointer-events: none;
+}
+
+.import-review-date {
+  grid-area: date;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  min-width: 36px;
+}
+
+.import-review-date-month {
+  font: 600 0.6875rem/1 var(--font-text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.import-review-date-day {
+  margin-top: 2px;
+  font: 700 1.375rem/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
 
 .import-review-main {
   grid-area: main;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  min-height: 40px;
 }
 
 .import-review-description {
   font: var(--type-body);
   font-weight: 500;
-  overflow-wrap: anywhere;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.import-review-date {
-  color: var(--text-muted);
-  font: var(--type-footnote);
+.import-review-chips {
+  grid-area: chips;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* The category dropdown keeps the row's description readable. */
+.import-review-chips .dropdown-trigger {
+  max-width: 13rem;
+}
+
+/* Standard chip format, as the ledger rows use (the badge is smaller). */
+.import-review-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: var(--radius-full);
+  font: var(--type-caption-1);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.import-review-chip--auto {
+  background: var(--tint-soft);
+  color: var(--accent-text);
 }
 
 .import-review-amount {
   grid-area: amount;
   font: var(--type-headline);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  text-align: right;
   white-space: nowrap;
+  color: var(--outflow);
 }
 
-.import-review-category {
-  grid-area: category;
-  display: grid;
-  /* The second column keeps the selects aligned whether or not a row has the Auto badge. */
-  grid-template-columns: minmax(0, 1fr) 3rem;
-  align-items: center;
-  gap: var(--space-2);
+.import-review-amount.is-income {
+  color: var(--amount-positive);
 }
 
-.import-review-category select {
-  min-width: 0;
+.import-review-amount.is-zero {
+  color: var(--text-muted);
 }
 
-@media (min-width: 640px) {
+/* Narrow lists: the category dropdown sits under the amount, like the ledger. */
+@container (max-width: 720px) {
   .import-review-row {
-    grid-template-columns: minmax(0, 1fr) 15rem 7.5rem;
-    grid-template-areas: 'main category amount';
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'date main amount'
+      'date main chips';
+    column-gap: 12px;
+    row-gap: 4px;
   }
 
   .import-review-amount {
-    text-align: right;
+    align-self: end;
+  }
+
+  .import-review-chips {
+    align-self: start;
   }
 }
 
