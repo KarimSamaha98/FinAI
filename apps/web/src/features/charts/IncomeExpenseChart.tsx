@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, type BarShapeProps } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TrendPoint } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { ChevronLeftIcon, ChevronRightIcon } from '../../components/icons'
@@ -95,59 +95,6 @@ const BAR_COLOR_EXPENSE = 'var(--outflow)'
 const BAR_OPACITY_IDLE = 0.5
 const BAR_OPACITY_ACTIVE = 1
 
-function BidirectionalBarShape(props: BarShapeProps) {
-  const { x = 0, y = 0, width = 0, height = 0, payload } = props
-  const income = payload?.income ?? 0
-  const expense = payload?.expense ?? 0
-  const isCurrent = payload?.isCurrent ?? false
-  const zeroY = y + height
-
-  if (income === 0 && expense === 0) return null
-
-  const pixelsPerUnit = income > 0 ? height / income : 1
-  const expenseHeight = Math.abs(expense) * pixelsPerUnit
-
-  const opacity = isCurrent ? BAR_OPACITY_ACTIVE : BAR_OPACITY_IDLE
-  const stroke = isCurrent ? 'var(--accent)' : 'transparent'
-  const strokeWidth = isCurrent ? 2 : 0
-  const rx = Math.min(4, height / 2, expenseHeight / 2)
-  const expenseBottom = zeroY + expenseHeight
-
-  return (
-    <g>
-      <path
-        d={`
-          M ${x} ${zeroY}
-          L ${x} ${y + rx}
-          Q ${x} ${y} ${x + rx} ${y}
-          L ${x + width - rx} ${y}
-          Q ${x + width} ${y} ${x + width} ${y + rx}
-          L ${x + width} ${zeroY}
-          Z
-        `}
-        fill={BAR_COLOR_INCOME}
-        opacity={opacity}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-      />
-      <path
-        d={`
-          M ${x} ${zeroY}
-          L ${x} ${expenseBottom - rx}
-          Q ${x} ${expenseBottom} ${x + rx} ${expenseBottom}
-          L ${x + width - rx} ${expenseBottom}
-          Q ${x + width} ${expenseBottom} ${x + width} ${expenseBottom - rx}
-          L ${x + width} ${zeroY}
-          Z
-        `}
-        fill={BAR_COLOR_EXPENSE}
-        opacity={opacity}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-      />
-    </g>
-  )
-}
 
 export function IncomeExpenseChart({ title, subtitle, points, currencyCode, currentPeriod, onSelectPeriod, onPageBack, onPageForward, stepLabel, loading }: IncomeExpenseChartProps) {
   const header = <ChartHeader title={title} subtitle={subtitle} onPageBack={onPageBack} onPageForward={onPageForward} stepLabel={stepLabel} />
@@ -167,11 +114,12 @@ export function IncomeExpenseChart({ title, subtitle, points, currencyCode, curr
       <div>
         {header}
         <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={skeletonData} margin={{ top: 28, right: 16, left: 0, bottom: 28 }}>
+          <BarChart data={skeletonData} stackOffset="sign" margin={{ top: 28, right: 16, left: 0, bottom: 28 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey="label" stroke="var(--border)" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} tickLine={false} interval={0} />
             <YAxis stroke="var(--border)" tick={false} tickLine={false} width={48} />
-            <Bar dataKey="income" maxBarSize={20} shape={BidirectionalBarShape} />
+            <Bar dataKey="income" stackId="expense-split" maxBarSize={20} />
+            <Bar dataKey="expense" stackId="expense-split" maxBarSize={20} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -211,6 +159,7 @@ export function IncomeExpenseChart({ title, subtitle, points, currencyCode, curr
       <ResponsiveContainer width="100%" height={320}>
         <BarChart
           data={data}
+          stackOffset="sign"
           margin={{ top: 28, right: 16, left: 0, bottom: 28 }}
           style={onSelectPeriod ? { cursor: 'pointer' } : undefined}
         >
@@ -238,7 +187,34 @@ export function IncomeExpenseChart({ title, subtitle, points, currencyCode, curr
           />
           <Tooltip content={<ChartTooltip currencyCode={currencyCode} />} cursor={{ fill: 'var(--border)', opacity: 0.2 }} isAnimationActive={false} />
 
-          <Bar dataKey="income" maxBarSize={20} shape={BidirectionalBarShape} />
+          <Bar dataKey="income" stackId="expense-split" maxBarSize={20} radius={[4, 4, 0, 0]}>
+            {data.map((p, i) => {
+              const isSelected = currentPeriod ? p.period === currentPeriod : false
+              return (
+                <Cell
+                  key={i}
+                  fill={BAR_COLOR_INCOME}
+                  opacity={isSelected ? BAR_OPACITY_ACTIVE : BAR_OPACITY_IDLE}
+                  stroke={isSelected ? 'var(--accent)' : 'none'}
+                  strokeWidth={isSelected ? 2 : 0}
+                />
+              )
+            })}
+          </Bar>
+          <Bar dataKey="expense" stackId="expense-split" maxBarSize={20} radius={[4, 4, 0, 0]}>
+            {data.map((p, i) => {
+              const isSelected = currentPeriod ? p.period === currentPeriod : false
+              return (
+                <Cell
+                  key={i}
+                  fill={BAR_COLOR_EXPENSE}
+                  opacity={isSelected ? BAR_OPACITY_ACTIVE : BAR_OPACITY_IDLE}
+                  stroke={isSelected ? 'var(--accent)' : 'none'}
+                  strokeWidth={isSelected ? 2 : 0}
+                />
+              )
+            })}
+          </Bar>
 
           {onSelectPeriod && <ColumnHitTargets count={data.length} onPick={(i) => onSelectPeriod(data[i].period)} />}
         </BarChart>
