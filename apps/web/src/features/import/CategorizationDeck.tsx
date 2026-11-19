@@ -18,15 +18,17 @@ interface CategorizationDeckProps {
   onDone: (categorized: CategorizedRow[]) => void
   /** Called after every choice with the rows so far, so a parent can save them if the deck is closed early. */
   onProgress?: (categorized: CategorizedRow[]) => void
+  /** Choices to start from (e.g. coming Back from the review); rows are still shown from the first. */
+  initialChoices?: Record<number, string | null>
   /** Hide Skip All where closing the deck already does the same (default: shown). */
   showSkipAll?: boolean
   /** Note under the Skip buttons; defaults to the import wording. */
   skipHint?: string
 }
 
-export function CategorizationDeck({ rows, categories, onDone, onProgress, showSkipAll = true, skipHint }: CategorizationDeckProps) {
+export function CategorizationDeck({ rows, categories, onDone, onProgress, initialChoices, showSkipAll = true, skipHint }: CategorizationDeckProps) {
   const [cursor, setCursor] = useState(0)
-  const [choices, setChoices] = useState<Record<number, string | null>>({})
+  const [choices, setChoices] = useState<Record<number, string | null>>(() => ({ ...initialChoices }))
 
   const currentRow = rows[cursor]
   // Every category is shown, in the order the user arranged them in Settings.

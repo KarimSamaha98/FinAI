@@ -4,10 +4,12 @@ import { apiClient } from '../../lib/apiClient'
 import { useCurrencies } from '../../hooks/useCurrencies'
 import { FieldSelect } from '../../components/FieldSelect'
 import { SuggestInput } from '../../components/SuggestInput'
-import { Button } from '../../components/Button'
+import { ChoiceCard } from '../../components/ChoiceCard'
+import { WizardStep } from '../../components/WizardFooter'
 import { Alert } from '../../components/Alert'
 import { DATE_FORMAT_PRESETS, detectDateFormat, previewParsedDate } from './date-format-presets'
 import { CsvPreview, type ColumnAssignment } from './CsvPreview'
+import { PROFILE_QUESTIONS, type ProfileQuestion } from './profileQuestions'
 import { TransactionRow } from '../accounts/TransactionRow'
 
 /** The preview shows at most this many lines of the file, header row included. */
@@ -16,10 +18,8 @@ const CUSTOM_DATE_FORMAT = 'custom'
 /** Profiles read comma-separated files. */
 const DELIMITER = ','
 
-const STEPS = ['header', 'currency', 'date', 'description', 'amounts', 'save'] as const
-type StepKey = (typeof STEPS)[number]
-/** By default uploading the file and choosing its account come first (steps 1 and 2 of the flow). */
-const DEFAULT_STEPS_BEFORE = 2
+const STEPS = PROFILE_QUESTIONS
+type StepKey = ProfileQuestion
 
 type SignMode = SignConvention | 'directional'
 
@@ -30,10 +30,12 @@ interface ProfileWizardProps {
   accountCurrency: string
   defaultName: string
   uploadedFileId: string
-  /** Steps of the overall flow before the wizard, for the "Step x of y" counter. */
-  stepsBefore?: number
+  /** Which question is showing (controlled, so the host's progress bar can show it). */
+  stepIndex: number
+  onStepIndexChange: (index: number) => void
   onCreated: (input: CreateImportProfileInput) => Promise<void>
-  onCancel: () => void
+  /** Back from the first question (to the step before profile setup). */
+  onBack: () => void
 }
 
 /** Same rules as the backend's parseAmountCell, for the live sign preview. */
@@ -56,15 +58,13 @@ function guessDirectionValues(values: string[]): { inValue: string; outValue: st
 }
 
 /**
- * Builds an import profile one question at a time. The file preview stays on
- * top throughout, labelling every column as it gets assigned; each step's
+ * Builds an import profile one question at a time, as the "Read CSV" phase of
+ * the import wizard. The file preview stays on top throughout, labelling every column as it gets assigned; each step's
  * question sits underneath, and column questions can also be answered by
  * clicking a column in the preview.
  */
-export function ProfileWizard({ accountId, account, accountCurrency, defaultName, uploadedFileId, stepsBefore = DEFAULT_STEPS_BEFORE, onCreated, onCancel }: ProfileWizardProps) {
-  const totalSteps = STEPS.length + stepsBefore
+export function ProfileWizard({ accountId, account, accountCurrency, defaultName, uploadedFileId, stepIndex, onStepIndexChange: setStepIndex, onCreated, onBack }: ProfileWizardProps) {
   const { options: currencyOptions } = useCurrencies()
-  const [stepIndex, setStepIndex] = useState(0)
   const [rawRows, setRawRows] = useState<string[][] | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
 
@@ -282,12 +282,7 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
   }
 
   function choice<T>(current: T | null, value: T, set: (value: T) => void, title: string, detail?: string) {
-    return (
-      <button type="button" className={`wizard-choice${current === value ? ' is-selected' : ''}`} aria-pressed={current === value} onClick={() => set(value)}>
-        <span className="wizard-choice-title">{title}</span>
-        {detail && <span className="wizard-choice-detail">{detail}</span>}
-      </button>
-    )
+    return <ChoiceCard title={title} detail={detail} selected={current === value} onSelect={() => set(value)} />
   }
 
   const questions: Record<StepKey, { title: string; hint?: string; body: ReactNode }> = {
@@ -493,16 +488,13 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
   const isLast = stepIndex === STEPS.length - 1
 
   return (
-    <div className="profile-wizard">
-      <div className="wizard-progress">
-        <span>
-          Step {stepIndex + stepsBefore + 1} of {totalSteps}
-        </span>
-        <div className="wizard-progress-bar" aria-hidden="true">
-          <span style={{ width: `${((stepIndex + stepsBefore + 1) / totalSteps) * 100}%` }} />
-        </div>
-      </div>
-
+    <WizardStep
+      onSubmit={isLast ? handleSave : () => setStepIndex(stepIndex + 1)}
+      footer={{
+        back: { label: 'Back', onClick: stepIndex === 0 ? onBack : () => setStepIndex(stepIndex - 1) },
+        primary: isLast ? { label: 'Save profile', loading: submitting, disabled: !canContinue.save } : { label: 'Continue', disabled: !canContinue[step] },
+      }}
+    >
       {previewError && <Alert variant="error">{previewError}</Alert>}
       {rawRows ? (
         <CsvPreview
@@ -525,22 +517,7 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
       </section>
 
       {error && <Alert variant="error">{error}</Alert>}
-
-      <div className="wizard-nav">
-        <Button variant="secondary" onClick={stepIndex === 0 ? onCancel : () => setStepIndex(stepIndex - 1)}>
-          {stepIndex === 0 ? 'Cancel' : 'Back'}
-        </Button>
-        {isLast ? (
-          <Button variant="primary" onClick={handleSave} loading={submitting} disabled={!canContinue.save}>
-            Save profile
-          </Button>
-        ) : (
-          <Button variant="primary" onClick={() => setStepIndex(stepIndex + 1)} disabled={!canContinue[step]}>
-            Next
-          </Button>
-        )}
-      </div>
-    </div>
+    </WizardStep>
   )
 }
 

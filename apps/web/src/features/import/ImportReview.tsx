@@ -1,5 +1,4 @@
 import type { CandidateRow, Category } from 'shared-types'
-import { Button } from '../../components/Button'
 import { Badge } from '../../components/Badge'
 import { CategorySelect } from '../../components/CategorySelect'
 import { formatCurrency } from '../../lib/formatCurrency'
@@ -11,16 +10,15 @@ interface ImportReviewProps {
   /** rowIndex → chosen category (null = Uncategorized). */
   choices: Record<number, string | null>
   onChange: (rowIndex: number, categoryId: string | null) => void
-  onConfirm: () => void
-  committing: boolean
 }
 
 /**
  * The last step of an import: every row with the category it will be saved
  * with — picked in the deck, or filled in from an earlier transaction with
  * the same name ("Auto") — each still changeable before the import is approved.
+ * The Import button lives in the wizard footer.
  */
-export function ImportReview({ rows, categories, choices, onChange, onConfirm, committing }: ImportReviewProps) {
+export function ImportReview({ rows, categories, choices, onChange }: ImportReviewProps) {
   const autoCount = rows.filter((row) => row.suggestedCategoryId && choices[row.rowIndex] === row.suggestedCategoryId).length
   const uncategorizedCount = rows.filter((row) => !choices[row.rowIndex]).length
 
@@ -59,12 +57,6 @@ export function ImportReview({ rows, categories, choices, onChange, onConfirm, c
           )
         })}
       </ul>
-
-      <div className="wizard-nav" style={{ justifyContent: 'flex-end' }}>
-        <Button variant="primary" onClick={onConfirm} disabled={committing}>
-          {committing ? 'Importing…' : `Import ${rows.length} ${rows.length === 1 ? 'transaction' : 'transactions'}`}
-        </Button>
-      </div>
     </div>
   )
 }

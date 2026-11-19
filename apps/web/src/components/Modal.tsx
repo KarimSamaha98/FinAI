@@ -5,10 +5,12 @@ interface ModalProps {
   open: boolean
   onClose: () => void
   title: string
+  /** sm: a compact sheet for short menus and confirmations. */
+  size?: 'sm' | 'md'
   children: ReactNode
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, size = 'md', children }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
   }, [open])
 
   return (
-    <dialog ref={ref} onClose={onClose} onCancel={onClose} className="sheet">
+    <dialog ref={ref} onClose={onClose} onCancel={onClose} className={`sheet${size === 'sm' ? ' sheet--sm' : ''}`}>
       <div className="sheet-body">
         <div className="sheet-header">
           <h2 className="sheet-title">{title}</h2>

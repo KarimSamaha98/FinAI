@@ -55,6 +55,7 @@ function toAccount(row: AccountRow, cardImageUrl: string | null): Account {
     isArchived: row.isArchived,
     cardColor: row.cardColor,
     cardImageUrl,
+    csvImportEnabled: row.csvImportEnabled,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -142,7 +143,14 @@ export class AccountsService {
         }
         const [row] = await tx
           .insert(accounts)
-          .values({ ...input, cardColor, startingBalance: String(input.startingBalance), userId })
+          .values({
+            ...input,
+            cardColor,
+            // Not answered: cash has no bank file to export; everything else is assumed to.
+            csvImportEnabled: input.csvImportEnabled ?? input.type !== 'cash',
+            startingBalance: String(input.startingBalance),
+            userId,
+          })
           .returning()
         return this.toSummary(tx, row, homeCurrencyCode)
       } catch (error) {

@@ -78,6 +78,8 @@ export const accounts = pgTable(
     isArchived: boolean('is_archived').notNull().default(false),
     cardColor: text('card_color').notNull().default('#1c1c1e'),
     cardImagePath: text('card_image_path'),
+    // Whether the bank can export CSV (asked on account creation; cash defaults to false).
+    csvImportEnabled: boolean('csv_import_enabled').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

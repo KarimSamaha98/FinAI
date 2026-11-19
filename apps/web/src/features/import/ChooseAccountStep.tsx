@@ -1,64 +1,73 @@
 import type { AccountSummary } from 'shared-types'
-import { Button } from '../../components/Button'
 import { accountTypeLabel } from '../../lib/accountTypes'
 import { cardBackground } from '../../lib/cardBackground'
+import { WizardStep, type WizardFooterProps } from '../../components/WizardFooter'
 
 interface ChooseAccountStepProps {
-  fileName: string
   accounts: AccountSummary[]
   accountIdsWithProfile: Set<string>
   selectedId: string | null
   onSelect: (accountId: string) => void
-  /** Create a new account for this file (then set up its CSV profile). */
-  onAddAccount: () => void
+  back: WizardFooterProps['back']
   onContinue: (accountId: string) => void
 }
 
-/** "Which account is this CSV for?" — each account as a tile with its card and whether it can already read CSVs. */
-export function ChooseAccountStep({ fileName, accounts, accountIdsWithProfile, selectedId, onSelect, onAddAccount, onContinue }: ChooseAccountStepProps) {
+/** Why an account can't take a CSV right now, or null when it can. */
+function unavailableReason(account: AccountSummary, hasProfile: boolean): string | null {
+  if (!account.csvImportEnabled) return 'CSV import is off'
+  if (!hasProfile) return 'No CSV profile set up yet'
+  return null
+}
+
+/**
+ * The import's first step: which account the transactions go into. Every
+ * account is listed; only those with CSV import on and a CSV profile can be
+ * picked, the rest say why (and are listed last).
+ */
+export function ChooseAccountStep({ accounts, accountIdsWithProfile, selectedId, onSelect, back, onContinue }: ChooseAccountStepProps) {
+  const rows = accounts.map((account) => ({ account, reason: unavailableReason(account, accountIdsWithProfile.has(account.id)) }))
+  const sorted = [...rows.filter((r) => !r.reason), ...rows.filter((r) => r.reason)]
+  const anyAvailable = rows.some((r) => !r.reason)
+  const canContinue = !!selectedId && rows.some((r) => !r.reason && r.account.id === selectedId)
+
   return (
-    <section className="wizard-question">
-      <p className="wizard-hint">
-        Uploaded <strong>{fileName}</strong>. Pick the account these transactions belong to.
-      </p>
+    <WizardStep
+      onSubmit={() => selectedId && canContinue && onContinue(selectedId)}
+      footer={{ back, primary: { label: 'Continue', disabled: !canContinue } }}
+    >
+      <section className="wizard-question">
+        <h2>Which account are you importing into?</h2>
+        <p className="wizard-hint">
+          {anyAvailable
+            ? 'Accounts need a CSV profile before they can import. You set one up once per account, from its Settings.'
+            : 'None of your accounts can import yet. Set up a CSV profile from an account’s Settings, then come back here.'}
+        </p>
 
-      {accounts.length === 0 && <p className="wizard-hint">You don’t have any accounts yet — add one to import these transactions into.</p>}
-
-      <div className="account-choices" role="radiogroup" aria-label="Account">
-        {accounts.map((account) => {
-          const selected = account.id === selectedId
-          const hasProfile = accountIdsWithProfile.has(account.id)
-          return (
-            <button
-              key={account.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              className={`account-choice${selected ? ' is-selected' : ''}`}
-              onClick={() => onSelect(account.id)}
-            >
-              <span className="account-choice-card" style={{ background: cardBackground(account.cardColor) }} aria-hidden="true">
-                {account.cardImageUrl ? <img src={account.cardImageUrl} alt="" /> : <span>{accountTypeLabel(account.type).charAt(0)}</span>}
-              </span>
-              <span className="account-choice-text">
-                <span className="account-choice-name">{account.name}</span>
-                <span className={`account-choice-status${hasProfile ? ' has-profile' : ''}`}>
-                  {hasProfile ? 'CSV profile ready' : 'No CSV profile yet'}
+        <div className="account-choices" role="radiogroup" aria-label="Account">
+          {sorted.map(({ account, reason }) => {
+            const selected = !reason && account.id === selectedId
+            return (
+              <button
+                key={account.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={!!reason}
+                className={`account-choice${selected ? ' is-selected' : ''}`}
+                onClick={() => onSelect(account.id)}
+              >
+                <span className="account-choice-card" style={{ background: cardBackground(account.cardColor) }} aria-hidden="true">
+                  {account.cardImageUrl ? <img src={account.cardImageUrl} alt="" /> : <span>{accountTypeLabel(account.type).charAt(0)}</span>}
                 </span>
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="wizard-nav">
-        <Button variant="secondary" onClick={onAddAccount}>
-          + Add account
-        </Button>
-        <Button variant="primary" disabled={!selectedId} onClick={() => selectedId && onContinue(selectedId)}>
-          Continue
-        </Button>
-      </div>
-    </section>
+                <span className="account-choice-text">
+                  <span className="account-choice-name">{account.name}</span>
+                  <span className={`account-choice-status${reason ? '' : ' has-profile'}`}>{reason ?? 'CSV profile ready'}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+    </WizardStep>
   )
 }
