@@ -14,9 +14,9 @@ import { Card } from '../../components/Card'
 import { Modal } from '../../components/Modal'
 import { apiClient, isFxUnavailable } from '../../lib/apiClient'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
+import { LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
-import { useImportProfiles } from '../../hooks/useImportProfiles'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useDisplayRows } from '../../hooks/useDisplayRows'
 import { useUncategorizedTransactions } from '../../hooks/useUncategorizedTransactions'
@@ -25,7 +25,8 @@ import { UncategorizedNotice } from './UncategorizedNotice'
 import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
 import { useMonthSplits } from '../../hooks/useMonthSplits'
 import { TransactionForm, type TransactionFormValues } from '../transactions/TransactionForm'
-import { AddTransactionDialog } from '../transactions/AddTransactionDialog'
+import { AddTransactionWizard } from '../transactions/AddTransactionWizard'
+import { CsvWizardHost } from '../import/CsvWizardHost'
 import { ReconcilePicker } from '../reconciliation/ReconcilePicker'
 import { ReconciliationGroupModal } from '../reconciliation/ReconciliationGroupModal'
 import { SplitModal } from '../month-split/SplitModal'
@@ -33,7 +34,7 @@ import { AccountCarousel } from './AccountCarousel'
 import { nextAccountSelection } from '../../lib/accountSelection'
 import { SelectionSummary } from './SelectionSummary'
 import { AccountHeader } from './AccountHeader'
-import { AccountForm } from './AccountForm'
+import { AccountWizard } from './AccountWizard'
 import { TransactionRow } from './TransactionRow'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
@@ -90,8 +91,16 @@ export function AccountsScreen() {
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>(DEFAULT_SORT_FIELD)
   const [sortDirection, setSortDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION)
-  const [showAccountForm, setShowAccountForm] = useState(false)
-  const [showAddForm, setShowAddForm] = useState(false)
+  // At most one setup wizard is open. Wizards hand over only from their final
+  // screen (Add account → Set up CSV import / Add a transaction); `handoff`
+  // makes the next one appear without animating in, so it reads as continuing.
+  const [wizard, setWizard] = useState<
+    | null
+    | { kind: 'account' }
+    | { kind: 'transaction'; fixedAccountId: string | null; handoff?: boolean }
+    | { kind: 'csv-setup'; accountId: string; handoff?: boolean }
+  >(null)
+  const closeWizard = () => setWizard(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [reconcileAnchor, setReconcileAnchor] = useState<Transaction | null>(null)
   const [splitTarget, setSplitTarget] = useState<Transaction | null>(null)
@@ -102,7 +111,6 @@ export function AccountsScreen() {
   const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
-  const { profiles: accountProfiles, loading: accountProfilesLoading } = useImportProfiles(singleSelectedId ?? undefined)
   // Deliberately NOT scoped to accountIds — this is the candidate pool for
   // reconcile/split pickers and group-member lookups, which must be able to
   // find a transaction in a *different* account than the one currently
@@ -116,6 +124,13 @@ export function AccountsScreen() {
   const [showCategorizeDeck, setShowCategorizeDeck] = useState(false)
 
   /** Anything that can add, remove or recategorize a transaction also updates the uncategorized notice. */
+  /** A CSV import finished: show the account it went into, with everything refreshed. */
+  async function handleImported(accountId: string) {
+    closeWizard()
+    setSelectedIds([accountId])
+    await Promise.all([refreshLedger(), refreshAccounts(), refreshTransactions()])
+  }
+
   async function refreshLedger() {
     await Promise.all([refreshRows(), refreshUncategorized()])
   }
@@ -217,7 +232,7 @@ export function AccountsScreen() {
     if (row.kind === 'month_split_portion') {
       const transaction = findTransaction(row.sourceTransactionIds[0])
       if (!transaction) return []
-      return [{ label: 'Edit split', onClick: () => setSplitTarget(transaction) }]
+      return [{ label: 'Edit split', detail: 'Change how it’s spread across months', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) }]
     }
 
     const anchorTransaction = findTransaction(row.sourceTransactionIds[0])
@@ -225,16 +240,42 @@ export function AccountsScreen() {
 
     const actions: ActionMenuItem[] = []
     if (row.kind === 'plain') {
-      actions.push({ label: 'Edit transaction', onClick: () => setEditingId(anchorTransaction.id) })
+      actions.push({
+        label: 'Edit transaction',
+        detail: 'Change the amount, date, category or account',
+        icon: <PencilIcon />,
+        onClick: () => setEditingId(anchorTransaction.id),
+      })
     }
     if (row.kind === 'reconciliation_net' && row.reconciliationGroupId) {
       const groupId = row.reconciliationGroupId
-      actions.push({ label: 'Manage linked transactions', onClick: () => setViewingGroupId(groupId) })
+      actions.push({
+        label: 'Manage linked transactions',
+        detail: 'See or change the transactions it’s linked with',
+        icon: <LinkIcon />,
+        onClick: () => setViewingGroupId(groupId),
+      })
     }
-    actions.push({ label: 'Split transaction', onClick: () => setSplitTarget(anchorTransaction) })
-    actions.push({ label: 'Link transactions', onClick: () => setReconcileAnchor(anchorTransaction) })
+    actions.push({ label: 'Split transaction', detail: 'Spread it across several months', icon: <SplitIcon />, onClick: () => setSplitTarget(anchorTransaction) })
+    actions.push({
+      label: 'Link transactions',
+      detail: 'Match it with a transfer or refund elsewhere',
+      icon: <LinkIcon />,
+      onClick: () => setReconcileAnchor(anchorTransaction),
+    })
     if (row.kind === 'plain') {
-      actions.push({ label: 'Delete', variant: 'danger', onClick: () => handleDeleteTransaction(anchorTransaction.id) })
+      actions.push({
+        label: 'Delete',
+        detail: 'Remove it from your transactions',
+        icon: <TrashIcon />,
+        variant: 'danger',
+        confirm: {
+          title: 'Delete this transaction?',
+          message: `${formatDate(anchorTransaction.date)} — ${anchorTransaction.description || 'Untitled'} will be removed. This can’t be undone.`,
+          confirmLabel: 'Delete',
+        },
+        onClick: () => handleDeleteTransaction(anchorTransaction.id),
+      })
     }
     return actions
   }
@@ -275,10 +316,10 @@ export function AccountsScreen() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Transactions</h1>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-          <Button variant="secondary" onClick={() => setShowAccountForm(true)}>
+          <Button variant="secondary" onClick={() => setWizard({ kind: 'account' })}>
             + Add Account
           </Button>
-          <Button variant="primary" onClick={() => setShowAddForm(true)}>
+          <Button variant="primary" onClick={() => setWizard({ kind: 'transaction', fixedAccountId: singleSelectedId })}>
             + Add Transaction
           </Button>
         </div>
@@ -295,7 +336,6 @@ export function AccountsScreen() {
       {selectedAccount ? (
         <AccountHeader
           account={selectedAccount}
-          hasProfile={accountProfilesLoading ? null : accountProfiles.length > 0}
         />
       ) : (
         <SelectionSummary
@@ -355,30 +395,44 @@ export function AccountsScreen() {
         </ul>
       )}
 
-      {showAccountForm && (
-        <AccountForm
-          open={showAccountForm}
-          onClose={() => setShowAccountForm(false)}
+      {wizard?.kind === 'account' && (
+        <AccountWizard
+          open
+          onClose={closeWizard}
           createAccount={createAccount}
           uploadCardImage={uploadCardImage}
           defaultCardColor={CARD_COLOR_PALETTE[accounts.length % CARD_COLOR_PALETTE.length]}
           onCreated={(id) => setSelectedIds([id])}
+          onSetupCsv={(id) => setWizard({ kind: 'csv-setup', accountId: id, handoff: true })}
+          onAddTransaction={(id) => setWizard({ kind: 'transaction', fixedAccountId: id, handoff: true })}
         />
       )}
 
-      {showAddForm && (
-        <AddTransactionDialog
-          open={showAddForm}
-          onClose={() => setShowAddForm(false)}
+      {wizard?.kind === 'transaction' && (
+        <AddTransactionWizard
+          open
+          onClose={closeWizard}
           categories={activeCategories}
           accounts={accounts}
-          fixedAccountId={singleSelectedId}
+          fixedAccountId={wizard.fixedAccountId}
+          animateIn={!wizard.handoff}
           onCreate={async (input) => {
             await createTransaction(input)
             await refreshLedger()
             await refreshAccounts()
-            setShowAddForm(false)
+            closeWizard()
           }}
+          onImported={handleImported}
+        />
+      )}
+
+      {wizard?.kind === 'csv-setup' && (
+        <CsvWizardHost
+          open
+          onClose={closeWizard}
+          animateIn={!wizard.handoff}
+          start={{ kind: 'profile', accountId: wizard.accountId }}
+          onImported={handleImported}
         />
       )}
 
@@ -427,8 +481,14 @@ export function AccountsScreen() {
         <ActionMenu
           open={!!actionRow}
           onClose={() => setActionRow(null)}
-          title={formatCurrency(actionRow.amount, actionRow.currencyCode)}
-          subtitle={`${formatDate(actionRow.date)} — ${actionRow.description || 'Untitled'}`}
+          title={actionRow.description || 'Untitled'}
+          summary={{
+            detail: [formatDate(actionRow.date), accounts.find((a) => a.id === (actionRow.anchorAccountId ?? actionRow.accountIds[0]))?.name]
+              .filter(Boolean)
+              .join(' · '),
+            value: formatCurrency(actionRow.amount, actionRow.currencyCode),
+            tone: actionRow.amount < 0 ? 'negative' : 'positive',
+          }}
           actions={actionsFor(actionRow)}
         />
       )}

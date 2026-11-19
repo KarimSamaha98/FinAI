@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { AccountSummary, Category, CreateTransactionInput } from 'shared-types'
 import { CategorySelect } from '../../components/CategorySelect'
 import { AccountSelect } from '../../components/AccountSelect'
@@ -64,6 +64,13 @@ interface TransactionFormProps {
   allowFxOverride?: boolean
   onSubmit: (input: CreateTransactionInput) => Promise<void>
   onCancel: () => void
+  /**
+   * Replaces the Cancel/Save row, e.g. with a wizard footer. Rendered inside the
+   * form, so a submit button in it saves.
+   */
+  renderActions?: (state: { submitting: boolean }) => ReactNode
+  /** Whether anything differs from the starting values (for "discard changes?" prompts). */
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 export function TransactionForm({
@@ -74,6 +81,8 @@ export function TransactionForm({
   allowFxOverride = false,
   onSubmit,
   onCancel,
+  renderActions,
+  onDirtyChange,
 }: TransactionFormProps) {
   const { profile } = useProfile()
   const { options: currencyOptions } = useCurrencies()
@@ -83,6 +92,11 @@ export function TransactionForm({
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const initialJson = useRef(JSON.stringify(values))
+  useEffect(() => {
+    onDirtyChange?.(JSON.stringify(values) !== initialJson.current)
+  }, [values, onDirtyChange])
 
   const foreign = !!homeCurrency && values.currencyCode !== homeCurrency
   const showFx = allowFxOverride && foreign
@@ -149,7 +163,8 @@ export function TransactionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+    <form onSubmit={handleSubmit} className={renderActions ? 'wizard-step' : undefined} style={renderActions ? undefined : { display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <div className={renderActions ? 'wizard-step-content' : 'transaction-form-fields'}>
       {!fixedAccountId && (
         <label>
           Account
@@ -183,6 +198,7 @@ export function TransactionForm({
             required
             value={values.amount}
             onChange={(e) => setValues({ ...values, amount: e.target.value })}
+            data-autofocus={renderActions ? true : undefined}
           />
         </label>
         <label style={{ flex: 1 }}>
@@ -226,14 +242,19 @@ export function TransactionForm({
         <CategorySelect categories={categories} value={values.categoryId} onChange={(categoryId) => setValues({ ...values, categoryId })} />
       </label>
       {error && <Alert variant="error">{error}</Alert>}
-      <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-        <Button variant="secondary" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" loading={submitting}>
-          Save
-        </Button>
       </div>
+      {renderActions ? (
+        renderActions({ submitting })
+      ) : (
+        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+          <Button variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" loading={submitting}>
+            Save
+          </Button>
+        </div>
+      )}
     </form>
   )
 }

@@ -158,6 +158,8 @@ async function main(): Promise<void> {
           balanceAsOf: a.balanceAsOf,
           // Same round-robin the API uses for new accounts, so every demo card gets its own colour.
           cardColor: CARD_COLOR_PALETTE[index % CARD_COLOR_PALETTE.length],
+          // Same default the API applies: cash has no bank file to import.
+          csvImportEnabled: a.type !== 'cash',
         })),
       )
 

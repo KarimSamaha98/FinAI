@@ -40,6 +40,8 @@ export const AccountSchema = z.object({
   cardColor: z.string(),
   /** Short-lived signed URL for the uploaded card photo; when set, the UI shows it instead of cardColor. */
   cardImageUrl: z.string().url().nullable(),
+  /** Whether this account's bank can export CSV; gates every CSV import path. */
+  csvImportEnabled: z.boolean(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -55,6 +57,8 @@ export const CreateAccountInputSchema = AccountSchema.pick({
 }).extend({
   // Optional on create: the server picks the next palette colour when omitted.
   cardColor: CardColorSchema.optional(),
+  // Optional on create: defaults to false for cash, true otherwise.
+  csvImportEnabled: z.boolean().optional(),
 });
 export type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 

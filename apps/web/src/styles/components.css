@@ -494,16 +494,11 @@
 .page-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
 }
 
 .page-header h1 {
   min-width: 0;
-}
-
-.page-header--back-start {
-  justify-content: flex-start;
 }
 
 /* A 44pt Liquid Glass circle — the iOS 26 toolbar back button. */
@@ -976,6 +971,72 @@ dialog::backdrop {
   color: var(--text);
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
+}
+
+/* Compact sheet for short menus and confirmations (same width as the wizard chooser). */
+.sheet--sm {
+  width: min(28rem, calc(100vw - 2rem));
+}
+
+/* Transaction action sheet: the chooser's cards, one per action, all the same height. */
+.action-menu-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* "Nov 15, 2026 · Everyday Checking ............ -$147.16" under the description. */
+.action-menu-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: calc(-1 * var(--space-2));
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--separator);
+}
+
+.action-menu-summary-detail {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-menu-summary-value {
+  flex: 0 0 auto;
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+}
+
+.action-menu-summary-value.is-negative {
+  color: var(--outflow);
+}
+
+.action-menu-summary-value.is-positive {
+  color: var(--amount-positive);
+}
+
+.action-menu-list {
+  display: grid;
+  grid-auto-rows: 1fr;
+  gap: var(--space-2);
+}
+
+.action-choice.is-danger .wizard-choice-icon {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.action-choice.is-danger .wizard-choice-title {
+  color: var(--danger);
+}
+
+.action-menu-confirm {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .sheet[open] {
@@ -2058,30 +2119,8 @@ dialog::backdrop {
   gap: var(--space-4);
 }
 
-.wizard-progress {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
 
-.wizard-progress-bar {
-  flex: 1;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--fill-tertiary);
-  overflow: hidden;
-}
 
-.wizard-progress-bar span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  border-radius: var(--radius-full);
-  transition: width var(--duration-spring) var(--spring);
-}
 
 .wizard-hint {
   margin: 0;
@@ -2182,9 +2221,6 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-5);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
 }
 
 .wizard-question h2 {
@@ -2229,6 +2265,48 @@ dialog::backdrop {
 .wizard-choice:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.wizard-choice:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wizard-choice.has-icon {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.wizard-choice-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--tint-soft);
+  color: var(--accent-text);
+}
+
+.wizard-choice-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.wizard-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wizard-choices--stacked {
+  grid-template-columns: 1fr;
+  /* Every option the same height, whatever its text wraps to. */
+  grid-auto-rows: 1fr;
 }
 
 .wizard-choice-title {
@@ -2297,53 +2375,333 @@ dialog::backdrop {
   margin: 0;
 }
 
-.wizard-nav {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
+
+/* ── Setup wizard (WizardModal, Stepper, WizardFooter) ─────────────────── */
+/* One shell for every setup flow: header, stepper, scrolling body, and a
+   sticky footer per step. md for forms, lg for the CSV preview and review. */
+
+.wizard-modal {
+  --wizard-width: 34rem;
+  --wizard-pad: var(--space-5);
+  width: min(var(--wizard-width), calc(100vw - 2rem));
+  max-width: none;
+  /* One fixed frame per wizard: the footer never moves, the content scrolls. */
+  height: min(44rem, calc(100svh - 2rem));
+  max-height: calc(100svh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sheet);
+  color: var(--text);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
 }
 
-/* ── Add transactions dialog + import account picker ──────────────────── */
+.wizard-modal--lg {
+  --wizard-width: 60rem;
+}
 
-.add-txn-section {
+/* A compact chooser (not a multi-step wizard): narrower, and only as tall as its content. */
+.wizard-modal--sm {
+  --wizard-width: 28rem;
+  /* fit-content, not auto: a modal dialog is pinned top and bottom, so auto would stretch it. */
+  height: fit-content;
+}
+
+.wizard-modal[open] {
   display: flex;
   flex-direction: column;
+  animation: sheet-in var(--duration-spring) var(--spring);
+}
+
+.wizard-modal.no-enter[open] {
+  animation: none;
+}
+
+.wizard-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--wizard-pad) var(--wizard-pad) 0;
+}
+
+.wizard-modal-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wizard-modal-title {
+  margin: 0;
+  font: var(--type-title-3);
+  letter-spacing: -0.01em;
+}
+
+.wizard-modal-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wizard-modal-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--wizard-pad) 0;
+}
+
+/* A step fills the body so its footer sits at the bottom even when short. */
+.wizard-step {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.wizard-step-content {
+  /* Fills the frame, so a short step (e.g. a result screen) can centre itself. */
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+
+.wizard-question h2:focus {
+  outline: none;
+}
+
+.wizard-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: auto calc(-1 * var(--wizard-pad)) 0;
+  padding: var(--space-3) var(--wizard-pad) max(var(--space-4), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--separator);
+  background: var(--surface-raised);
+}
+
+.wizard-footer-start,
+.wizard-footer-end {
+  display: flex;
   gap: var(--space-2);
 }
 
-.add-txn-section h3 {
-  margin: 0;
-  font-size: 1rem;
+.wizard-footer-end {
+  margin-left: auto;
 }
 
-.dropzone--compact {
-  padding: var(--space-4) var(--space-3);
-  gap: var(--space-1);
-}
-
-.dropzone--compact .dropzone-title {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.or-divider {
+/* "Discard this setup?" — pinned over the footer so it can't be missed. */
+.wizard-discard {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--wizard-pad) max(var(--space-4), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--separator);
+  background: var(--tint-soft);
+  animation: wizard-discard-in var(--duration-fast) var(--ease-out);
+}
+
+.wizard-discard-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: var(--type-footnote);
+  color: var(--text-muted);
+}
+
+.wizard-discard-text strong {
+  color: var(--text);
+  font: var(--type-headline);
+}
+
+.wizard-discard-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+@keyframes wizard-discard-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Done step: the new account's card front and centre. */
+.wizard-done {
+  flex: 1;
+  justify-content: center;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: var(--space-3);
-  margin: var(--space-4) 0;
-  color: var(--text-muted);
-  font: var(--type-caption-1);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  padding-block: var(--space-3);
+  text-align: center;
 }
 
-.or-divider::before,
-.or-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--separator);
+.wizard-done h2 {
+  margin: 0;
+  font: var(--type-title-3);
 }
+
+.wizard-done .wizard-hint {
+  max-width: 26rem;
+}
+
+.wizard-done-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: 0 0 0 8px var(--tint-soft);
+  animation: wizard-done-pop var(--duration-spring) var(--spring);
+}
+
+.wizard-done.is-warning .wizard-done-badge {
+  background: var(--warning, #b7791f);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning, #b7791f) 18%, transparent);
+}
+
+.wizard-done-badge svg {
+  width: 28px;
+  height: 28px;
+}
+
+
+@keyframes wizard-done-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+}
+
+/* Stepper: "Step 3 of 8 · Date" over one bar segment per step, for every wizard. */
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-4) var(--wizard-pad) 0;
+}
+
+.stepper-caption {
+  margin: 0;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.stepper-caption strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stepper-segments {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stepper-segment {
+  flex: 1 1 0;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--fill-tertiary);
+  transition: background var(--duration-spring) var(--spring);
+}
+
+.stepper-segment.is-done {
+  background: var(--accent);
+}
+
+.stepper-segment.is-current {
+  background: color-mix(in srgb, var(--accent) 55%, var(--fill-tertiary));
+}
+
+/* Phones: the wizard fills the screen. */
+@media (max-width: 560px) {
+  .wizard-modal {
+    --wizard-pad: var(--space-4);
+    /* 100%, not 100vw: vw includes the page scrollbar and would overflow. */
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .wizard-modal-header {
+    padding-top: max(var(--space-4), env(safe-area-inset-top));
+  }
+
+  /* The compact chooser stays a bottom sheet rather than taking the whole screen. */
+  .wizard-modal--sm {
+    height: fit-content;
+    margin-top: auto;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  }
+
+  .wizard-modal--sm .wizard-modal-header {
+    padding-top: var(--wizard-pad);
+  }
+
+  .wizard-footer .btn,
+  .wizard-discard .btn {
+    flex: 1 1 auto;
+  }
+
+  .wizard-footer-start,
+  .wizard-footer-end,
+  .wizard-discard-actions {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard-modal,
+  .wizard-modal[open],
+  .wizard-discard,
+  .wizard-done-badge,
+  .stepper-segment {
+    animation: none;
+    transition: none;
+  }
+}
+
+.transaction-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Import account picker ─────────────────────────────────────────────── */
+
+
+
+
+
+
 
 .account-choices {
   display: grid;
@@ -2367,7 +2725,12 @@ dialog::backdrop {
   transition: background var(--transition), box-shadow var(--transition), transform var(--duration-fast) var(--ease-out);
 }
 
-.account-choice:hover {
+.account-choice:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.account-choice:hover:not(:disabled) {
   background: var(--fill-tertiary);
 }
 
@@ -3557,4 +3920,119 @@ dialog::backdrop {
 
 .segmented.insights-flow-tabs .segmented-option {
   flex: 1;
+}
+
+/* ── Account settings page ─────────────────────────────────────────────── */
+/* A page of independent sections that save as you go (not a wizard). */
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+
+.settings-page > .page-header,
+.settings-page-subtitle {
+  margin-bottom: 0;
+}
+
+.settings-page-subtitle {
+  margin-top: calc(-1 * var(--space-3));
+  color: var(--text-muted);
+}
+
+.settings-loading {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settings-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-section-header h2 {
+  margin: 0;
+  font: var(--type-headline);
+}
+
+.settings-section-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settings-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.settings-field-row > label {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+/* Label left, control right; separated from what's above by a hairline. */
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--separator);
+}
+
+.settings-section-header + .settings-row {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-row-text {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-row-label {
+  font: var(--type-body);
+}
+
+.settings-row-detail {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.settings-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.settings-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }

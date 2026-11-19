@@ -274,3 +274,30 @@ export function AccountIcon() {
     </Icon>
   )
 }
+
+export function CheckIcon() {
+  return (
+    <Icon strokeWidth="2.4">
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </Icon>
+  )
+}
+
+export function UploadIcon() {
+  return (
+    <Icon>
+      <path d="M12 15V4" />
+      <path d="M7.5 8.5 12 4l4.5 4.5" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </Icon>
+  )
+}
+
+export function PencilLineIcon() {
+  return (
+    <Icon>
+      <path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z" />
+      <path d="M14 20h6" />
+    </Icon>
+  )
+}

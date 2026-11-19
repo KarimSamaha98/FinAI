@@ -15,7 +15,7 @@ interface UpdateBalanceModalProps {
 /**
  * Re-baselines the account exactly like the initial "current balance" step at
  * account creation: sets a new starting_balance as of a chosen date, so the
- * displayed balance matches what the user's bank/third-party app shows right
+ * displayed balance matches what the account's provider (or app) shows right
  * now, without touching any existing transaction. Transactions dated strictly
  * after this date are the only ones that move the balance from here on —
  * anything dated on or before it is treated as already reflected in the
@@ -49,7 +49,7 @@ export function UpdateBalanceModal({ open, onClose, account, updateAccount }: Up
     <Modal open={open} onClose={onClose} title={`Update balance — ${account.name}`}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Enter what your bank/provider shows right now. Only transactions dated <strong>after</strong> "as of" will
+          Enter what the account’s provider shows right now. Only transactions dated <strong>after</strong> "as of" will
           move the balance from here on — pick yesterday's date if you want today's activity to count too.
         </p>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
