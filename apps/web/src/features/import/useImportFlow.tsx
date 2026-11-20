@@ -38,6 +38,8 @@ type Step =
   | ({ name: 'categorize' } & Parsed)
   | ({ name: 'review' } & Parsed)
   | { name: 'imported'; accountId: string; importedCount: number; warning: string | null }
+  /** The file had nothing new: shown on the final step, nothing to import. */
+  | ({ name: 'nothingNew'; skippedDuplicateCount: number; accountId: string } & UploadedFile)
 
 const STEPS = [
   { key: 'account', label: 'Account' },
@@ -63,7 +65,7 @@ function suggestedChoices(parseResult: ParseWithProfileResult): Choices {
 
 /**
  * "Import transactions": account → file → categorize → review → imported.
- * Only accounts with CSV import on and a CSV profile can be picked; it never
+ * A file with no new rows goes straight to the final step instead. Only accounts with CSV import on and a CSV profile can be picked; it never
  * sets up profiles or accounts itself. Nothing is written until Import, so
  * Back works on every step.
  */
@@ -98,6 +100,10 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
       const parseResult = await apiClient.post<ParseWithProfileResult>('/import-runs/parse', { uploadedFileId: uploaded.uploadedFileId, importProfileId })
       if (run !== navigation.current) return
       setSkippedNote(parseResult.skippedDuplicateCount > 0 ? `Skipped ${parseResult.skippedDuplicateCount} likely duplicates already in your transactions.` : null)
+      if (parseResult.rows.length === 0) {
+        goTo({ name: 'nothingNew', accountId, skippedDuplicateCount: parseResult.skippedDuplicateCount, ...fileOf(uploaded) })
+        return
+      }
       const parsed: Parsed = { accountId, parseResult, choices: suggestedChoices(parseResult), ...fileOf(uploaded) }
       // Rows whose name matches an earlier categorized transaction arrive with
       // that category; the deck only asks about the rest, then everything is reviewed.
@@ -278,6 +284,25 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
       )
       break
     }
+
+    case 'nothingNew': {
+      const accountName = accountOf(step.accountId)?.name ?? 'this account'
+      const upToDate = step.skippedDuplicateCount > 0
+      body = (
+        <WizardResult
+          tone={upToDate ? 'success' : 'warning'}
+          title={upToDate ? 'Already up to date' : 'No transactions found'}
+          message={
+            upToDate
+              ? `All ${step.skippedDuplicateCount} transactions in this file are already in ${accountName}, so there’s nothing to import.`
+              : 'This file has no rows with a date and an amount. Check that it’s an export of this account, or redo its CSV setup in the account’s settings.'
+          }
+          onDone={() => onImported(step.accountId)}
+          alternative={{ label: 'Choose another file', onClick: () => goTo({ name: 'file', accountId: step.accountId }) }}
+        />
+      )
+      break
+    }
   }
 
   const shownAccount = accountOf('accountId' in step ? step.accountId : null)
@@ -285,7 +310,8 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
     title: 'Import transactions',
     subtitle: [shownAccount?.name, 'fileName' in step ? step.fileName : null].filter(Boolean).join(' · ') || undefined,
     steps: STEPS,
-    currentStep: step.name,
+    // "Nothing new" is the final step, like a finished import.
+    currentStep: step.name === 'nothingNew' ? 'imported' : step.name,
     // Nothing to lose before a file is read, or once the import is saved.
     dirty: step.name === 'categorize' || step.name === 'review',
     body,

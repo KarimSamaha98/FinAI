@@ -431,7 +431,7 @@ export function AccountsScreen() {
           open
           onClose={closeWizard}
           animateIn={!wizard.handoff}
-          start={{ kind: 'profile', accountId: wizard.accountId }}
+          start={{ kind: 'profile', accountId: wizard.accountId, account: accounts.find((a) => a.id === wizard.accountId) }}
           onImported={handleImported}
         />
       )}

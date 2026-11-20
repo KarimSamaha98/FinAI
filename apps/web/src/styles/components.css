@@ -1746,6 +1746,11 @@ dialog::backdrop {
   container-type: inline-size;
 }
 
+/* On a white surface (e.g. inside a wizard): a grey card, like the choices and CSV preview around it. */
+.txn-list--inset {
+  background: var(--fill-quaternary);
+}
+
 .txn-item {
   position: relative;
 }
@@ -2136,6 +2141,11 @@ dialog::backdrop {
 }
 
 .csv-preview-pick-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.25rem;
   margin: 0;
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border);
@@ -2160,6 +2170,8 @@ dialog::backdrop {
   padding: 6px 10px;
   text-align: left;
   white-space: nowrap;
+  /* An empty column (e.g. money in, with no deposits in the sample) stays clickable. */
+  min-width: 4rem;
   max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2196,6 +2208,13 @@ dialog::backdrop {
   background: var(--fill-quaternary);
 }
 
+/* Column names step: the row read as column names stands out. */
+.csv-preview-header.is-highlighted th {
+  background: var(--tint-soft);
+  color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
 .csv-preview td {
   font-family: var(--font-mono);
 }
@@ -2212,9 +2231,80 @@ dialog::backdrop {
   cursor: pointer;
 }
 
-.csv-preview .is-pickable:hover {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
+/* Used by an earlier step: shown with its label, but not pickable here. */
+.csv-preview .is-locked {
+  cursor: not-allowed;
+}
+
+.csv-preview .is-pickable {
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+/* The whole column under the pointer (or the focused column button) lights up. */
+.csv-preview .is-pickable.is-hovered {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.csv-preview .is-assigned.is-hovered {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.csv-preview-header th.is-hovered {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-raised));
+}
+
+.csv-preview-labels th {
+  position: relative;
+}
+
+/* Covers the label cell: the keyboard way to pick a column. */
+.csv-preview-pick-button {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.csv-preview-pick-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Several fields on one step: "Click a column to set it as [Date] [Description]". */
+.csv-preview-targets {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.csv-preview-target {
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.csv-preview-target:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.csv-preview-target.is-active {
+  background: var(--accent);
+  box-shadow: none;
+  color: var(--accent-contrast);
+}
+
+.csv-preview-target:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .wizard-question {
@@ -2318,10 +2408,6 @@ dialog::backdrop {
   font: var(--type-footnote);
 }
 
-.wizard-subquestion {
-  margin: var(--space-2) 0 0;
-  font-weight: 600;
-}
 
 .wizard-inline-field {
   max-width: 24rem;
@@ -2342,39 +2428,6 @@ dialog::backdrop {
 .wizard-field-row .wizard-inline-field {
   flex: 1 1 12rem;
 }
-
-.wizard-check {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-.wizard-check.is-error {
-  color: var(--danger);
-}
-
-.wizard-txn-preview {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.wizard-summary {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px var(--space-4);
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.wizard-summary dt {
-  color: var(--text-muted);
-}
-
-.wizard-summary dd {
-  margin: 0;
-}
-
 
 /* ── Setup wizard (WizardModal, Stepper, WizardFooter) ─────────────────── */
 /* One shell for every setup flow: header, stepper, scrolling body, and a
@@ -2475,7 +2528,8 @@ dialog::backdrop {
 }
 
 
-.wizard-question h2:focus {
+.wizard-question h2:focus,
+.wizard-done h2:focus {
   outline: none;
 }
 

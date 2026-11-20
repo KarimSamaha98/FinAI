@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import type { CreateImportProfileInput, ImportProfile } from 'shared-types'
+import type { AccountSummary, CreateImportProfileInput, ImportProfile } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useImportProfiles } from '../../hooks/useImportProfiles'
@@ -36,6 +36,12 @@ export interface ProfileSetupStart {
   accountId: string
   /** Redo an existing profile: saving replaces it instead of creating one. */
   existingProfileId?: string | null
+  /**
+   * The account, when the host already has it: the first frame then shows its
+   * name (title subtitle, heading) instead of filling it in once this wizard's
+   * own fetch of the accounts lands, which made the header jump.
+   */
+  account?: AccountSummary | null
 }
 
 interface ProfileSetupOptions {
@@ -84,7 +90,7 @@ export function useProfileSetup({ initialStart = null, onImportFile, onDone, onS
   if (!started) return { start, view: null }
 
   const { accountId, existingProfileId } = started
-  const account = accounts.find((a) => a.id === accountId) ?? null
+  const account = accounts.find((a) => a.id === accountId) ?? started.account ?? null
   const accountName = account?.name ?? 'this account'
 
   async function handleFileSelected(file: File) {
