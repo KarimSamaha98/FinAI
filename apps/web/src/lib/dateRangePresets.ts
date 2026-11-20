@@ -35,3 +35,30 @@ export function getPresetRange(preset: DateRangePreset): DateRange {
       return {}
   }
 }
+
+const PRESETS = Object.keys(DATE_RANGE_PRESET_LABELS) as DateRangePreset[]
+
+export interface RangeSelection {
+  preset: DateRangePreset
+  range: DateRange
+}
+
+/**
+ * The range kept in the address: `?range=3m` for a preset (relative to today,
+ * so it stays "Last 3 months" tomorrow), `?from=&to=` for exact dates (a custom
+ * range, or a hand-off like Insights' "Show all"), nothing for the default.
+ */
+export function rangeFromParams(params: URLSearchParams, defaultPreset: DateRangePreset): RangeSelection {
+  const named = params.get('range') as DateRangePreset | null
+  if (named && named !== 'custom' && PRESETS.includes(named)) return { preset: named, range: getPresetRange(named) }
+  const from = params.get('from') ?? undefined
+  const to = params.get('to') ?? undefined
+  if (from || to || named === 'custom') return { preset: 'custom', range: { from, to } }
+  return { preset: defaultPreset, range: getPresetRange(defaultPreset) }
+}
+
+/** The URL patch for a range selection; the inverse of rangeFromParams. */
+export function rangeToParams({ preset, range }: RangeSelection, defaultPreset: DateRangePreset) {
+  if (preset === 'custom') return { range: 'custom', from: range.from ?? null, to: range.to ?? null }
+  return { range: preset === defaultPreset ? null : preset, from: null, to: null }
+}

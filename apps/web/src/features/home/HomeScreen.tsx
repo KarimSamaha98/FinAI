@@ -1,9 +1,9 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { AccountType, NetWorthAccount, NetWorthSeriesPoint } from 'shared-types'
 import { DateRangePresetPicker } from '../../components/DateRangePresetPicker'
-import type { DateRange } from '../../components/DateRangePicker'
-import { getPresetRange } from '../../lib/dateRangePresets'
+import { rangeFromParams, rangeToParams, type DateRangePreset } from '../../lib/dateRangePresets'
+import { useUrlState } from '../../hooks/useUrlState'
+import { useScrollRestoreWhenReady } from '../../hooks/useScrollRestoreWhenReady'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { usePrivacy } from '../../context/PrivacyContext'
 import { Card } from '../../components/Card'
@@ -15,6 +15,8 @@ import { isFxUnavailable } from '../../lib/apiClient'
 import { useNetWorth } from '../../hooks/useNetWorth'
 import { useNetWorthSeries } from '../../hooks/useNetWorthSeries'
 import { NetWorthChart } from './NetWorthChart'
+
+const HOME_DEFAULT_RANGE: DateRangePreset = '6m'
 
 /** Home buckets: one per account type, fixed display order. Pure groupings — no subtotals. */
 const HOME_BUCKETS: { type: AccountType; label: string }[] = [
@@ -74,9 +76,14 @@ function NetWorthChange({ points, currencyCode }: { points: NetWorthSeriesPoint[
 }
 
 export function HomeScreen() {
-  const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('6m'))
+  // The chart range lives in the URL (?range=1y), so coming Back from an account keeps it.
+  const [params, updateParams] = useUrlState()
+  const rangeSelection = rangeFromParams(params, HOME_DEFAULT_RANGE)
+  const dateRange = rangeSelection.range
   const { netWorth, loading, error, refresh } = useNetWorth()
   const { series, loading: seriesLoading, error: seriesError, refresh: refreshSeries } = useNetWorthSeries(dateRange)
+  // Back from an account lands where Home was scrolled, once it has loaded.
+  useScrollRestoreWhenReady(!loading && !seriesLoading)
 
   // A failed exchange-rate fetch means the totals can't be computed — show a
   // retry screen instead of misleading partial numbers.
@@ -130,7 +137,7 @@ export function HomeScreen() {
                 {/* How it moved over the chart's range. (No "as of": the total is always today's.) */}
                 {series && !seriesLoading && <NetWorthChange points={series.points} currencyCode={series.homeCurrencyCode} />}
               </div>
-              <DateRangePresetPicker value={dateRange} onChange={setDateRange} defaultPreset="6m" />
+              <DateRangePresetPicker value={rangeSelection} onChange={(next) => updateParams(rangeToParams(next, HOME_DEFAULT_RANGE))} />
             </div>
             {seriesError && <Alert variant="error">{seriesError}</Alert>}
             <div className="home-hero-chart">
