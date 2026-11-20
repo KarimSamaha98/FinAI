@@ -10,6 +10,7 @@ import { WizardResult } from '../../components/WizardResult'
 import { UploadDropzone } from './UploadDropzone'
 import { ChooseAccountStep } from './ChooseAccountStep'
 import { CategorizationDeck, type CategorizedRow } from './CategorizationDeck'
+import { CategorizeList } from './CategorizeList'
 import { ImportReview } from './ImportReview'
 import { fileOf, type CsvFlowView, type UploadedFile } from './useProfileSetup'
 
@@ -41,6 +42,9 @@ type Step =
   /** The file had nothing new: shown on the final step, nothing to import. */
   | ({ name: 'nothingNew'; skippedDuplicateCount: number; accountId: string } & UploadedFile)
 
+/** Phones categorize one card at a time (the deck); wider screens get one list, grouped by merchant. */
+const COMPACT_QUERY = '(max-width: 560px)'
+
 const STEPS = [
   { key: 'account', label: 'Account' },
   { key: 'file', label: 'File' },
@@ -65,6 +69,8 @@ function suggestedChoices(parseResult: ParseWithProfileResult): Choices {
 
 /**
  * "Import transactions": account → file → categorize → review → imported.
+ * Categorize only covers rows not filled in from earlier transactions: a
+ * list grouped by merchant on wide screens, the card deck on phones.
  * A file with no new rows goes straight to the final step instead. Only accounts with CSV import on and a CSV profile can be picked; it never
  * sets up profiles or accounts itself. Nothing is written until Import, so
  * Back works on every step.
@@ -83,6 +89,8 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
   const [busy, setBusy] = useState<null | 'uploading' | 'reading'>(null)
   const [skippedNote, setSkippedNote] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
+  // Fixed for the life of the flow, so the steps never change under the user.
+  const [compact] = useState(() => typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches)
   // Bumped on every step change, so a file read that finishes after Back doesn't pull the user forward.
   const navigation = useRef(0)
 
@@ -214,6 +222,33 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
     }
 
     case 'categorize': {
+      if (!compact) {
+        body = (
+          <WizardStep
+            onSubmit={() => goTo({ ...step, name: 'review' })}
+            footer={{
+              back: { label: 'Back', onClick: () => goTo({ name: 'file', accountId: step.accountId }) },
+              primary: { label: 'Continue' },
+            }}
+          >
+            <section className="wizard-question">
+              <h2>What are these for?</h2>
+              <p className="wizard-hint">Pick a category for each. Anything left blank imports as Uncategorized.</p>
+            </section>
+            <CategorizeList
+              rows={step.parseResult.rows.filter((row) => !row.suggestedCategoryId)}
+              categories={activeCategories}
+              choices={step.choices}
+              onChange={(rowIndexes, categoryId) => {
+                const choices = { ...step.choices }
+                for (const rowIndex of rowIndexes) choices[rowIndex] = categoryId
+                setStep({ ...step, choices })
+              }}
+            />
+          </WizardStep>
+        )
+        break
+      }
       const autoCount = step.parseResult.rows.filter((row) => row.suggestedCategoryId).length
       body = (
         <WizardStep footer={{ back: { label: 'Back', onClick: () => goTo({ name: 'file', accountId: step.accountId }) } }}>

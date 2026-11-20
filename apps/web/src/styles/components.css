@@ -769,6 +769,8 @@
 }
 
 .dropdown-option-check {
+  /* Fixed: a long label (e.g. Reimbursement) used to squeeze it and shift that row. */
+  flex: 0 0 1rem;
   width: 1rem;
   color: var(--accent-text);
   font-weight: 700;
@@ -1746,9 +1748,13 @@ dialog::backdrop {
   container-type: inline-size;
 }
 
-/* On a white surface (e.g. inside a wizard): a grey card, like the choices and CSV preview around it. */
+/* Inside a wizard: white like the modal, with hairlines above and below so
+   the rows still read as a list (the rows keep their own dividers). */
 .txn-list--inset {
-  background: var(--fill-quaternary);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border-block: 1px solid var(--separator);
 }
 
 .txn-item {
@@ -2559,6 +2565,20 @@ dialog::backdrop {
 }
 
 /* "Discard this setup?" — pinned over the footer so it can't be missed. */
+/* While the discard prompt is up, the rest of the wizard is inert and dimmed:
+   the only way on is to answer it. */
+.wizard-modal-stepper {
+  flex: 0 0 auto;
+}
+
+.wizard-modal.is-prompting .wizard-modal-header,
+.wizard-modal.is-prompting .wizard-modal-stepper,
+.wizard-modal.is-prompting .wizard-modal-body {
+  opacity: 0.4;
+  filter: saturate(0.6);
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
 .wizard-discard {
   display: flex;
   flex-wrap: wrap;
@@ -2927,8 +2947,10 @@ dialog::backdrop {
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  /* Wizard lists: white, hairlines between rows and around the list. */
+  border-block: 1px solid var(--separator);
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
 
@@ -2940,7 +2962,7 @@ dialog::backdrop {
     'category category';
   gap: var(--space-2) var(--space-3);
   align-items: center;
-  padding: var(--space-3);
+  padding: var(--space-3) 0;
 }
 
 .import-review-row + .import-review-row {
@@ -2993,6 +3015,83 @@ dialog::backdrop {
 
   .import-review-amount {
     text-align: right;
+  }
+}
+
+/* ── Import: Categorize list (wide screens) ────────────────────────────── */
+.categorize-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Wizard lists: white, hairlines between rows and around the list. */
+  border-block: 1px solid var(--separator);
+}
+
+.categorize-list-row {
+  display: grid;
+  /* Same columns as the Review list, so the pills line up step to step. */
+  grid-template-columns: minmax(0, 1fr) 15rem 7.5rem;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+}
+
+.categorize-list-row + .categorize-list-row {
+  border-top: 1px solid var(--separator);
+}
+
+.categorize-list-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.categorize-list-description {
+  font: var(--type-body);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.categorize-list-meta {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.categorize-list-category {
+  display: flex;
+  min-width: 0;
+}
+
+.categorize-list-amount {
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--outflow);
+}
+
+.categorize-list-amount.is-income {
+  color: var(--amount-positive);
+}
+
+@media (max-width: 700px) {
+  .categorize-list-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'main amount'
+      'category category';
+  }
+
+  .categorize-list-main {
+    grid-area: main;
+  }
+
+  .categorize-list-category {
+    grid-area: category;
+  }
+
+  .categorize-list-amount {
+    grid-area: amount;
   }
 }
 
@@ -3238,6 +3337,71 @@ dialog::backdrop {
 
 .field-select-trigger[aria-expanded='true'] .field-select-chevron {
   transform: rotate(180deg);
+}
+
+/* Pill variant: the category chip of transaction cards, as a picker.
+   Grey capsule with icon + name; attention yellow while empty (Uncategorized). */
+.field-select--pill {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.field-select--pill .field-select-trigger {
+  width: auto;
+  max-width: 100%;
+  min-height: 32px;
+  gap: 6px;
+  padding: 4px 10px 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--fill-tertiary);
+  font: var(--type-subhead);
+  font-weight: 500;
+}
+
+.field-select--pill .field-select-trigger .option-icon {
+  color: var(--text-muted);
+}
+
+.field-select--pill .field-select-trigger.is-empty {
+  background: var(--status-attention-soft);
+}
+
+.field-select--pill .field-select-trigger.is-empty .field-select-value,
+.field-select--pill .field-select-trigger.is-empty .option-icon,
+.field-select--pill .field-select-trigger.is-empty .field-select-chevron {
+  color: var(--status-attention);
+}
+
+.field-select--pill .field-select-trigger:hover:not(:disabled) {
+  background: var(--fill-secondary);
+}
+
+.field-select--pill .field-select-trigger.is-empty:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-attention) 22%, transparent);
+}
+
+.field-select--pill .field-select-trigger:focus-visible,
+.field-select--pill .field-select-trigger[aria-expanded='true'] {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Its menu: each category's icon in a round badge, as on transaction rows. */
+.field-select--pill .field-select-panel .option-icon {
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--fill-tertiary);
+}
+
+.field-select--pill .field-select-panel .option-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.field-select--pill .field-select-panel {
+  min-width: 13rem;
 }
 
 /* Invisible stand-in that lets the browser's required check point at the field. */

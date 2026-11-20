@@ -22,8 +22,12 @@ interface FieldSelectProps<T extends string> {
   required?: boolean
   disabled?: boolean
   'aria-label'?: string
-  /** 'auth' is the pill style of the sign-up page. */
-  variant?: 'default' | 'auth'
+  /**
+   * 'auth' is the pill style of the sign-up page; 'pill' is a compact chip
+   * trigger (like the category pill on transaction cards) whose '' value
+   * reads as empty (e.g. Uncategorized).
+   */
+  variant?: 'default' | 'auth' | 'pill'
 }
 
 const SEARCH_THRESHOLD = 10
@@ -55,13 +59,17 @@ export function FieldSelect<T extends string>({
   const visible = normalizedQuery ? options.filter((o) => o.label.toLowerCase().includes(normalizedQuery)) : options
   const current = options.find((o) => o.value === value)
 
+  // Focus never scrolls anything: the panel is fixed beside its field, and on
+  // the first frame it may not be placed yet, so a plain focus() would scroll
+  // the page or wizard toward where it briefly sat (the top) — losing the
+  // user's place in a long list.
   useEffect(() => {
     if (!open) return
     if (searchable) {
-      searchRef.current?.focus()
+      searchRef.current?.focus({ preventScroll: true })
     } else {
       const selectedIndex = Math.max(0, options.findIndex((o) => o.value === value))
-      optionRefs.current[selectedIndex]?.focus()
+      optionRefs.current[selectedIndex]?.focus({ preventScroll: true })
       optionRefs.current[selectedIndex]?.scrollIntoView({ block: 'nearest' })
     }
     // Only when opening.
@@ -75,7 +83,8 @@ export function FieldSelect<T extends string>({
 
   function focusOption(index: number) {
     const clamped = Math.max(0, Math.min(visible.length - 1, index))
-    optionRefs.current[clamped]?.focus()
+    optionRefs.current[clamped]?.focus({ preventScroll: true })
+    optionRefs.current[clamped]?.scrollIntoView({ block: 'nearest' })
   }
 
   function handleListKey(event: KeyboardEvent, index: number) {
@@ -84,7 +93,7 @@ export function FieldSelect<T extends string>({
       focusOption(index + 1)
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
-      if (index === 0 && searchable) searchRef.current?.focus()
+      if (index === 0 && searchable) searchRef.current?.focus({ preventScroll: true })
       else focusOption(index - 1)
     } else if (event.key === 'Home') {
       event.preventDefault()
@@ -97,7 +106,7 @@ export function FieldSelect<T extends string>({
     } else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
       if (searchable) {
         // Typing in the list goes to the filter box.
-        searchRef.current?.focus()
+        searchRef.current?.focus({ preventScroll: true })
         return
       }
       const key = event.key.toLowerCase()
@@ -108,11 +117,11 @@ export function FieldSelect<T extends string>({
   }
 
   return (
-    <div className={`field-select${variant === 'auth' ? ' field-select--auth' : ''}`} ref={rootRef}>
+    <div className={`field-select${variant === 'default' ? '' : ` field-select--${variant}`}`} ref={rootRef}>
       <button
         ref={triggerRef}
         type="button"
-        className={`field-select-trigger${current ? '' : ' is-empty'}`}
+        className={`field-select-trigger${current && !(variant === 'pill' && value === '') ? '' : ' is-empty'}`}
         // Select-only combobox (ARIA APG): named by its <label> or aria-label, its text is the value.
         role="combobox"
         aria-haspopup="listbox"
