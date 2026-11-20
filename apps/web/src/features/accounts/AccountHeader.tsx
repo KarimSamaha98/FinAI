@@ -3,7 +3,8 @@ import type { AccountSummary } from 'shared-types'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/Button'
 import { accountTypeLabel } from '../../lib/accountTypes'
-import { formatCurrency } from '../../lib/formatCurrency'
+import { PrivateAmount } from '../../components/PrivateAmount'
+import { PrivacyToggle } from '../../components/PrivacyToggle'
 import { formatDate } from '../../lib/formatDate'
 
 interface AccountHeaderProps {
@@ -20,9 +21,12 @@ export function AccountHeader({ account }: AccountHeaderProps) {
           {account.institution ? ` · ${account.institution}` : ''}
         </span>
       </div>
-      <p className="mono" style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }}>
-        {formatCurrency(account.balance, account.balanceCurrencyCode)}
-      </p>
+      <div className="balance-line">
+        <p className="mono" style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }}>
+          <PrivateAmount amount={account.balance} currencyCode={account.balanceCurrencyCode} />
+        </p>
+        <PrivacyToggle />
+      </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1) var(--space-3)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
         <span>Last transaction updated: {account.lastTransactionUpdatedAt ? formatDate(account.lastTransactionUpdatedAt.slice(0, 10)) : '—'}</span>
       </div>

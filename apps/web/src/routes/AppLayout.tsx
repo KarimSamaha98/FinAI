@@ -6,6 +6,7 @@ import { Avatar } from '../components/Avatar'
 import { CloseIcon, HomeIcon, InsightsIcon, LogoutIcon, MenuIcon, SettingsIcon, TransactionIcon } from '../components/icons'
 import { useProfile } from '../hooks/useProfile'
 import { DrawerProvider } from '../context/DrawerContext'
+import { PrivacyProvider } from '../context/PrivacyContext'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home', icon: HomeIcon },
@@ -62,6 +63,7 @@ export function AppLayout() {
   }
 
   return (
+    <PrivacyProvider>
     <div className={`app-shell${menuOpen ? ' is-menu-open' : ''}`}>
       <header className="app-topbar">
         <span className="app-logo"><img src="/logo.png" alt="" aria-hidden="true" className="app-logo-mark" />Frugal AI</span>
@@ -116,5 +118,6 @@ export function AppLayout() {
         </DrawerProvider>
       </div>
     </div>
+    </PrivacyProvider>
   )
 }
