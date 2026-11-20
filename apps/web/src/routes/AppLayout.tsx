@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { Button } from '../components/Button'
 import { Avatar } from '../components/Avatar'
@@ -112,6 +112,8 @@ export function AppLayout() {
           <span className="app-rail-label">Log out</span>
         </Button>
       </aside>
+      {/* Back/Forward return to where the page was scrolled; new pages start at the top. */}
+      <ScrollRestoration />
       <div className="app-content">
         <DrawerProvider>
           <Outlet />
