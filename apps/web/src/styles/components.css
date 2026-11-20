@@ -357,6 +357,64 @@
   color: var(--text);
 }
 
+/* A masked holding ("CA$ ••••••"): neutral colour unless the caller keeps one (Home's account balances). */
+.is-private {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Smaller dots, centred on the line, so a big total doesn't turn into a row of discs. */
+.private-dots {
+  font-size: 0.75em;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+/* Round eye button (e.g. beside Total Net Worth). */
+.privacy-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--fill-tertiary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.privacy-toggle:hover {
+  background: var(--fill-secondary);
+  color: var(--text);
+}
+
+.privacy-toggle[aria-pressed='true'] {
+  color: var(--accent-text);
+}
+
+.privacy-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.privacy-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* A balance with its eye beside it (account card on Transactions). */
+.balance-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .app-content {
   flex: 1 1 auto;
   min-width: 0;
@@ -1360,11 +1418,30 @@ dialog::backdrop {
 .home-hero {
   display: flex;
   flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+}
+
+/* Total on the left, range picker on the right; the chart spans the card below. */
+.home-hero-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.home-hero-summary {
+  display: flex;
+  flex-direction: column;
   gap: 0.25rem;
-  padding: var(--space-5);
+  min-width: 0;
 }
 
 .home-hero-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   color: var(--text-muted);
   font: var(--type-footnote);
   font-weight: 600;
@@ -1381,30 +1458,80 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 
-.home-hero-asof {
+/* "▲ CA$12,340 · 8.2% since May 2026": green up, red down. */
+.home-hero-change {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.35rem;
+  font: var(--type-subhead);
+  font-weight: 600;
   color: var(--text-muted);
-  font-size: 0.85rem;
 }
 
-.home-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  gap: var(--space-4);
-  margin-top: var(--space-4);
-  align-items: start;
+.home-hero-change > span {
+  /* Breaks only between pieces ("▲ CA$12,340" | "· 8.2%" | "since May 2026"). */
+  white-space: nowrap;
 }
 
-@media (max-width: 900px) {
-  .home-grid {
-    grid-template-columns: 1fr;
-  }
+.home-hero-change.is-up {
+  color: var(--amount-positive);
 }
 
-.home-buckets {
+.home-hero-change.is-down {
+  color: var(--outflow);
+}
+
+.home-hero-change-since {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* The chart bleeds a little into the card's side padding so the area reads edge to edge. */
+.home-hero-chart {
+  margin-inline: calc(-1 * var(--space-2));
+  min-height: 260px;
+}
+
+.home-hero-chart-status {
+  margin: 0;
+  padding: var(--space-6) 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.net-worth-tooltip {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  min-width: 0;
+  gap: 2px;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--separator);
+}
+
+.net-worth-tooltip-label {
+  color: var(--text-muted);
+  font: var(--type-caption-1);
+}
+
+.net-worth-tooltip-value {
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Account groups: balanced columns (a long group doesn't leave gaps beside short ones). */
+.home-buckets {
+  margin-top: var(--space-4);
+  columns: 20rem;
+  column-gap: var(--space-4);
+}
+
+.home-buckets > .home-bucket {
+  break-inside: avoid;
+  margin-bottom: var(--space-4);
 }
 
 .home-bucket {
@@ -1481,24 +1608,6 @@ dialog::backdrop {
   .home-account-row {
     padding-block: 0.7rem;
   }
-}
-
-.home-chart {
-  min-width: 0;
-}
-
-.home-chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-
-.home-chart-header h2 {
-  font-size: 1rem;
-  margin: 0;
 }
 
 .home-empty {

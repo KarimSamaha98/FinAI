@@ -18,3 +18,23 @@ export function formatCurrency(amount: number, currencyCode: string): string {
     return `${amount.toFixed(2)} ${currencyCode}`
   }
 }
+
+export const PRIVATE_DOTS = '••••••'
+
+/** The currency's symbol as formatCurrency shows it ("CA$", "€"), or the code if unknown. */
+export function currencySymbol(currencyCode: string): string {
+  try {
+    const parts = formatterFor(currencyCode).formatToParts(0)
+    return parts.find((part) => part.type === 'currency')?.value ?? currencyCode
+  } catch {
+    return currencyCode
+  }
+}
+
+/**
+ * A hidden amount: the currency symbol and a fixed run of dots ("CA$ ••••••").
+ * The same for every value, with no sign, so nothing about the amount leaks.
+ */
+export function maskedCurrency(currencyCode: string): string {
+  return `${currencySymbol(currencyCode)} ${PRIVATE_DOTS}`
+}

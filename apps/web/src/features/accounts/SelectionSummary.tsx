@@ -1,7 +1,8 @@
 import type { AccountSummary } from 'shared-types'
 import { Card } from '../../components/Card'
 import { useCombinedBalance } from '../../hooks/useCombinedBalance'
-import { formatCurrency } from '../../lib/formatCurrency'
+import { PrivateAmount } from '../../components/PrivateAmount'
+import { PrivacyToggle } from '../../components/PrivacyToggle'
 
 interface SelectionSummaryProps {
   /** The accounts currently selected (every account when allSelected). */
@@ -21,9 +22,13 @@ export function SelectionSummary({ accounts, allSelected }: SelectionSummaryProp
           {allSelected ? 'Every transaction, across every account.' : accounts.map((a) => a.name).join(' · ')}
         </p>
       </div>
-      <p className="mono" style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }} aria-label={`Combined total ${formatCurrency(total, homeCurrency)}`}>
-        {formatCurrency(total, homeCurrency)}
-      </p>
+      <div className="balance-line">
+        <p className="mono" style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }}>
+          <span className="visually-hidden">Combined total </span>
+          <PrivateAmount amount={total} currencyCode={homeCurrency} />
+        </p>
+        <PrivacyToggle />
+      </div>
     </Card>
   )
 }
