@@ -46,6 +46,10 @@ import {
   type SortField,
 } from '../../lib/transactionSort'
 
+// Stable references, so the unfiltered transactions query isn't rebuilt each render.
+const ALL_TRANSACTIONS: DateRange = {}
+const NO_CATEGORY_FILTER: string[] = []
+
 function toFormValues(transaction: Transaction): TransactionFormValues {
   return {
     date: transaction.date,
@@ -103,14 +107,15 @@ export function AccountsScreen() {
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
   const { profiles: accountProfiles, loading: accountProfilesLoading } = useImportProfiles(singleSelectedId ?? undefined)
-  // Deliberately NOT scoped to accountIds — this is the candidate pool for
-  // reconcile/split pickers and group-member lookups, which must be able to
-  // find a transaction in a *different* account than the one currently
-  // selected (e.g. reconciling a transfer between two accounts). Only the
-  // visible ledger (`rows`, below) is account-scoped.
+  // Deliberately NOT scoped by any ledger filter (accounts, date range,
+  // categories) — this is the candidate pool for the reconcile picker and the
+  // lookups behind row actions and group members, which must find any
+  // transaction: one in another account (a transfer), outside the selected
+  // range (a refund months later), or in a filtered-out category. Only the
+  // visible ledger (`rows`, below) is filtered.
   const { transactions, loading, error, refresh: refreshTransactions, createTransaction, updateTransaction, deleteTransaction } = useTransactions(
-    dateRange,
-    categoryIds,
+    ALL_TRANSACTIONS,
+    NO_CATEGORY_FILTER,
   )
   const { transactions: uncategorized, refresh: refreshUncategorized, categorize } = useUncategorizedTransactions(accountIds)
   const [showCategorizeDeck, setShowCategorizeDeck] = useState(false)
