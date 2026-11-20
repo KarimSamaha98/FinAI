@@ -19,15 +19,10 @@ interface ImportReviewProps {
  * The Import button lives in the wizard footer.
  */
 export function ImportReview({ rows, categories, choices, onChange }: ImportReviewProps) {
-  const autoCount = rows.filter((row) => row.suggestedCategoryId && choices[row.rowIndex] === row.suggestedCategoryId).length
-  const uncategorizedCount = rows.filter((row) => !choices[row.rowIndex]).length
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <p className="wizard-hint" style={{ margin: 0 }}>
-        Check the categories below, change any that look wrong, then import.{' '}
-        {autoCount > 0 && `${autoCount} ${autoCount === 1 ? 'was' : 'were'} filled in from earlier transactions with the same name. `}
-        {uncategorizedCount > 0 && `${uncategorizedCount} will import as Uncategorized.`}
+        Check the categories below, change any that look wrong, then import.
       </p>
 
       <ul className="import-review-list">
@@ -44,7 +39,7 @@ export function ImportReview({ rows, categories, choices, onChange }: ImportRevi
                 {formatCurrency(row.amount, row.currencyCode)}
               </span>
               <div className="import-review-category">
-                <CategorySelect categories={categories} value={categoryId} onChange={(id) => onChange(row.rowIndex, id)} />
+                <CategorySelect categories={categories} value={categoryId} variant="pill" aria-label={`Category for ${row.description}`} onChange={(id) => onChange(row.rowIndex, id)} />
                 {isAuto ? (
                   <Badge variant="accent" title="Filled in from an earlier transaction with the same name">
                     Auto

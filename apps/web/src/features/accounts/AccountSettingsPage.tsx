@@ -248,7 +248,7 @@ export function AccountSettingsPage() {
         <CsvWizardHost
           open
           onClose={() => setCsvWizard(null)}
-          start={{ kind: 'profile', accountId: account.id, existingProfileId: csvWizard.existingProfileId }}
+          start={{ kind: 'profile', accountId: account.id, existingProfileId: csvWizard.existingProfileId, account }}
           onProfileSaved={() => void refreshProfiles()}
           onImported={(accountId) => navigate(`/accounts?selected=${accountId}`)}
         />

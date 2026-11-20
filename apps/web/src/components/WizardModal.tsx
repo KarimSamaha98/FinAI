@@ -64,7 +64,11 @@ export function WizardModal({ open, title, subtitle, steps, currentStep, stepKey
     }
   }, [open, focusKey])
 
+  // Only the prompt answers while it's up: the rest of the wizard is inert.
+  const prompting = confirming && dirty
+
   function requestClose() {
+    if (prompting) return
     if (dirty) setConfirming(true)
     else onClose()
   }
@@ -75,7 +79,8 @@ export function WizardModal({ open, title, subtitle, steps, currentStep, stepKey
 
   function handleClick(event: MouseEvent<HTMLDialogElement>) {
     // Only a click that starts and ends on the backdrop (not a drag out of a field) closes.
-    if (event.target === event.currentTarget && pressedBackdrop.current) requestClose()
+    // While the discard prompt is up, the backdrop does nothing: answer the prompt.
+    if (event.target === event.currentTarget && pressedBackdrop.current && !prompting) requestClose()
     pressedBackdrop.current = false
   }
 
@@ -84,18 +89,20 @@ export function WizardModal({ open, title, subtitle, steps, currentStep, stepKey
   return (
     <dialog
       ref={ref}
-      className={`wizard-modal wizard-modal--${size}${animateIn ? '' : ' no-enter'}`}
+      className={`wizard-modal wizard-modal--${size}${animateIn ? '' : ' no-enter'}${prompting ? ' is-prompting' : ''}`}
       aria-labelledby="wizard-modal-title"
       onCancel={(event) => {
         event.preventDefault()
-        requestClose()
+        // Escape answers the prompt with "Keep going"; otherwise it asks to close.
+        if (prompting) setConfirming(false)
+        else requestClose()
       }}
       onClose={onClose}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >
       <WizardModalContext.Provider value={{ requestClose }}>
-        <header className="wizard-modal-header">
+        <header className="wizard-modal-header" inert={prompting}>
           <div className="wizard-modal-heading">
             <h1 id="wizard-modal-title" className="wizard-modal-title">
               {title}
@@ -106,14 +113,18 @@ export function WizardModal({ open, title, subtitle, steps, currentStep, stepKey
             <CloseIcon />
           </button>
         </header>
-        {showStepper && <Stepper steps={steps} currentStep={currentStep} />}
+        {showStepper && (
+          <div className="wizard-modal-stepper" inert={prompting}>
+            <Stepper steps={steps} currentStep={currentStep} />
+          </div>
+        )}
 
-        <div ref={bodyRef} className="wizard-modal-body">
+        <div ref={bodyRef} className="wizard-modal-body" inert={prompting}>
           {children}
         </div>
 
         {/* A step that finishes the flow (dirty → false) also drops a pending prompt. */}
-        {confirming && dirty && (
+        {prompting && (
           <div className="wizard-discard" role="alertdialog" aria-labelledby="wizard-discard-title" aria-describedby="wizard-discard-detail">
             <div className="wizard-discard-text">
               <strong id="wizard-discard-title">Discard this setup?</strong>

@@ -10,6 +10,7 @@ import { WizardResult } from '../../components/WizardResult'
 import { UploadDropzone } from './UploadDropzone'
 import { ChooseAccountStep } from './ChooseAccountStep'
 import { CategorizationDeck, type CategorizedRow } from './CategorizationDeck'
+import { CategorizeList } from './CategorizeList'
 import { ImportReview } from './ImportReview'
 import { fileOf, type CsvFlowView, type UploadedFile } from './useProfileSetup'
 
@@ -38,6 +39,11 @@ type Step =
   | ({ name: 'categorize' } & Parsed)
   | ({ name: 'review' } & Parsed)
   | { name: 'imported'; accountId: string; importedCount: number; warning: string | null }
+  /** The file had nothing new: shown on the final step, nothing to import. */
+  | ({ name: 'nothingNew'; skippedDuplicateCount: number; accountId: string } & UploadedFile)
+
+/** Phones categorize one card at a time (the deck); wider screens get one list, grouped by merchant. */
+const COMPACT_QUERY = '(max-width: 560px)'
 
 const STEPS = [
   { key: 'account', label: 'Account' },
@@ -63,7 +69,9 @@ function suggestedChoices(parseResult: ParseWithProfileResult): Choices {
 
 /**
  * "Import transactions": account → file → categorize → review → imported.
- * Only accounts with CSV import on and a CSV profile can be picked; it never
+ * Categorize only covers rows not filled in from earlier transactions: a
+ * list grouped by merchant on wide screens, the card deck on phones.
+ * A file with no new rows goes straight to the final step instead. Only accounts with CSV import on and a CSV profile can be picked; it never
  * sets up profiles or accounts itself. Nothing is written until Import, so
  * Back works on every step.
  */
@@ -81,6 +89,8 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
   const [busy, setBusy] = useState<null | 'uploading' | 'reading'>(null)
   const [skippedNote, setSkippedNote] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
+  // Fixed for the life of the flow, so the steps never change under the user.
+  const [compact] = useState(() => typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches)
   // Bumped on every step change, so a file read that finishes after Back doesn't pull the user forward.
   const navigation = useRef(0)
 
@@ -98,6 +108,10 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
       const parseResult = await apiClient.post<ParseWithProfileResult>('/import-runs/parse', { uploadedFileId: uploaded.uploadedFileId, importProfileId })
       if (run !== navigation.current) return
       setSkippedNote(parseResult.skippedDuplicateCount > 0 ? `Skipped ${parseResult.skippedDuplicateCount} likely duplicates already in your transactions.` : null)
+      if (parseResult.rows.length === 0) {
+        goTo({ name: 'nothingNew', accountId, skippedDuplicateCount: parseResult.skippedDuplicateCount, ...fileOf(uploaded) })
+        return
+      }
       const parsed: Parsed = { accountId, parseResult, choices: suggestedChoices(parseResult), ...fileOf(uploaded) }
       // Rows whose name matches an earlier categorized transaction arrive with
       // that category; the deck only asks about the rest, then everything is reviewed.
@@ -208,6 +222,33 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
     }
 
     case 'categorize': {
+      if (!compact) {
+        body = (
+          <WizardStep
+            onSubmit={() => goTo({ ...step, name: 'review' })}
+            footer={{
+              back: { label: 'Back', onClick: () => goTo({ name: 'file', accountId: step.accountId }) },
+              primary: { label: 'Continue' },
+            }}
+          >
+            <section className="wizard-question">
+              <h2>What are these for?</h2>
+              <p className="wizard-hint">Pick a category for each. Anything left blank imports as Uncategorized.</p>
+            </section>
+            <CategorizeList
+              rows={step.parseResult.rows.filter((row) => !row.suggestedCategoryId)}
+              categories={activeCategories}
+              choices={step.choices}
+              onChange={(rowIndexes, categoryId) => {
+                const choices = { ...step.choices }
+                for (const rowIndex of rowIndexes) choices[rowIndex] = categoryId
+                setStep({ ...step, choices })
+              }}
+            />
+          </WizardStep>
+        )
+        break
+      }
       const autoCount = step.parseResult.rows.filter((row) => row.suggestedCategoryId).length
       body = (
         <WizardStep footer={{ back: { label: 'Back', onClick: () => goTo({ name: 'file', accountId: step.accountId }) } }}>
@@ -278,6 +319,25 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
       )
       break
     }
+
+    case 'nothingNew': {
+      const accountName = accountOf(step.accountId)?.name ?? 'this account'
+      const upToDate = step.skippedDuplicateCount > 0
+      body = (
+        <WizardResult
+          tone={upToDate ? 'success' : 'warning'}
+          title={upToDate ? 'Already up to date' : 'No transactions found'}
+          message={
+            upToDate
+              ? `All ${step.skippedDuplicateCount} transactions in this file are already in ${accountName}, so there’s nothing to import.`
+              : 'This file has no rows with a date and an amount. Check that it’s an export of this account, or redo its CSV setup in the account’s settings.'
+          }
+          onDone={() => onImported(step.accountId)}
+          alternative={{ label: 'Choose another file', onClick: () => goTo({ name: 'file', accountId: step.accountId }) }}
+        />
+      )
+      break
+    }
   }
 
   const shownAccount = accountOf('accountId' in step ? step.accountId : null)
@@ -285,7 +345,8 @@ export function useImportFlow({ initialEntry = null, onExit, onImported }: Impor
     title: 'Import transactions',
     subtitle: [shownAccount?.name, 'fileName' in step ? step.fileName : null].filter(Boolean).join(' · ') || undefined,
     steps: STEPS,
-    currentStep: step.name,
+    // "Nothing new" is the final step, like a finished import.
+    currentStep: step.name === 'nothingNew' ? 'imported' : step.name,
     // Nothing to lose before a file is read, or once the import is saved.
     dirty: step.name === 'categorize' || step.name === 'review',
     body,

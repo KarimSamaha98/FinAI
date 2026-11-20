@@ -769,6 +769,8 @@
 }
 
 .dropdown-option-check {
+  /* Fixed: a long label (e.g. Reimbursement) used to squeeze it and shift that row. */
+  flex: 0 0 1rem;
   width: 1rem;
   color: var(--accent-text);
   font-weight: 700;
@@ -1746,6 +1748,15 @@ dialog::backdrop {
   container-type: inline-size;
 }
 
+/* Inside a wizard: white like the modal, with hairlines above and below so
+   the rows still read as a list (the rows keep their own dividers). */
+.txn-list--inset {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border-block: 1px solid var(--separator);
+}
+
 .txn-item {
   position: relative;
 }
@@ -2136,6 +2147,11 @@ dialog::backdrop {
 }
 
 .csv-preview-pick-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.25rem;
   margin: 0;
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border);
@@ -2160,6 +2176,8 @@ dialog::backdrop {
   padding: 6px 10px;
   text-align: left;
   white-space: nowrap;
+  /* An empty column (e.g. money in, with no deposits in the sample) stays clickable. */
+  min-width: 4rem;
   max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2196,6 +2214,13 @@ dialog::backdrop {
   background: var(--fill-quaternary);
 }
 
+/* Column names step: the row read as column names stands out. */
+.csv-preview-header.is-highlighted th {
+  background: var(--tint-soft);
+  color: var(--accent-text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
 .csv-preview td {
   font-family: var(--font-mono);
 }
@@ -2212,9 +2237,80 @@ dialog::backdrop {
   cursor: pointer;
 }
 
-.csv-preview .is-pickable:hover {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
+/* Used by an earlier step: shown with its label, but not pickable here. */
+.csv-preview .is-locked {
+  cursor: not-allowed;
+}
+
+.csv-preview .is-pickable {
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+/* The whole column under the pointer (or the focused column button) lights up. */
+.csv-preview .is-pickable.is-hovered {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.csv-preview .is-assigned.is-hovered {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.csv-preview-header th.is-hovered {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-raised));
+}
+
+.csv-preview-labels th {
+  position: relative;
+}
+
+/* Covers the label cell: the keyboard way to pick a column. */
+.csv-preview-pick-button {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.csv-preview-pick-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Several fields on one step: "Click a column to set it as [Date] [Description]". */
+.csv-preview-targets {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.csv-preview-target {
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.csv-preview-target:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.csv-preview-target.is-active {
+  background: var(--accent);
+  box-shadow: none;
+  color: var(--accent-contrast);
+}
+
+.csv-preview-target:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .wizard-question {
@@ -2318,10 +2414,6 @@ dialog::backdrop {
   font: var(--type-footnote);
 }
 
-.wizard-subquestion {
-  margin: var(--space-2) 0 0;
-  font-weight: 600;
-}
 
 .wizard-inline-field {
   max-width: 24rem;
@@ -2342,39 +2434,6 @@ dialog::backdrop {
 .wizard-field-row .wizard-inline-field {
   flex: 1 1 12rem;
 }
-
-.wizard-check {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-.wizard-check.is-error {
-  color: var(--danger);
-}
-
-.wizard-txn-preview {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.wizard-summary {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px var(--space-4);
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.wizard-summary dt {
-  color: var(--text-muted);
-}
-
-.wizard-summary dd {
-  margin: 0;
-}
-
 
 /* ── Setup wizard (WizardModal, Stepper, WizardFooter) ─────────────────── */
 /* One shell for every setup flow: header, stepper, scrolling body, and a
@@ -2475,7 +2534,8 @@ dialog::backdrop {
 }
 
 
-.wizard-question h2:focus {
+.wizard-question h2:focus,
+.wizard-done h2:focus {
   outline: none;
 }
 
@@ -2505,6 +2565,20 @@ dialog::backdrop {
 }
 
 /* "Discard this setup?" — pinned over the footer so it can't be missed. */
+/* While the discard prompt is up, the rest of the wizard is inert and dimmed:
+   the only way on is to answer it. */
+.wizard-modal-stepper {
+  flex: 0 0 auto;
+}
+
+.wizard-modal.is-prompting .wizard-modal-header,
+.wizard-modal.is-prompting .wizard-modal-stepper,
+.wizard-modal.is-prompting .wizard-modal-body {
+  opacity: 0.4;
+  filter: saturate(0.6);
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
 .wizard-discard {
   display: flex;
   flex-wrap: wrap;
@@ -2873,8 +2947,10 @@ dialog::backdrop {
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  /* Wizard lists: white, hairlines between rows and around the list. */
+  border-block: 1px solid var(--separator);
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
 
@@ -2886,7 +2962,7 @@ dialog::backdrop {
     'category category';
   gap: var(--space-2) var(--space-3);
   align-items: center;
-  padding: var(--space-3);
+  padding: var(--space-3) 0;
 }
 
 .import-review-row + .import-review-row {
@@ -2939,6 +3015,83 @@ dialog::backdrop {
 
   .import-review-amount {
     text-align: right;
+  }
+}
+
+/* ── Import: Categorize list (wide screens) ────────────────────────────── */
+.categorize-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Wizard lists: white, hairlines between rows and around the list. */
+  border-block: 1px solid var(--separator);
+}
+
+.categorize-list-row {
+  display: grid;
+  /* Same columns as the Review list, so the pills line up step to step. */
+  grid-template-columns: minmax(0, 1fr) 15rem 7.5rem;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+}
+
+.categorize-list-row + .categorize-list-row {
+  border-top: 1px solid var(--separator);
+}
+
+.categorize-list-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.categorize-list-description {
+  font: var(--type-body);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.categorize-list-meta {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.categorize-list-category {
+  display: flex;
+  min-width: 0;
+}
+
+.categorize-list-amount {
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--outflow);
+}
+
+.categorize-list-amount.is-income {
+  color: var(--amount-positive);
+}
+
+@media (max-width: 700px) {
+  .categorize-list-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'main amount'
+      'category category';
+  }
+
+  .categorize-list-main {
+    grid-area: main;
+  }
+
+  .categorize-list-category {
+    grid-area: category;
+  }
+
+  .categorize-list-amount {
+    grid-area: amount;
   }
 }
 
@@ -3184,6 +3337,71 @@ dialog::backdrop {
 
 .field-select-trigger[aria-expanded='true'] .field-select-chevron {
   transform: rotate(180deg);
+}
+
+/* Pill variant: the category chip of transaction cards, as a picker.
+   Grey capsule with icon + name; attention yellow while empty (Uncategorized). */
+.field-select--pill {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.field-select--pill .field-select-trigger {
+  width: auto;
+  max-width: 100%;
+  min-height: 32px;
+  gap: 6px;
+  padding: 4px 10px 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--fill-tertiary);
+  font: var(--type-subhead);
+  font-weight: 500;
+}
+
+.field-select--pill .field-select-trigger .option-icon {
+  color: var(--text-muted);
+}
+
+.field-select--pill .field-select-trigger.is-empty {
+  background: var(--status-attention-soft);
+}
+
+.field-select--pill .field-select-trigger.is-empty .field-select-value,
+.field-select--pill .field-select-trigger.is-empty .option-icon,
+.field-select--pill .field-select-trigger.is-empty .field-select-chevron {
+  color: var(--status-attention);
+}
+
+.field-select--pill .field-select-trigger:hover:not(:disabled) {
+  background: var(--fill-secondary);
+}
+
+.field-select--pill .field-select-trigger.is-empty:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-attention) 22%, transparent);
+}
+
+.field-select--pill .field-select-trigger:focus-visible,
+.field-select--pill .field-select-trigger[aria-expanded='true'] {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Its menu: each category's icon in a round badge, as on transaction rows. */
+.field-select--pill .field-select-panel .option-icon {
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--fill-tertiary);
+}
+
+.field-select--pill .field-select-panel .option-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.field-select--pill .field-select-panel {
+  min-width: 13rem;
 }
 
 /* Invisible stand-in that lets the browser's required check point at the field. */

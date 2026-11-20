@@ -1,31 +1,36 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Account, AmountMapping, ColumnRef, CreateImportProfileInput, CurrencyMapping, DisplayRow, PreviewRawRowsResult, SignConvention } from 'shared-types'
+import type { Account, AmountMapping, ColumnRef, CreateImportProfileInput, DisplayRow, PreviewRawRowsResult } from 'shared-types'
 import { apiClient } from '../../lib/apiClient'
-import { useCurrencies } from '../../hooks/useCurrencies'
-import { FieldSelect } from '../../components/FieldSelect'
-import { SuggestInput } from '../../components/SuggestInput'
 import { ChoiceCard } from '../../components/ChoiceCard'
 import { WizardStep } from '../../components/WizardFooter'
 import { Alert } from '../../components/Alert'
-import { DATE_FORMAT_PRESETS, detectDateFormat, previewParsedDate } from './date-format-presets'
+import { previewParsedDate } from './date-format-presets'
 import { CsvPreview, type ColumnAssignment } from './CsvPreview'
 import { PROFILE_QUESTIONS, type ProfileQuestion } from './profileQuestions'
 import { TransactionRow } from '../accounts/TransactionRow'
+import {
+  detectDateFormatFor,
+  detectProfile,
+  distinctValues,
+  exampleFor,
+  parseAmount,
+  suggestedExampleIsOut,
+  type AmountLayout,
+  type ProfileAnswers,
+} from './detectProfile'
 
-/** The preview shows at most this many lines of the file, header row included. */
-const PREVIEW_ROW_COUNT = 6
-const CUSTOM_DATE_FORMAT = 'custom'
+/** Lines read from the file for detection and the preview (header included). */
+const SAMPLE_ROW_COUNT = 11
+/** The CSV preview on column steps shows this many data rows. */
+const COMPACT_ROWS = 3
+/** The Preview step renders this many transactions. */
+const PREVIEW_TRANSACTIONS = 5
 /** Profiles read comma-separated files. */
 const DELIMITER = ','
 
-const STEPS = PROFILE_QUESTIONS
-type StepKey = ProfileQuestion
-
-type SignMode = SignConvention | 'directional'
-
 interface ProfileWizardProps {
   accountId: string
-  /** The account being set up — its card shows on the preview rows. */
+  /** The account being set up: its currency is the profile's, its card shows on the preview rows. */
   account: Account | null
   accountCurrency: string
   defaultName: string
@@ -34,67 +39,64 @@ interface ProfileWizardProps {
   stepIndex: number
   onStepIndexChange: (index: number) => void
   onCreated: (input: CreateImportProfileInput) => Promise<void>
-  /** Back from the first question (to the step before profile setup). */
+  /** Back from the first question (to the sample file step). */
   onBack: () => void
 }
 
-/** Same rules as the backend's parseAmountCell, for the live sign preview. */
-function parseAmount(raw: string | undefined): number | null {
-  const stripped = (raw ?? '').replace(/[^0-9.-]/g, '')
-  if (!stripped) return null
-  const value = Number(stripped)
-  return Number.isFinite(value) ? value : null
+const EMPTY_ANSWERS: ProfileAnswers = {
+  hasHeader: false,
+  dateCol: null,
+  descriptionCol: null,
+  layout: null,
+  amountCol: null,
+  outCol: null,
+  inCol: null,
+  directionCol: null,
+  exampleIsOut: null,
 }
 
-/** Guess which of a direction column's values means money in vs out (e.g. Wise's IN/OUT). */
-function guessDirectionValues(values: string[]): { inValue: string; outValue: string } | null {
-  if (values.length !== 2) return null
-  const isIn = (v: string) => /\b(in|credit|cr|deposit|incoming)\b/i.test(v)
-  const isOut = (v: string) => /\b(out|debit|dr|withdrawal|outgoing)\b/i.test(v)
-  const [a, b] = values
-  if (isIn(a) || isOut(b)) return { inValue: a, outValue: b }
-  if (isIn(b) || isOut(a)) return { inValue: b, outValue: a }
-  return null
+type Field = 'dateCol' | 'descriptionCol' | 'amountCol' | 'outCol' | 'inCol' | 'directionCol'
+
+const FIELD_LABELS: Record<Field, string> = {
+  dateCol: 'Date',
+  descriptionCol: 'Description',
+  amountCol: 'Amount',
+  outCol: 'Money out',
+  inCol: 'Money in',
+  directionCol: 'In/out',
 }
+
+const LAYOUT_CHOICES: { value: AmountLayout; title: string; detail: string }[] = [
+  { value: 'single', title: 'One column, with + and −', detail: 'Money in and out share one amount column' },
+  { value: 'dual', title: 'Separate money-out and money-in columns', detail: 'e.g. Debit and Credit' },
+  { value: 'directional', title: 'An amount plus an in/out column', detail: 'A column says which way the money went (e.g. Wise)' },
+]
 
 /**
- * Builds an import profile one question at a time, as the "Read CSV" phase of
- * the import wizard. The file preview stays on top throughout, labelling every column as it gets assigned; each step's
- * question sits underneath, and column questions can also be answered by
- * clicking a column in the preview.
+ * Builds an import profile in seven fixed steps, one question each, the same
+ * for every file: column names, description, date, amount layout, amount
+ * columns, money in/out (asked with a real row), preview. Answers are pre-filled from the file, and no input appears or
+ * disappears within a step. Columns are picked by clicking them in the file's
+ * preview; the date format isn't asked, it's read from the date column.
  */
 export function ProfileWizard({ accountId, account, accountCurrency, defaultName, uploadedFileId, stepIndex, onStepIndexChange: setStepIndex, onCreated, onBack }: ProfileWizardProps) {
-  const { options: currencyOptions } = useCurrencies()
   const [rawRows, setRawRows] = useState<string[][] | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
-
-  const [hasHeader, setHasHeader] = useState<boolean | null>(null)
-  const [currencyMode, setCurrencyMode] = useState<'fixed' | 'column' | null>(null)
-  const [fixedCurrency, setFixedCurrency] = useState(accountCurrency || 'USD')
-  const [currencyCol, setCurrencyCol] = useState<number | null>(null)
-  const [dateCol, setDateCol] = useState<number | null>(null)
-  const [dateFormat, setDateFormat] = useState('yyyy-MM-dd')
-  const [dateFormatChoice, setDateFormatChoice] = useState('yyyy-MM-dd')
-  const [dateDetected, setDateDetected] = useState(false)
-  const [descriptionCol, setDescriptionCol] = useState<number | null>(null)
-  const [amountColumns, setAmountColumns] = useState<1 | 2 | null>(null)
-  const [amountCol, setAmountCol] = useState<number | null>(null)
-  const [signMode, setSignMode] = useState<SignMode | null>(null)
-  const [directionCol, setDirectionCol] = useState<number | null>(null)
-  const [inValue, setInValue] = useState('')
-  const [outValue, setOutValue] = useState('')
-  const [expenseCol, setExpenseCol] = useState<number | null>(null)
-  const [incomeCol, setIncomeCol] = useState<number | null>(null)
+  const [answers, setAnswers] = useState<ProfileAnswers>(EMPTY_ANSWERS)
+  /** The field a click on the preview fills (only if it's on the current step). */
+  const [activeField, setActiveField] = useState<Field | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     apiClient
-      .post<PreviewRawRowsResult>('/import-profiles/preview-raw-rows', { uploadedFileId, delimiter: DELIMITER, hasHeader: false, rowLimit: PREVIEW_ROW_COUNT })
+      .post<PreviewRawRowsResult>('/import-profiles/preview-raw-rows', { uploadedFileId, delimiter: DELIMITER, hasHeader: false, rowLimit: SAMPLE_ROW_COUNT })
       .then((result) => {
         if (cancelled) return
         setRawRows(result.sampleRows)
+        // Pre-fill every answer the file makes obvious; the rest stay blank.
+        setAnswers(detectProfile(result.sampleRows))
         setPreviewError(null)
       })
       .catch((err) => {
@@ -105,104 +107,135 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
     }
   }, [uploadedFileId])
 
+  const step: ProfileQuestion = PROFILE_QUESTIONS[stepIndex]
+  const { hasHeader, layout } = answers
   const headerRow = hasHeader && rawRows ? (rawRows[0] ?? []) : null
   const dataRows = useMemo(() => (rawRows ? (hasHeader ? rawRows.slice(1) : rawRows) : []), [rawRows, hasHeader])
   const columnCount = rawRows ? Math.max(0, ...rawRows.map((row) => row.length)) : 0
   const columnName = (index: number) => headerRow?.[index]?.trim() || `Column ${index + 1}`
-  const columnOptions = Array.from({ length: columnCount }, (_, index) => ({ value: index, label: columnName(index) }))
 
-  const step: StepKey = STEPS[stepIndex]
-
-  // ── Date detection: suggest a format whenever the date column changes ──
-  const dateSample = dateCol !== null ? dataRows.find((row) => row[dateCol]?.trim())?.[dateCol] : undefined
-  useEffect(() => {
-    if (!dateSample) return
-    const detected = detectDateFormat(dateSample)
-    setDateDetected(!!detected)
-    if (detected) {
-      setDateFormat(detected)
-      setDateFormatChoice(detected)
-    }
-  }, [dateSample])
-  const parsedDateSample = dateSample ? previewParsedDate(dateSample, dateFormat) : null
-
-  // ── Direction values: suggest IN/OUT from what's actually in the column ──
-  const directionValues = useMemo(
-    () => (directionCol === null ? [] : [...new Set(dataRows.map((row) => row[directionCol]?.trim()).filter((v): v is string => !!v))]),
-    [dataRows, directionCol],
-  )
-  useEffect(() => {
-    const guess = guessDirectionValues(directionValues)
-    setInValue(guess?.inValue ?? '')
-    setOutValue(guess?.outValue ?? '')
-  }, [directionValues])
-
-  // ── Which column, if any, the current question is waiting for ──
-  let pickTarget: { label: string; pick: (index: number) => void } | null = null
-  if (step === 'currency' && currencyMode === 'column') pickTarget = { label: 'Currency', pick: setCurrencyCol }
-  else if (step === 'date') pickTarget = { label: 'Date', pick: setDateCol }
-  else if (step === 'description') pickTarget = { label: 'Description', pick: setDescriptionCol }
-  else if (step === 'amounts' && amountColumns === 1) {
-    if (amountCol === null) pickTarget = { label: 'Amount', pick: setAmountCol }
-    else if (signMode === 'directional' && directionCol === null) pickTarget = { label: 'Direction', pick: setDirectionCol }
-  } else if (step === 'amounts' && amountColumns === 2) {
-    pickTarget = expenseCol === null ? { label: 'Money out', pick: setExpenseCol } : incomeCol === null ? { label: 'Money in', pick: setIncomeCol } : null
+  /** Changing what the money question is about clears its answer (the suggestion takes over again). */
+  function update(patch: Partial<ProfileAnswers>) {
+    const resetsExample = ['layout', 'amountCol', 'outCol', 'inCol', 'directionCol', 'descriptionCol', 'hasHeader'].some((key) => key in patch)
+    setAnswers((current) => ({ ...current, ...patch, ...(resetsExample ? { exampleIsOut: null } : {}) }))
   }
 
-  const assignments: ColumnAssignment[] = []
-  if (currencyMode === 'column' && currencyCol !== null) assignments.push({ column: currencyCol, label: 'Currency' })
-  if (dateCol !== null) assignments.push({ column: dateCol, label: 'Date' })
-  if (descriptionCol !== null) assignments.push({ column: descriptionCol, label: 'Description' })
-  if (amountColumns === 1 && amountCol !== null) assignments.push({ column: amountCol, label: 'Amount' })
-  if (amountColumns === 1 && signMode === 'directional' && directionCol !== null) assignments.push({ column: directionCol, label: 'Direction' })
-  if (amountColumns === 2 && expenseCol !== null) assignments.push({ column: expenseCol, label: 'Money out' })
-  if (amountColumns === 2 && incomeCol !== null) assignments.push({ column: incomeCol, label: 'Money in' })
+  // ── Which fields are on which step, for preview labels and click-to-assign ──
+  const amountFields: Field[] = layout === 'dual' ? ['outCol', 'inCol'] : layout === 'directional' ? ['amountCol', 'directionCol'] : ['amountCol']
+  const assignedFields: Field[] = ['dateCol', 'descriptionCol', ...(layout ? amountFields : [])]
+  const assignments: ColumnAssignment[] = assignedFields.flatMap((field) => (answers[field] !== null ? [{ column: answers[field]!, label: FIELD_LABELS[field] }] : []))
 
-  // ── Signed-amount preview for the first rows, so a wrong sign choice is obvious ──
-  function signedAmount(row: string[]): number | null {
-    if (amountColumns === 1 && amountCol !== null && signMode) {
-      const value = parseAmount(row[amountCol])
-      if (value === null) return null
-      if (signMode === 'positive_is_expense') return -value
-      if (signMode === 'positive_is_income') return value
-      if (directionCol === null) return null
-      const direction = row[directionCol]?.trim()
-      if (direction === inValue) return Math.abs(value)
-      if (direction === outValue) return -Math.abs(value)
-      return null
+  /** The step's field that a click on the preview fills: the chosen one, else the first empty one. */
+  const targetFor = (fields: Field[]): Field | null =>
+    activeField && fields.includes(activeField) ? activeField : (fields.find((field) => answers[field] === null) ?? fields[0] ?? null)
+
+  /**
+   * The first rows of the file, labelled with the columns chosen so far (this
+   * step's fields and earlier ones, never later ones). Clicking a column fills
+   * the selected field; with several, the bar above the table switches between them.
+   */
+  function columnPicker(fields: Field[], earlier: Field[] = []) {
+    if (!rawRows) return null
+    const target = targetFor(fields)
+    const shown = [...earlier, ...fields]
+    return (
+      <CsvPreview
+        // Data rows only: the column names were settled on the step before, and the labels mark the columns.
+        rows={dataRows.slice(0, COMPACT_ROWS)}
+        hasHeader={false}
+        columnCount={columnCount}
+        assignments={assignments.filter((assignment) => shown.some((field) => answers[field] === assignment.column && FIELD_LABELS[field] === assignment.label))}
+        pickLabel={target ? FIELD_LABELS[target] : null}
+        targets={fields.length > 1 ? fields.map((field) => ({ key: field, label: FIELD_LABELS[field] })) : undefined}
+        onTargetChange={(key) => setActiveField(key as Field)}
+        columnName={columnName}
+        onPickColumn={
+          target
+            ? (column) => {
+                // A column used by another field of this step swaps with it; one
+                // pre-filled for a later step clears that guess. (Earlier steps' columns can't be picked.)
+                const patch: Partial<ProfileAnswers> = { [target]: column }
+                for (const other of assignedFields) {
+                  if (other === target || answers[other] !== column) continue
+                  patch[other] = fields.includes(other) ? answers[target] : null
+                }
+                update(patch)
+                // Then on to the next field still empty, if any.
+                const nextEmpty = fields.find((field) => field !== target && answers[field] === null)
+                if (nextEmpty) setActiveField(nextEmpty)
+                else setActiveField(target)
+              }
+            : undefined
+        }
+        canPickColumn={(column) => !earlier.some((field) => answers[field] === column)}
+      />
+    )
+  }
+
+  // ── Date: the format is whichever one reads every date in the column ──
+  const dateValues = answers.dateCol === null ? [] : dataRows.map((row) => row[answers.dateCol!]?.trim() ?? '').filter(Boolean)
+  const dateFormat = detectDateFormatFor(dateValues)
+
+  // ── Money in/out: one real row, asked about in the layout's terms ──
+  const example = exampleFor(dataRows, answers, columnName)
+  // With no clear suggestion, Money out is pre-selected: the user confirms it either way.
+  const exampleIsOut = example ? (answers.exampleIsOut ?? suggestedExampleIsOut(dataRows, answers, example) ?? true) : null
+  const directionValues = answers.directionCol === null ? [] : distinctValues(dataRows, answers.directionCol)
+
+  /** The final amount mapping (columns as indices), or null while something's missing. */
+  function amountMapping(): { mode: 'single'; col: number; positiveIsExpense: boolean } | { mode: 'dual'; out: number; in: number } | { mode: 'directional'; col: number; dir: number; inValue: string; outValue: string } | null {
+    if (exampleIsOut === null || !example) return null
+    if (layout === 'single' && answers.amountCol !== null) {
+      const exampleValue = parseAmount(example.shown) ?? 0
+      return { mode: 'single', col: answers.amountCol, positiveIsExpense: exampleIsOut === exampleValue > 0 }
     }
-    if (amountColumns === 2 && expenseCol !== null && incomeCol !== null) {
-      const expense = parseAmount(row[expenseCol])
-      const income = parseAmount(row[incomeCol])
-      if (expense !== null && expense !== 0) return -Math.abs(expense)
-      if (income !== null) return Math.abs(income)
-      return null
+    if (layout === 'dual' && answers.outCol !== null && answers.inCol !== null) {
+      // The example comes from the step-5 "Money out" column; "money in" means the two were the other way round.
+      return exampleIsOut ? { mode: 'dual', out: answers.outCol, in: answers.inCol } : { mode: 'dual', out: answers.inCol, in: answers.outCol }
+    }
+    if (layout === 'directional' && answers.amountCol !== null && answers.directionCol !== null && directionValues.length === 2) {
+      const other = directionValues.find((value) => value !== example.shown)!
+      return {
+        mode: 'directional',
+        col: answers.amountCol,
+        dir: answers.directionCol,
+        outValue: exampleIsOut ? example.shown : other,
+        inValue: exampleIsOut ? other : example.shown,
+      }
     }
     return null
   }
-  const amountPreviewReady =
-    (amountColumns === 1 && amountCol !== null && !!signMode && (signMode !== 'directional' || (directionCol !== null && !!inValue && !!outValue))) ||
-    (amountColumns === 2 && expenseCol !== null && incomeCol !== null)
-  const previewCurrency = (row: string[]) =>
-    currencyMode === 'column' && currencyCol !== null ? (row[currencyCol]?.trim().toUpperCase() || fixedCurrency) : fixedCurrency
+  const mapping = amountMapping()
 
-  // The first rows rendered exactly as they'll appear on the Transaction page.
-  // Category is chosen after import, so they read "Uncategorized" for now.
-  const previewTransactions: DisplayRow[] = []
-  let skippedPreviewRows = 0
-  for (const row of dataRows.slice(0, 3)) {
-    const amount = signedAmount(row)
-    const date = dateCol !== null && row[dateCol] ? previewParsedDate(row[dateCol], dateFormat) : null
-    if (amount === null || !date) {
-      skippedPreviewRows += 1
-      continue
+  function signedAmount(row: string[]): number | null {
+    if (!mapping) return null
+    if (mapping.mode === 'single') {
+      const value = parseAmount(row[mapping.col])
+      return value === null ? null : mapping.positiveIsExpense ? -value : value
     }
-    previewTransactions.push({
+    if (mapping.mode === 'dual') {
+      const out = parseAmount(row[mapping.out])
+      const inn = parseAmount(row[mapping.in])
+      if (out !== null && out !== 0) return -Math.abs(out)
+      return inn !== null ? Math.abs(inn) : null
+    }
+    const value = parseAmount(row[mapping.col])
+    const direction = row[mapping.dir]?.trim()
+    if (value === null) return null
+    return direction === mapping.inValue ? Math.abs(value) : direction === mapping.outValue ? -Math.abs(value) : null
+  }
+
+  // ── Rows rendered exactly as on the Transaction page ──
+  function toTransaction(row: string[]): DisplayRow | null {
+    const amount = signedAmount(row)
+    const date = answers.dateCol !== null && dateFormat && row[answers.dateCol] ? previewParsedDate(row[answers.dateCol], dateFormat) : null
+    if (amount === null || !date) return null
+    return {
       kind: 'plain',
       date,
       amount,
-      currencyCode: previewCurrency(row),
-      description: (descriptionCol !== null && row[descriptionCol]?.trim()) || '',
+      currencyCode: accountCurrency,
+      description: (answers.descriptionCol !== null && row[answers.descriptionCol]?.trim()) || '',
       categoryId: null,
       accountIds: [accountId],
       anchorAccountId: accountId,
@@ -211,16 +244,29 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
       monthSplitId: null,
       convertedValue: null,
       rateSource: 'auto',
-    })
+    }
   }
+  const previewTransactions = dataRows
+    .map(toTransaction)
+    .filter((row): row is DisplayRow => row !== null)
+    .slice(0, PREVIEW_TRANSACTIONS)
+  const exampleTransaction = example ? toTransaction(dataRows[example.rowIndex]) : null
+  const transactionList = (rows: DisplayRow[], label: string) => (
+    <ul className="txn-list txn-list--inset" aria-label={label}>
+      {rows.map((row, index) => (
+        <TransactionRow key={index} row={row} categories={[]} accounts={account ? [account] : []} />
+      ))}
+    </ul>
+  )
 
-  const canContinue: Record<StepKey, boolean> = {
-    header: hasHeader !== null && !!rawRows,
-    currency: currencyMode === 'fixed' || (currencyMode === 'column' && currencyCol !== null),
-    date: dateCol !== null && !!parsedDateSample,
-    description: descriptionCol !== null,
-    amounts: amountPreviewReady && (signMode !== 'directional' || inValue.trim() !== outValue.trim()),
-    save: true,
+  const canContinue: Record<ProfileQuestion, boolean> = {
+    header: true,
+    description: answers.descriptionCol !== null,
+    date: answers.dateCol !== null && !!dateFormat,
+    layout: layout !== null,
+    amounts: amountFields.every((field) => answers[field] !== null) && (layout !== 'directional' || directionValues.length === 2),
+    money: !!exampleTransaction,
+    preview: !!mapping && previewTransactions.length > 0,
   }
 
   function toRef(index: number): ColumnRef {
@@ -233,20 +279,13 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
   async function handleSave() {
     setError(null)
     try {
-      if (dateCol === null || descriptionCol === null || hasHeader === null) throw new Error('Some steps are unanswered')
-      let amount: AmountMapping
-      if (amountColumns === 2 && expenseCol !== null && incomeCol !== null) {
-        amount = { mode: 'dual', expenseColumn: toRef(expenseCol), incomeColumn: toRef(incomeCol) }
-      } else if (amountColumns === 1 && amountCol !== null && signMode === 'directional' && directionCol !== null) {
-        amount = { mode: 'directional', amountColumn: toRef(amountCol), directionColumn: toRef(directionCol), inValue: inValue.trim(), outValue: outValue.trim() }
-      } else if (amountColumns === 1 && amountCol !== null && signMode && signMode !== 'directional') {
-        amount = { mode: 'single', column: toRef(amountCol), signConvention: signMode }
-      } else {
-        throw new Error('Finish the amounts step')
-      }
-      const currency: CurrencyMapping =
-        currencyMode === 'column' && currencyCol !== null ? { mode: 'column', column: toRef(currencyCol) } : { mode: 'fixed', code: fixedCurrency }
-
+      if (answers.dateCol === null || answers.descriptionCol === null || !dateFormat || !mapping) throw new Error('Some steps are unanswered')
+      const amount: AmountMapping =
+        mapping.mode === 'single'
+          ? { mode: 'single', column: toRef(mapping.col), signConvention: mapping.positiveIsExpense ? 'positive_is_expense' : 'positive_is_income' }
+          : mapping.mode === 'dual'
+            ? { mode: 'dual', expenseColumn: toRef(mapping.out), incomeColumn: toRef(mapping.in) }
+            : { mode: 'directional', amountColumn: toRef(mapping.col), directionColumn: toRef(mapping.dir), inValue: mapping.inValue, outValue: mapping.outValue }
       setSubmitting(true)
       await onCreated({
         accountId,
@@ -255,7 +294,8 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
         hasHeader,
         delimiter: DELIMITER,
         dateFormat,
-        columnMapping: { date: toRef(dateCol), description: toRef(descriptionCol), amount, currency },
+        // Every profile reads the account's own currency (one currency per account).
+        columnMapping: { date: toRef(answers.dateCol), description: toRef(answers.descriptionCol), amount, currency: { mode: 'fixed', code: accountCurrency } },
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save import profile')
@@ -264,264 +304,109 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
     }
   }
 
-  /** A column assigned to one field isn't offered (or clickable) for any other. */
-  const isTakenByOther = (column: number, field: string) => assignments.some((a) => a.column === column && a.label !== field)
-
-  function columnSelect(field: string, value: number | null, onChange: (index: number) => void) {
-    return (
-      <FieldSelect
-        value={value === null ? '' : String(value)}
-        placeholder="Choose a column"
-        searchable={false}
-        options={columnOptions
-          .filter((option) => !isTakenByOther(option.value, field))
-          .map((option) => ({ value: String(option.value), label: option.label }))}
-        onChange={(column) => onChange(Number(column))}
-      />
-    )
-  }
-
-  function choice<T>(current: T | null, value: T, set: (value: T) => void, title: string, detail?: string) {
-    return <ChoiceCard title={title} detail={detail} selected={current === value} onSelect={() => set(value)} />
-  }
-
-  const questions: Record<StepKey, { title: string; hint?: string; body: ReactNode }> = {
+  // ── Each step: a question, its always-visible inputs ──
+  const directionError = layout === 'directional' && answers.directionCol !== null && directionValues.length !== 2
+  const questions: Record<ProfileQuestion, { title: string; hint?: string; body: ReactNode }> = {
     header: {
-      title: 'Does the first row have column names?',
-      hint: 'For example "Date", "Description", "Amount".',
+      title: 'Is the first row column names?',
       body: (
         <>
+          {rawRows && (
+            <CsvPreview
+              rows={rawRows.slice(0, COMPACT_ROWS + 1)}
+              hasHeader={hasHeader}
+              columnCount={columnCount}
+              assignments={[]}
+              pickLabel={null}
+              showLabels={false}
+              highlightHeader
+            />
+          )}
           <div className="wizard-choices">
-            {choice(hasHeader, true, setHasHeader, 'Yes', 'The first row is a header')}
-            {choice(hasHeader, false, setHasHeader, 'No', 'The first row is already a transaction')}
+            <ChoiceCard title="Yes" detail="Like Date, Description, Amount" selected={hasHeader} onSelect={() => update({ hasHeader: true })} />
+            <ChoiceCard title="No" detail="It’s already a transaction" selected={!hasHeader} onSelect={() => update({ hasHeader: false })} />
           </div>
-        </>
-      ),
-    },
-    currency: {
-      title: 'How many currencies are in this file?',
-      body: (
-        <>
-          <div className="wizard-choices">
-            {choice(currencyMode, 'fixed', setCurrencyMode, 'One currency', 'Every transaction is in the same currency')}
-            {choice(currencyMode, 'column', setCurrencyMode, 'More than one', 'A column says each row’s currency (e.g. Wise, Revolut)')}
-          </div>
-          {currencyMode === 'fixed' && (
-            <label className="wizard-inline-field">
-              Which currency?
-              <FieldSelect value={fixedCurrency} options={currencyOptions} onChange={setFixedCurrency} />
-            </label>
-          )}
-          {currencyMode === 'column' && (
-            <label className="wizard-inline-field">
-              Which column has the currency?
-              {columnSelect('Currency', currencyCol, setCurrencyCol)}
-            </label>
-          )}
-        </>
-      ),
-    },
-    date: {
-      title: 'Which column has the date?',
-      hint: 'Pick it below or click the column in the preview.',
-      body: (
-        <>
-          <label className="wizard-inline-field">
-            Date column
-            {columnSelect('Date', dateCol, setDateCol)}
-          </label>
-          {dateSample && (
-            <>
-              <p className={`wizard-check${parsedDateSample ? '' : ' is-error'}`}>
-                {parsedDateSample
-                  ? `${dateDetected ? 'Detected format' : 'Format'}: “${dateSample}” reads as ${formatIsoForDisplay(parsedDateSample)}.`
-                  : `“${dateSample}” doesn’t match this format — choose the right one below.`}
-              </p>
-              <label className="wizard-inline-field">
-                Date format
-                <FieldSelect
-                  value={dateFormatChoice}
-                  options={[
-                    ...DATE_FORMAT_PRESETS.map((preset) => ({ value: preset.value, label: preset.label })),
-                    { value: CUSTOM_DATE_FORMAT, label: 'Custom…' },
-                  ]}
-                  onChange={(choice) => {
-                    setDateFormatChoice(choice)
-                    if (choice !== CUSTOM_DATE_FORMAT) setDateFormat(choice)
-                  }}
-                />
-              </label>
-              {dateFormatChoice === CUSTOM_DATE_FORMAT && (
-                <input type="text" value={dateFormat} onChange={(e) => setDateFormat(e.target.value)} placeholder="e.g. yyyy-MM-dd" aria-label="Custom date format" />
-              )}
-            </>
-          )}
         </>
       ),
     },
     description: {
-      title: 'Which column describes the transaction?',
-      hint: 'Usually the merchant or payee name.',
+      title: 'Which column has the description?',
+      body: columnPicker(['descriptionCol']),
+    },
+    date: {
+      title: 'Which column has the date?',
       body: (
-        <label className="wizard-inline-field">
-          Description column
-          {columnSelect('Description', descriptionCol, setDescriptionCol)}
-        </label>
+        <>
+          {columnPicker(['dateCol'], ['descriptionCol'])}
+          {answers.dateCol !== null && dateValues.length > 0 && !dateFormat && (
+            <Alert variant="error">The dates in {columnName(answers.dateCol)} aren’t in a format Frugal AI can read. Pick the column with the transaction date.</Alert>
+          )}
+        </>
+      ),
+    },
+    layout: {
+      title: 'How does the file show amounts?',
+      body: (
+        <>
+          {/* Read-only: a look at the file before answering. */}
+          {columnPicker([], ['descriptionCol', 'dateCol'])}
+          <div className="wizard-choices wizard-choices--stacked">
+            {LAYOUT_CHOICES.map((choice) => (
+              <ChoiceCard key={choice.value} title={choice.title} detail={choice.detail} selected={layout === choice.value} onSelect={() => update({ layout: choice.value })} />
+            ))}
+          </div>
+        </>
       ),
     },
     amounts: {
-      title: 'How many columns hold the amounts?',
+      title: layout === 'dual' ? 'Which columns have money out and money in?' : layout === 'directional' ? 'Which columns have the amount and the direction?' : 'Which column has the amount?',
       body: (
         <>
-          <div className="wizard-choices">
-            {choice(amountColumns, 1 as const, setAmountColumns, 'One column', 'Money in and out share a column')}
-            {choice(amountColumns, 2 as const, setAmountColumns, 'Two columns', 'Separate columns for money out and money in')}
-          </div>
-
-          {amountColumns === 1 && (
-            <>
-              <label className="wizard-inline-field">
-                Which column has the amounts?
-                {columnSelect('Amount', amountCol, setAmountCol)}
-              </label>
-              {amountCol !== null && (
-                <>
-                  <p className="wizard-subquestion">How do you tell money in from money out?</p>
-                  <div className="wizard-choices wizard-choices--three">
-                    {choice(signMode, 'positive_is_expense' as SignMode, setSignMode, 'Positive is expense', 'Spending shows as a positive number')}
-                    {choice(signMode, 'positive_is_income' as SignMode, setSignMode, 'Positive is income', 'Spending shows as a negative number')}
-                    {choice(signMode, 'directional' as SignMode, setSignMode, 'Another column says', 'Like Wise: a column reads IN or OUT')}
-                  </div>
-                </>
-              )}
-              {signMode === 'directional' && amountCol !== null && (
-                <div className="wizard-fields">
-                  <label className="wizard-inline-field">
-                    Which column says in or out?
-                    {columnSelect('Direction', directionCol, setDirectionCol)}
-                  </label>
-                  {directionCol !== null && (
-                    <div className="wizard-field-row">
-                      <label className="wizard-inline-field">
-                        Value for money in
-                        <SuggestInput value={inValue} onChange={setInValue} suggestions={directionValues} placeholder="e.g. IN" />
-                      </label>
-                      <label className="wizard-inline-field">
-                        Value for money out
-                        <SuggestInput value={outValue} onChange={setOutValue} suggestions={directionValues} placeholder="e.g. OUT" />
-                      </label>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          {amountColumns === 2 && (
-            <div className="wizard-field-row">
-              <label className="wizard-inline-field">
-                Money out (expenses) column
-                {columnSelect('Money out', expenseCol, setExpenseCol)}
-              </label>
-              <label className="wizard-inline-field">
-                Money in (income) column
-                {columnSelect('Money in', incomeCol, setIncomeCol)}
-              </label>
-            </div>
-          )}
-
-          {amountPreviewReady && (
-            <div className="wizard-txn-preview">
-              <p className="wizard-subquestion">How your transactions will look</p>
-              <ul className="txn-list" aria-label="Preview of the first transactions">
-                {previewTransactions.map((row, index) => (
-                  <TransactionRow key={index} row={row} categories={[]} accounts={account ? [account] : []} />
-                ))}
-              </ul>
-              {skippedPreviewRows > 0 && (
-                <p className="wizard-hint">
-                  {skippedPreviewRows} of the first rows {skippedPreviewRows === 1 ? 'has' : 'have'} no amount and will be skipped.
-                </p>
-              )}
-            </div>
+          {columnPicker(amountFields, ['descriptionCol', 'dateCol'])}
+          {directionError && (
+            <Alert variant="error">The In/out column should have exactly two values (like IN and OUT); this one has {directionValues.length}.</Alert>
           )}
         </>
       ),
     },
-    save: {
-      title: 'Does this look right?',
-      hint: 'These settings are reused every time you import a file into this account.',
+    money: {
+      title: 'Is this money out or money in?',
+      hint: 'A real transaction from your file, so the signs come out right.',
       body: (
         <>
-          <dl className="wizard-summary">
-            <dt>Header row</dt>
-            <dd>{hasHeader ? 'Yes' : 'No'}</dd>
-            <dt>Currency</dt>
-            <dd>{currencyMode === 'column' && currencyCol !== null ? `From “${columnName(currencyCol)}”` : fixedCurrency}</dd>
-            <dt>Date</dt>
-            <dd>{dateCol !== null ? `“${columnName(dateCol)}” as ${dateFormat}` : '—'}</dd>
-            <dt>Description</dt>
-            <dd>{descriptionCol !== null ? `“${columnName(descriptionCol)}”` : '—'}</dd>
-            <dt>Amounts</dt>
-            <dd>
-              {amountColumns === 2 && expenseCol !== null && incomeCol !== null
-                ? `Out: “${columnName(expenseCol)}”, in: “${columnName(incomeCol)}”`
-                : amountCol !== null
-                  ? `“${columnName(amountCol)}”, ${
-                      signMode === 'positive_is_expense'
-                        ? 'positive is expense'
-                        : signMode === 'positive_is_income'
-                          ? 'positive is income'
-                          : directionCol !== null
-                            ? `“${columnName(directionCol)}” says ${inValue} / ${outValue}`
-                            : ''
-                    }`
-                  : '—'}
-            </dd>
-          </dl>
+          {exampleTransaction && transactionList([exampleTransaction], 'The transaction to check')}
+          <div className="wizard-choices">
+            <ChoiceCard title="Money out" detail="A purchase, fee or payment" selected={exampleIsOut === true} onSelect={() => setAnswers({ ...answers, exampleIsOut: true })} />
+            <ChoiceCard title="Money in" detail="A refund, deposit or salary" selected={exampleIsOut === false} onSelect={() => setAnswers({ ...answers, exampleIsOut: false })} />
+          </div>
         </>
       ),
+    },
+    preview: {
+      title: 'Here’s how your transactions will look',
+      hint: 'Categories are chosen when you import.',
+      body: transactionList(previewTransactions, 'Preview of the first transactions'),
     },
   }
 
   const question = questions[step]
-  const isLast = stepIndex === STEPS.length - 1
+  const isLast = stepIndex === PROFILE_QUESTIONS.length - 1
 
   return (
     <WizardStep
       onSubmit={isLast ? handleSave : () => setStepIndex(stepIndex + 1)}
       footer={{
         back: { label: 'Back', onClick: stepIndex === 0 ? onBack : () => setStepIndex(stepIndex - 1) },
-        primary: isLast ? { label: 'Save profile', loading: submitting, disabled: !canContinue.save } : { label: 'Continue', disabled: !canContinue[step] },
+        primary: isLast ? { label: 'Save profile', loading: submitting, disabled: !canContinue.preview } : { label: 'Continue', disabled: !rawRows || !canContinue[step] },
       }}
     >
       {previewError && <Alert variant="error">{previewError}</Alert>}
-      {rawRows ? (
-        <CsvPreview
-          rows={rawRows}
-          hasHeader={!!hasHeader}
-          columnCount={columnCount}
-          assignments={assignments}
-          pickLabel={pickTarget?.label ?? null}
-          onPickColumn={pickTarget ? pickTarget.pick : undefined}
-          canPickColumn={(column) => !pickTarget || !isTakenByOther(column, pickTarget.label)}
-        />
-      ) : (
-        !previewError && <p className="wizard-hint">Reading your file…</p>
-      )}
-
       <section className="wizard-question" aria-live="polite">
         <h2>{question.title}</h2>
         {question.hint && <p className="wizard-hint">{question.hint}</p>}
-        {question.body}
+        {rawRows ? question.body : !previewError && <p className="wizard-hint">Reading your file…</p>}
       </section>
-
       {error && <Alert variant="error">{error}</Alert>}
     </WizardStep>
   )
-}
-
-function formatIsoForDisplay(iso: string): string {
-  const [year, month, day] = iso.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }

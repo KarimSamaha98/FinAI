@@ -13,6 +13,12 @@ export const DATE_FORMAT_PRESETS = [
   { label: '06/24/2026 (US)', value: 'MM/dd/yyyy' },
   { label: '24/06/2026', value: 'dd/MM/yyyy' },
   { label: '24-06-2026', value: 'dd-MM-yyyy' },
+  { label: '24.06.2026', value: 'dd.MM.yyyy' },
+  { label: '2026/06/24', value: 'yyyy/MM/dd' },
+  { label: '20260624', value: 'yyyyMMdd' },
+  { label: 'Jun 24 2026', value: 'MMM d yyyy' },
+  { label: '6/24/2026 (US, no leading zeros)', value: 'M/d/yyyy' },
+  { label: '24/6/2026 (no leading zeros)', value: 'd/M/yyyy' },
 ]
 
 /** Tries each preset against a sample cell, returning the first that parses to a valid date. */

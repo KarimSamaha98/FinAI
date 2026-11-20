@@ -1,12 +1,13 @@
 /** The CSV profile questions, in order. Each is its own step in the profile wizard's progress bar. */
-export const PROFILE_QUESTIONS = ['header', 'currency', 'date', 'description', 'amounts', 'save'] as const
+export const PROFILE_QUESTIONS = ['header', 'description', 'date', 'layout', 'amounts', 'money', 'preview'] as const
 export type ProfileQuestion = (typeof PROFILE_QUESTIONS)[number]
 
 export const PROFILE_QUESTION_LABELS: Record<ProfileQuestion, string> = {
-  header: 'Header row',
-  currency: 'Currency',
-  date: 'Date',
+  header: 'Column names',
   description: 'Description',
-  amounts: 'Amounts',
-  save: 'Review',
+  date: 'Date',
+  layout: 'Amount layout',
+  amounts: 'Amount columns',
+  money: 'Money in/out',
+  preview: 'Preview',
 }
