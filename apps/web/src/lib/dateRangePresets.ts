@@ -1,7 +1,7 @@
 import { endOfMonth, format, startOfMonth, subMonths, subYears } from 'date-fns'
 import type { DateRange } from '../components/DateRangePicker'
 
-export type DateRangePreset = 'current-month' | 'last-month' | '3m' | '6m' | '1y' | 'custom'
+export type DateRangePreset = 'current-month' | 'last-month' | '3m' | '6m' | '1y' | 'all' | 'custom'
 
 export const DATE_RANGE_PRESET_LABELS: Record<DateRangePreset, string> = {
   'current-month': 'Current month',
@@ -9,6 +9,7 @@ export const DATE_RANGE_PRESET_LABELS: Record<DateRangePreset, string> = {
   '3m': 'Last 3 months',
   '6m': 'Last 6 months',
   '1y': 'Last 12 months',
+  all: 'All dates',
   custom: 'Custom range',
 }
 
@@ -31,6 +32,7 @@ export function getPresetRange(preset: DateRangePreset): DateRange {
       return { from: fmt(subMonths(now, 6)), to: fmt(now) }
     case '1y':
       return { from: fmt(subYears(now, 1)), to: fmt(now) }
+    case 'all':
     case 'custom':
       return {}
   }

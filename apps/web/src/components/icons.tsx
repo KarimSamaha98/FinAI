@@ -179,6 +179,16 @@ export function LinkIcon() {
   )
 }
 
+/** A flag on a pole: "needs attention" (flag a transaction to act on later). */
+export function FlagIcon() {
+  return (
+    <Icon>
+      <path d="M5 21V4" />
+      <path d="M5 4h11l-2 4 2 4H5" />
+    </Icon>
+  )
+}
+
 /** Six-dot grip: the "drag to arrange" handle. */
 export function GripIcon() {
   return (

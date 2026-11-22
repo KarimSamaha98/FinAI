@@ -8,6 +8,7 @@ import { previewParsedDate } from './date-format-presets'
 import { CsvPreview, type ColumnAssignment } from './CsvPreview'
 import { PROFILE_QUESTIONS, type ProfileQuestion } from './profileQuestions'
 import { TransactionRow } from '../accounts/TransactionRow'
+import { TransactionList } from '../accounts/TransactionList'
 import {
   detectDateFormatFor,
   detectProfile,
@@ -244,6 +245,7 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
       monthSplitId: null,
       convertedValue: null,
       rateSource: 'auto',
+      flagged: false,
     }
   }
   const previewTransactions = dataRows
@@ -252,11 +254,11 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
     .slice(0, PREVIEW_TRANSACTIONS)
   const exampleTransaction = example ? toTransaction(dataRows[example.rowIndex]) : null
   const transactionList = (rows: DisplayRow[], label: string) => (
-    <ul className="txn-list txn-list--inset" aria-label={label}>
+    <TransactionList className="txn-list--inset" aria-label={label}>
       {rows.map((row, index) => (
         <TransactionRow key={index} row={row} categories={[]} accounts={account ? [account] : []} />
       ))}
-    </ul>
+    </TransactionList>
   )
 
   const canContinue: Record<ProfileQuestion, boolean> = {

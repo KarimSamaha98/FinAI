@@ -26,6 +26,7 @@ import { SummaryCard } from './DashboardMetrics'
 import { IncomeExpenseChart } from './IncomeExpenseChart'
 import { InsightDrillPanel } from './InsightDrillPanel'
 import { SplitPanelCard } from './SplitPanelCard'
+import { TransactionList } from '../accounts/TransactionList'
 import { breakdownDetails, currentPeriod, readInsightsView, type FlowTab } from './insightsView'
 
 const TREND_WINDOW = { monthly: 12, yearly: 5 } as const
@@ -50,6 +51,7 @@ function topTxnRow(item: TopTransaction, kind: 'expense' | 'income'): DisplayRow
     monthSplitId: null,
     convertedValue: null,
     rateSource: 'auto',
+    flagged: false,
   }
 }
 
@@ -320,7 +322,7 @@ export function ChartsPage() {
           {importantThings.loading && <SkeletonRows count={4} inset />}
           {!importantThings.loading && importantThings.topExpenses.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No expenses for this period.</p>}
           {!importantThings.loading && importantThings.topExpenses.length > 0 && (
-            <ul className="txn-list">
+            <TransactionList>
               {importantThings.topExpenses.map((item) => (
                 <TransactionRow
                   key={`${item.description}-${item.mostRecentDate}`}
@@ -330,7 +332,7 @@ export function ChartsPage() {
                   showAccount={false}
                 />
               ))}
-            </ul>
+            </TransactionList>
           )}
         </Card>
       </div>
@@ -397,7 +399,7 @@ export function ChartsPage() {
           {importantThings.loading && <SkeletonRows count={4} inset />}
           {!importantThings.loading && importantThings.topIncome.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No income for this period.</p>}
           {!importantThings.loading && importantThings.topIncome.length > 0 && (
-            <ul className="txn-list">
+            <TransactionList>
               {importantThings.topIncome.map((item) => (
                 <TransactionRow
                   key={`${item.description}-${item.mostRecentDate}`}
@@ -407,7 +409,7 @@ export function ChartsPage() {
                   showAccount={false}
                 />
               ))}
-            </ul>
+            </TransactionList>
           )}
         </Card>
       </div>

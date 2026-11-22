@@ -5,7 +5,7 @@ import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate, formatMonthYear } from '../../lib/formatDate'
 import { accountTypeIcon } from '../../lib/accountIcons'
 import { CategoryIcon } from '../../components/categoryIcons'
-import { AccountIcon, LinkIcon, SplitIcon } from '../../components/icons'
+import { AccountIcon, FlagIcon, LinkIcon, SplitIcon } from '../../components/icons'
 
 interface TransactionRowProps {
   row: DisplayRow
@@ -51,18 +51,23 @@ export function TransactionRow({
   const category = categories.find((c) => c.id === row.categoryId)
   const categoryLabel = category?.name ?? 'Uncategorized'
 
+  // The subline spells out what the status icons mean (touch has no hover).
+  const linkedCount = row.sourceTransactionIds.length
   const meta = isSplitPortion
     ? split
       ? `Month ${monthIndexIn(row.date, split.startMonth)} of ${split.numMonths} · from ${formatMonthYear(split.startMonth)}`
       : 'Split across months'
-    : null
+    : isGroup
+      ? `Linked · ${linkedCount} ${linkedCount === 1 ? 'transaction' : 'transactions'}`
+      : null
 
   // Split portions are virtual rows dated on the 1st of each covered month,
   // so they show a real date like any other row.
   const dateLabel = formatDate(row.date)
   const description = row.description || 'No description'
-  const kindLabel = isSplitPortion ? 'Split' : isGroup ? 'Linked' : null
-  const ariaLabel = [dateLabel, description, accountName, categoryLabel, kindLabel, meta, formatCurrency(row.amount, row.currencyCode)]
+  // A linked row's subline already says "Linked"; a split's doesn't.
+  const kindLabel = isSplitPortion ? 'Split' : null
+  const ariaLabel = [row.flagged ? 'Needs attention' : null, dateLabel, description, accountName, categoryLabel, kindLabel, meta, formatCurrency(row.amount, row.currencyCode)]
     .filter(Boolean)
     .join(', ')
 
@@ -96,22 +101,27 @@ export function TransactionRow({
                   <span className="txn-chip-label">{accountName}</span>
                 </span>
               )}
-              {meta && <span className="txn-row-meta">{meta}</span>}
+              {meta && (
+                <span className="txn-row-meta">
+                  {/* Linked / split: the icon leads the text that explains it. */}
+                  {isDerived && <span className="txn-row-meta-icon" aria-hidden="true">{isSplitPortion ? <SplitIcon /> : <LinkIcon />}</span>}
+                  {meta}
+                </span>
+              )}
             </span>
           )}
         </span>
 
         <span className="txn-row-chips">
-          {isDerived && (
-            <span className="txn-chip txn-chip--kind">
-              <span className="txn-chip-icon" aria-hidden="true">
-                {isSplitPortion ? <SplitIcon /> : <LinkIcon />}
-              </span>
-              <span className="txn-chip-label">{kindLabel}</span>
+          {/* Flagged to act on later: a bare flag beside the category, like Mail
+              on the Mac, so flags line up in one column next to the amounts. */}
+          {row.flagged && (
+            <span className="txn-row-flag has-tooltip has-tooltip--top" data-tooltip="Needs attention">
+              <FlagIcon />
             </span>
           )}
           {/* Icon only; the name shows on hover (the row's aria-label already includes it). */}
-          <span className={`txn-category-icon has-tooltip has-tooltip--left${row.categoryId ? '' : ' is-empty'}`} data-tooltip={categoryLabel}>
+          <span className={`txn-category-icon has-tooltip has-tooltip--top-end${row.categoryId ? '' : ' is-empty'}`} data-tooltip={categoryLabel}>
             <CategoryIcon name={category?.icon ?? null} />
           </span>
         </span>

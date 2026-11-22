@@ -15,7 +15,7 @@ import { Modal } from '../../components/Modal'
 import { SkeletonRows } from '../../components/Skeleton'
 import { apiClient, isFxUnavailable } from '../../lib/apiClient'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
-import { LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
+import { CheckIcon, FlagIcon, LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useTransactions } from '../../hooks/useTransactions'
@@ -23,6 +23,8 @@ import { useDisplayRows } from '../../hooks/useDisplayRows'
 import { useUncategorizedTransactions } from '../../hooks/useUncategorizedTransactions'
 import { CategorizationDeck, type CategorizedRow } from '../import/CategorizationDeck'
 import { UncategorizedNotice } from './UncategorizedNotice'
+import { FlaggedNotice } from './FlaggedNotice'
+import { useFlaggedTransactions } from '../../hooks/useFlaggedTransactions'
 import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
 import { useMonthSplits } from '../../hooks/useMonthSplits'
 import { TransactionForm, type TransactionFormValues } from '../transactions/TransactionForm'
@@ -39,6 +41,7 @@ import { AccountWizard } from './AccountWizard'
 import { TransactionRow } from './TransactionRow'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
+import { TransactionList } from './TransactionList'
 import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_SORT_FIELD,
@@ -77,7 +80,24 @@ export function AccountsScreen() {
     updateParams({ selected: ids.join(',') })
   }
   const rangeSelection = rangeFromParams(searchParams, LEDGER_DEFAULT_RANGE)
+  // ?flagged=1: only what's flagged as needing attention. Turning it on
+  // switches the range to All dates (an old range mustn't hide a flag) but
+  // the range stays editable; turning it off restores the range from before.
+  const flaggedOnly = searchParams.get('flagged') === '1'
   const dateRange = rangeSelection.range
+  const rangeBeforeFlagged = useRef<ReturnType<typeof rangeToParams> | null>(null)
+  function setFlaggedOnly(on: boolean) {
+    if (on) {
+      rangeBeforeFlagged.current = rangeToParams(rangeSelection, LEDGER_DEFAULT_RANGE)
+      updateParams({ flagged: '1', ...rangeToParams({ preset: 'all', range: {} }, LEDGER_DEFAULT_RANGE) })
+    } else {
+      // Only if the range is still the All dates we switched to: a range picked
+      // while filtering is the user's choice and stays.
+      const restore = rangeSelection.preset === 'all' ? rangeBeforeFlagged.current : null
+      updateParams({ flagged: null, ...(restore ?? {}) })
+      rangeBeforeFlagged.current = null
+    }
+  }
   const categoryParam = searchParams.get('category') ?? ''
   const categoryIds = useMemo(() => categoryParam.split(',').filter(Boolean), [categoryParam])
   const view = pickParam<TransactionView>(searchParams, 'view', ['real', 'nominal'], 'real')
@@ -116,11 +136,12 @@ export function AccountsScreen() {
   // find a transaction in a *different* account than the one currently
   // selected (e.g. reconciling a transfer between two accounts). Only the
   // visible ledger (`rows`, below) is account-scoped.
-  const { transactions, loading, error, refresh: refreshTransactions, createTransaction, updateTransaction, deleteTransaction } = useTransactions(
+  const { transactions, loading, error, refresh: refreshTransactions, createTransaction, updateTransaction, deleteTransaction, setFlagged } = useTransactions(
     dateRange,
     categoryIds,
   )
   const { transactions: uncategorized, refresh: refreshUncategorized, categorize } = useUncategorizedTransactions(accountIds)
+  const { count: flaggedCount } = useFlaggedTransactions(accountIds)
   const [showCategorizeDeck, setShowCategorizeDeck] = useState(false)
 
   /** Anything that can add, remove or recategorize a transaction also updates the uncategorized notice. */
@@ -159,6 +180,7 @@ export function AccountsScreen() {
     categoryIds,
     view,
     accountIds,
+    flaggedOnly,
   )
   // Back from account settings returns to the same spot in the list, once it has loaded.
   useScrollRestoreWhenReady(!loading && !rowsLoading && !accountsLoading)
@@ -231,16 +253,23 @@ export function AccountsScreen() {
   }
 
   function actionsFor(row: DisplayRow): ActionMenuItem[] {
+    // Works from the row alone (every kind; a linked group flags all its
+    // transactions), so it's always there, even for rows outside the
+    // transactions loaded for the other actions.
+    const flagAction: ActionMenuItem = row.flagged
+      ? { label: 'Mark as done', detail: 'Clear the flag', icon: <CheckIcon />, onClick: () => setFlagged(row.sourceTransactionIds, false) }
+      : { label: 'Flag for later', detail: 'Mark it as needing attention', icon: <FlagIcon />, onClick: () => setFlagged(row.sourceTransactionIds, true) }
+
     if (row.kind === 'month_split_portion') {
       const transaction = findTransaction(row.sourceTransactionIds[0])
-      if (!transaction) return []
-      return [{ label: 'Edit split', detail: 'Change how it’s spread across months', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) }]
+      if (!transaction) return [flagAction]
+      return [flagAction, { label: 'Edit split', detail: 'Change how it’s spread across months', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) }]
     }
 
     const anchorTransaction = findTransaction(row.sourceTransactionIds[0])
-    if (!anchorTransaction) return []
+    if (!anchorTransaction) return [flagAction]
 
-    const actions: ActionMenuItem[] = []
+    const actions: ActionMenuItem[] = [flagAction]
     if (row.kind === 'plain') {
       actions.push({
         label: 'Edit transaction',
@@ -347,8 +376,12 @@ export function AccountsScreen() {
       )}
 
       <UncategorizedNotice count={uncategorized.length} onOpen={openCategorizeDeck} />
+      {!flaggedOnly && <FlaggedNotice count={flaggedCount} onOpen={() => setFlaggedOnly(true)} />}
+      {/* Search on its own full-width row, the filters beneath it: a layout
+          that reads as intended at every width instead of wrapping by accident. */}
       <div className="filter-bar" style={{ margin: 'var(--space-4) 0' }}>
-        <DateRangePresetPicker value={rangeSelection} onChange={(next) => updateParams(rangeToParams(next, LEDGER_DEFAULT_RANGE))} />
+        <SearchInput value={search} onChange={setSearch} aria-label="Search transactions by description" />
+        <DateRangePresetPicker value={rangeSelection} onChange={(next) => updateParams(rangeToParams(next, LEDGER_DEFAULT_RANGE))} allowAllDates />
         <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={(ids) => updateParams({ category: ids.join(',') })} />
         <SelectDropdown<TransactionView>
           label="View"
@@ -365,7 +398,10 @@ export function AccountsScreen() {
           onFieldChange={(next) => updateParams({ sort: next === DEFAULT_SORT_FIELD ? null : next })}
           onDirectionChange={(next) => updateParams({ dir: next === DEFAULT_SORT_DIRECTION ? null : next })}
         />
-        <SearchInput value={search} onChange={setSearch} aria-label="Search transactions by description" />
+        <button type="button" className="dropdown-trigger filter-toggle" aria-pressed={flaggedOnly} onClick={() => setFlaggedOnly(!flaggedOnly)}>
+          <FlagIcon />
+          Flagged
+        </button>
       </div>
 
       {/* First-ever load only: afterwards the cached list shows at once, and a
@@ -374,7 +410,11 @@ export function AccountsScreen() {
       {(error || rowsError) && <Alert variant="error">{error ?? rowsError}</Alert>}
       {!rowsLoading && !rowsUpdating && rows.length === 0 && (
         <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-5) 0' }}>
-          No transactions in this range yet.
+          {flaggedOnly
+            ? rangeSelection.preset === 'all'
+              ? 'Nothing flagged. Use “Flag for later” on a transaction to come back to it.'
+              : 'Nothing flagged in this range.'
+            : 'No transactions in this range yet.'}
         </p>
       )}
       {!rowsLoading && rows.length > 0 && visibleRows.length === 0 && (
@@ -384,7 +424,7 @@ export function AccountsScreen() {
       )}
 
       {visibleRows.length > 0 && (
-        <ul className={`txn-list${rowsUpdating ? ' is-updating' : ''}`} aria-busy={rowsUpdating}>
+        <TransactionList className={rowsUpdating ? 'is-updating' : undefined} aria-busy={rowsUpdating}>
           {visibleRows.map((row, index) => (
             <TransactionRow
               key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
@@ -396,7 +436,7 @@ export function AccountsScreen() {
               onClick={() => setActionRow(row)}
             />
           ))}
-        </ul>
+        </TransactionList>
       )}
 
       {wizard?.kind === 'account' && (

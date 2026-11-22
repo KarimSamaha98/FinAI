@@ -9,6 +9,7 @@ import { useInsightTransactions } from '../../hooks/useInsightTransactions'
 import { useScrollRestoreWhenReady } from '../../hooks/useScrollRestoreWhenReady'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { TransactionRow } from '../accounts/TransactionRow'
+import { TransactionList } from '../accounts/TransactionList'
 import { breakdownDetails, byHomeValue, readInsightsView } from './insightsView'
 
 /**
@@ -52,7 +53,7 @@ export function InsightTransactionsPage() {
       {loading && <SkeletonRows count={8} />}
       {!loading && !error && matching.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No transactions.</p>}
       {matching.length > 0 && (
-        <ul className="txn-list">
+        <TransactionList>
           {matching.map((row, index) => (
             <TransactionRow
               key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}
@@ -62,7 +63,7 @@ export function InsightTransactionsPage() {
               showAccount={accounts.length > 1}
             />
           ))}
-        </ul>
+        </TransactionList>
       )}
     </main>
   )
