@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { SelectDropdown } from '../../components/SelectDropdown'
 import { SearchInput } from '../../components/SearchInput'
@@ -15,7 +14,7 @@ import { Card } from '../../components/Card'
 import { Modal } from '../../components/Modal'
 import { apiClient, isFxUnavailable } from '../../lib/apiClient'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
-import { ChevronLeftIcon, LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
+import { LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useTransactions } from '../../hooks/useTransactions'
@@ -68,8 +67,8 @@ export function AccountsScreen() {
   // Every ledger setting lives in the URL, so Back (from account settings, or
   // to Insights and forward again) and reload bring the view back as it was:
   // ?selected=id1,id2 (cards; empty = all), ?range= or ?from=&to=, ?category=,
-  // ?view=, ?sort=&dir=, ?q=. Defaults are left out. Insights' "Show all"
-  // links straight into this with its drill's ?from=&to=&category=.
+  // ?view=, ?sort=&dir=, ?q=. Defaults are left out. Insights' breakdowns
+  // link here ("Open in Transactions") with ?from=&to=&category=.
   const [searchParams, updateParams] = useUrlState()
   const selectedParam = searchParams.get('selected') ?? ''
   const selectedIds = useMemo(() => selectedParam.split(',').filter(Boolean), [selectedParam])
@@ -91,10 +90,6 @@ export function AccountsScreen() {
     // Only typing drives this; the URL is read once, on arrival.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
-  // Arrived from Insights' "Show all": a way back to the exact breakdown. It
-  // rides on the history entry, so it goes once the filters change.
-  const location = useLocation()
-  const backTo = (location.state as { backTo?: { href: string; label: string } } | null)?.backTo ?? null
   // At most one setup wizard is open. Wizards hand over only from their final
   // screen (Add account → Set up CSV import / Add a transaction); `handoff`
   // makes the next one appear without animating in, so it reads as continuing.
@@ -319,12 +314,6 @@ export function AccountsScreen() {
 
   return (
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 960, margin: '0 auto', width: '100%' }}>
-      {backTo && (
-        <Link to={backTo.href} className="return-link">
-          <ChevronLeftIcon />
-          {backTo.label}
-        </Link>
-      )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Transactions</h1>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>

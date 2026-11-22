@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import type { DisplayRow, InsightMode, TopTransaction } from 'shared-types'
 import { PeriodSentence } from '../../components/PeriodSentence'
-import { formatPeriod, periodRange, shiftPeriod } from '../../lib/period'
+import { shiftPeriod } from '../../lib/period'
 import { Card } from '../../components/Card'
 import { Alert } from '../../components/Alert'
 import { SegmentedControl } from '../../components/SegmentedControl'
@@ -15,7 +15,7 @@ import { useHeatmap } from '../../hooks/useHeatmap'
 import { useDashboardSummary } from '../../hooks/useDashboardSummary'
 import { useImportantThings } from '../../hooks/useImportantThings'
 import { useTrend } from '../../hooks/useTrend'
-import { pickParam, useUrlState } from '../../hooks/useUrlState'
+import { useUrlState } from '../../hooks/useUrlState'
 import { useScrollRestoreWhenReady } from '../../hooks/useScrollRestoreWhenReady'
 import { TransactionRow } from '../accounts/TransactionRow'
 import { CategoryBarChart } from './CategoryBarChart'
@@ -25,7 +25,7 @@ import { SummaryCard } from './DashboardMetrics'
 import { IncomeExpenseChart } from './IncomeExpenseChart'
 import { InsightDrillPanel } from './InsightDrillPanel'
 import { SplitPanelCard } from './SplitPanelCard'
-import { categoryKey, rowKind } from './drillDown'
+import { breakdownDetails, currentPeriod, readInsightsView, type FlowTab } from './insightsView'
 
 const TREND_WINDOW = { monthly: 12, yearly: 5 } as const
 const TREND_STEP = { monthly: 4, yearly: 1 } as const
@@ -52,46 +52,12 @@ function topTxnRow(item: TopTransaction, kind: 'expense' | 'income'): DisplayRow
   }
 }
 
-interface ActiveSplit {
-  type: 'category' | 'calendar'
-  itemKey: string
-  kind: 'expense' | 'income'
-}
-
-type FlowTab = 'expense' | 'income'
-
-/** Today's period: this month ('yyyy-MM') or this year ('yyyy'). */
-function currentPeriod(mode: InsightMode): string {
-  return format(new Date(), mode === 'monthly' ? 'yyyy-MM' : 'yyyy')
-}
-
-/** The param when it's a period of this mode's shape, else null. */
-function periodParam(value: string | null, mode: InsightMode): string | null {
-  if (!value) return null
-  return (mode === 'monthly' ? /^\d{4}-\d{2}$/ : /^\d{4}$/).test(value) ? value : null
-}
-
-/** ?drill=calendar:2026-09-14 → the open breakdown; its side is the selected tab. */
-function drillParam(value: string | null, kind: FlowTab): ActiveSplit | null {
-  const match = value?.match(/^(category|calendar):(.+)$/)
-  return match ? { type: match[1] as ActiveSplit['type'], itemKey: match[2], kind } : null
-}
-
 export function ChartsPage() {
-  // The whole view lives in the URL, so leaving (e.g. "Show all" into
-  // Transactions) and coming Back, or reloading, restores it exactly:
-  // ?mode=yearly&period=2025&trend=2024&tab=income&drill=category:<id>.
-  // Defaults (this month, the trend window ending on it, Expenses, no
-  // breakdown open) are left out.
+  // The whole view lives in the URL (see insightsView.ts), so leaving (e.g.
+  // "Show all") and coming Back, or reloading, restores it exactly.
   const [params, updateParams] = useUrlState()
   const location = useLocation()
-  const mode = pickParam<InsightMode>(params, 'mode', ['monthly', 'yearly'], 'monthly')
-  const period = periodParam(params.get('period'), mode) ?? currentPeriod(mode)
-  // The trend chart's window ends here; by default on the selected period.
-  const trendAnchor = periodParam(params.get('trend'), mode) ?? period
-  // Which side's sections show below the summary: expenses (default) or income.
-  const flowTab = pickParam<FlowTab>(params, 'tab', ['expense', 'income'], 'expense')
-  const activeSplit = drillParam(params.get('drill'), flowTab)
+  const { mode, period, trendAnchor, flowTab, activeSplit } = readInsightsView(params)
 
   const periodPatch = (nextPeriod: string, nextMode: InsightMode) => (nextPeriod === currentPeriod(nextMode) ? null : nextPeriod)
   const trendPatch = (nextAnchor: string, forPeriod: string) => (nextAnchor === forPeriod ? null : nextAnchor)
@@ -163,8 +129,6 @@ export function ChartsPage() {
   }, [activeSplit?.type, activeSplit?.itemKey])
 
   const currencyCode = profile?.homeCurrencyCode ?? 'USD'
-  const periodLabel = formatPeriod(mode, period)
-  const currentRange = periodRange(mode, period)
 
   const handleSplitSelect = (type: 'category' | 'calendar', itemKey: string, kind: 'expense' | 'income') => {
     const isOpen = activeSplit && activeSplit.type === type && activeSplit.itemKey === itemKey && activeSplit.kind === kind
@@ -226,46 +190,18 @@ export function ChartsPage() {
   const isCategorySplit = (kind: string) => activeSplit?.type === 'category' && activeSplit.kind === kind
   const isCalendarSplit = (kind: string) => activeSplit?.type === 'calendar' && activeSplit.kind === kind
 
-  const buildCategoryMatch = (key: string, kind: 'expense' | 'income') =>
-    (row: { convertedValue?: number; amount: number; categoryId: string | null }) =>
-      rowKind(row as never) === kind && categoryKey(row.categoryId) === key
-
-  const buildCalendarMatch = (date: string, kind: 'expense' | 'income') =>
-    (row: { convertedValue?: number; amount: number; date: string }) =>
-      rowKind(row as never) === kind && row.date === date
-
-  const splitDetails = (type: 'category' | 'calendar', kind: 'expense' | 'income') => {
+  const splitDetails = (type: 'category' | 'calendar', kind: FlowTab) => {
     if (!activeSplit || activeSplit.type !== type || activeSplit.kind !== kind) return null
-    const itemKey = activeSplit.itemKey
-    // In yearly mode the calendar drill targets a month ('yyyy-MM' key); in
-    // monthly mode it targets a single day ('yyyy-MM-dd').
-    const isMonthDrill = itemKey.length === 7
-    const drillRange = isMonthDrill ? periodRange('monthly', itemKey) : currentRange
-    const match = type === 'category'
-      ? buildCategoryMatch(itemKey, kind)
-      : isMonthDrill
-        ? (row: { date: string }) => row.date.startsWith(itemKey)
-        : buildCalendarMatch(itemKey, kind)
-    const title = type === 'category'
-      ? `${categories.find(c => c.id === itemKey)?.name ?? 'Uncategorized'} · ${periodLabel}`
-      : isMonthDrill
-        ? formatPeriod('monthly', itemKey)
-        : format(parseISO(itemKey), 'EEEE, MMMM do')
-    // Hand-off for the drawer's "Show All": the Transactions view opened with
-    // this drill's exact filters (range + the selected day/month/category).
-    const showAllParams = new URLSearchParams({ from: drillRange.from, to: drillRange.to })
-    if (type === 'category' && itemKey !== categoryKey(null)) showAllParams.set('category', itemKey)
-    const showAllHref = `/accounts?${showAllParams.toString()}`
+    const { range, match, title } = breakdownDetails(activeSplit, mode, period, categories)
     return (
       <InsightDrillPanel
-        range={drillRange}
-        match={match as never}
+        range={range}
+        match={match}
         categories={categories}
         currencyCode={currencyCode}
         title={title}
-        showAllHref={showAllHref}
-        // Transactions offers a way back to exactly this view, breakdown open.
-        showAllState={{ backTo: { href: location.pathname + location.search, label: 'Back to Insights' } }}
+        // The full list, as a sub-page of Insights with the same params; its back button returns here.
+        showAllHref={`/insights/transactions${location.search}`}
         onClose={closeSplit}
       />
     )

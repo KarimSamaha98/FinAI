@@ -14,10 +14,8 @@ interface InsightDrillPanelProps {
   categories: Category[]
   currencyCode: string
   title?: string
-  /** Destination for the "Show All" hand-off — the Transactions view carrying this drill's filters. */
+  /** Destination for "Show All": the full list of this breakdown. */
   showAllHref?: string
-  /** History state for the Show All link (Insights passes a way back to this drill). */
-  showAllState?: unknown
   /** Shows a close ✕ at the panel's top right. */
   onClose?: () => void
 }
@@ -32,10 +30,10 @@ function homeValue(row: DisplayRow): number {
  * The caller passes a range and a filter; this component owns the fetch
  * lifecycle so it never shows stale data captured at click time.
  * Rows are a compact single-line variant of the ledger row, ranked by
- * amount and capped at 10 — beyond that, "Show All" links to the full
- * Transactions view with the identical filters.
+ * amount and capped at 10 — beyond that, "Show All" opens the full list
+ * (Insights' /insights/transactions sub-page).
  */
-export function InsightDrillPanel({ range, match, categories, currencyCode, title, showAllHref, showAllState, onClose }: InsightDrillPanelProps) {
+export function InsightDrillPanel({ range, match, categories, currencyCode, title, showAllHref, onClose }: InsightDrillPanelProps) {
   const { rows, loading, error } = useInsightTransactions(range)
   const filtered = rows.filter(match).sort((a, b) => homeValue(b) - homeValue(a))
   const total = filtered.reduce((sum, row) => sum + (row.convertedValue ?? row.amount), 0)
@@ -83,7 +81,7 @@ export function InsightDrillPanel({ range, match, categories, currencyCode, titl
             })}
           </ul>
           {filtered.length > MAX_VISIBLE_ROWS && showAllHref && (
-            <Link to={showAllHref} state={showAllState} className="drill-show-all">
+            <Link to={showAllHref} className="drill-show-all">
               Show All →
             </Link>
           )}
