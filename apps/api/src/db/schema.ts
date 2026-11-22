@@ -146,6 +146,8 @@ export const transactions = pgTable('transactions', {
   exchangeRate: numeric('exchange_rate', { precision: 18, scale: 8 }),
   convertedValue: numeric('converted_value', { precision: 14, scale: 2 }),
   rateSource: text('rate_source', { enum: ['auto', 'manual'] }).notNull().default('auto'),
+  // "Needs attention" flag: when the user flagged it to act on later; null = not flagged.
+  flaggedAt: timestamp('flagged_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

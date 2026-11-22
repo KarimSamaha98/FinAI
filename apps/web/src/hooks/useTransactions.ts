@@ -34,5 +34,11 @@ export function useTransactions(dateRange: DateRange, categoryIds: string[], acc
     await invalidateApi()
   }
 
-  return { transactions: data ?? EMPTY, loading, error, refresh, createTransaction, updateTransaction, deleteTransaction }
+  /** Flag as needing attention, or clear the flags ("Mark as done"). */
+  async function setFlagged(transactionIds: string[], flagged: boolean) {
+    await apiClient.post('/transactions/flag', { transactionIds, flagged })
+    await invalidateApi()
+  }
+
+  return { transactions: data ?? EMPTY, loading, error, refresh, createTransaction, updateTransaction, deleteTransaction, setFlagged }
 }

@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common'
-import { and, desc, eq, gte, inArray, isNull, lte } from 'drizzle-orm'
-import type { CategorizeTransactionsInput, CreateTransactionInput, Transaction, UpdateTransactionInput } from 'shared-types'
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte } from 'drizzle-orm'
+import type { CategorizeTransactionsInput, CreateTransactionInput, FlagTransactionsInput, Transaction, UpdateTransactionInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
@@ -29,6 +29,7 @@ function toTransaction(row: TransactionRow): Transaction {
     exchangeRate: row.exchangeRate != null ? Number(row.exchangeRate) : null,
     convertedValue: row.convertedValue != null ? Number(row.convertedValue) : null,
     rateSource: row.rateSource,
+    flaggedAt: row.flaggedAt ? row.flaggedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -57,6 +58,7 @@ export class TransactionsService {
       if (filter.categoryIds?.length) conditions.push(inArray(transactions.categoryId, filter.categoryIds))
       if (filter.accountIds?.length) conditions.push(inArray(transactions.accountId, filter.accountIds))
       if (filter.uncategorizedOnly) conditions.push(isNull(transactions.categoryId))
+      if (filter.flaggedOnly) conditions.push(isNotNull(transactions.flaggedAt))
 
       const rows = await tx
         .select()
@@ -177,6 +179,28 @@ export class TransactionsService {
       } catch (error) {
         mapPostgresError(error)
       }
+    })
+  }
+
+  /**
+   * Flags transactions as needing attention, or clears their flags ("Mark as
+   * done"). Deliberately separate from update(): that recomputes the FX
+   * conversion, which a flag must never touch. Re-flagging keeps the original
+   * time; updatedAt is left alone (the transaction itself didn't change).
+   */
+  async setFlagged(userId: string, input: FlagTransactionsInput): Promise<{ updatedCount: number }> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const updated = await tx
+        .update(transactions)
+        .set({ flaggedAt: input.flagged ? new Date() : null })
+        .where(
+          and(
+            inArray(transactions.id, input.transactionIds),
+            input.flagged ? isNull(transactions.flaggedAt) : isNotNull(transactions.flaggedAt),
+          ),
+        )
+        .returning({ id: transactions.id })
+      return { updatedCount: updated.length }
     })
   }
 

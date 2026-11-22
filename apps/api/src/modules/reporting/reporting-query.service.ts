@@ -24,6 +24,7 @@ function toPlainDisplayRow(row: TransactionRow, reconciliationGroupId: string | 
     monthSplitId,
     convertedValue: row.convertedValue != null ? Number(row.convertedValue) : null,
     rateSource: row.rateSource,
+    flagged: row.flaggedAt != null,
   }
 }
 
@@ -44,6 +45,11 @@ export interface ListTransactionsFilter {
   accountIds?: string[]
   /** Only transactions with no category yet. Honoured by TransactionsService.list only. */
   uncategorizedOnly?: boolean
+  /**
+   * Only what's flagged as needing attention. A display row counts as flagged
+   * when any of its transactions is (a linked group's member, a split's original).
+   */
+  flaggedOnly?: boolean
 }
 
 @Injectable()
@@ -59,6 +65,25 @@ export class ReportingQueryService {
    * top of this service's row-level output for the reporting endpoints.
    */
   async listDisplayRows(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<DisplayRow[]> {
+    const rows = await this.buildDisplayRows(userId, filter, view)
+    if (!filter.flaggedOnly) return rows
+    // Applied to the finished rows, so a linked group or split is kept when any
+    // of its transactions is flagged, whichever one that is. One row per
+    // flagged item: a split shows once (its first month), not once per month.
+    const seenSplits = new Set<string>()
+    return rows
+      .filter((row) => row.flagged)
+      .sort((a, b) => (a.date < b.date ? -1 : 1))
+      .filter((row) => {
+        if (!row.monthSplitId || row.kind !== 'month_split_portion') return true
+        if (seenSplits.has(row.monthSplitId)) return false
+        seenSplits.add(row.monthSplitId)
+        return true
+      })
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+  }
+
+  private async buildDisplayRows(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<DisplayRow[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
       const conditions = []
       if (filter.dateRange?.from) conditions.push(gte(transactions.date, filter.dateRange.from))
@@ -147,6 +172,7 @@ export class ReportingQueryService {
             ? roundMoney(members.reduce((sum, m) => sum + Number(m.convertedValue), 0))
             : null,
           rateSource: 'auto',
+          flagged: members.some((m) => m.flaggedAt != null),
         })
       }
 
@@ -189,6 +215,7 @@ export class ReportingQueryService {
             monthSplitId: split.id,
             convertedValue: original.convertedValue != null ? roundMoney(Number(original.convertedValue) / split.numMonths) : null,
             rateSource: original.rateSource,
+            flagged: original.flaggedAt != null,
           })
         }
       }

@@ -634,6 +634,17 @@
   background: var(--fill-secondary);
 }
 
+/* A filter chip that toggles (e.g. "Flagged"), pressed = on. */
+.dropdown-trigger.filter-toggle[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--status-warning) 16%, transparent);
+  color: var(--status-warning);
+}
+
+.filter-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+
 .dropdown-trigger-chevron {
   color: var(--text-muted);
   font-size: 0.7rem;
@@ -736,6 +747,11 @@
   position: relative;
   flex: 1 1 16rem;
   min-width: 0;
+}
+
+/* In the filter bar it takes the whole first row; the filter chips follow. */
+.filter-bar > .search-input {
+  flex-basis: 100%;
 }
 
 .search-input input {
@@ -1904,7 +1920,9 @@ dialog::backdrop {
   display: grid;
   /* The amount column has a fixed minimum so the category pill (to its left)
      stays aligned across rows regardless of how many digits each amount has. */
-  grid-template-columns: 40px minmax(0, 1fr) auto minmax(6.5rem, max-content);
+  /* --txn-amount-col: the widest amount in the list (TransactionList), so
+     every row's category icon lines up; per-row sizing is the fallback. */
+  grid-template-columns: 40px minmax(0, 1fr) auto var(--txn-amount-col, minmax(6.5rem, max-content));
   grid-template-areas: 'date description chips amount';
   align-items: center;
   column-gap: 16px;
@@ -1979,6 +1997,24 @@ dialog::backdrop {
   min-height: 40px;
 }
 
+/* "Needs attention": a bare orange flag beside the category circle (no
+   badge), so the right-hand column stays one circle per row. */
+.txn-row-flag {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 28px;
+  color: var(--status-warning);
+}
+
+.txn-row-flag svg {
+  width: 15px;
+  height: 15px;
+}
+
 .txn-row-description {
   font: var(--type-body);
   font-weight: 500;
@@ -1998,6 +2034,18 @@ dialog::backdrop {
 
 .txn-row-subline .txn-chip {
   flex: 0 1 auto;
+}
+
+/* Linked / split: a muted icon leading the subline text. */
+.txn-row-meta-icon {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+
+.txn-row-meta-icon svg {
+  width: 13px;
+  height: 13px;
 }
 
 .txn-row-meta {
@@ -2133,10 +2181,45 @@ dialog::backdrop {
   transform: translate(0, -50%);
 }
 
+/* Above, centred: for icons side by side, so a label never covers its neighbour. */
+.has-tooltip--top::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translate(-50%, 4px);
+}
+
+.has-tooltip--top:hover::after {
+  transform: translate(-50%, 0);
+}
+
+/* Above, right-aligned: for the right-most icon in a row, so a long label
+   doesn't stick out past the card's edge. */
+.has-tooltip--top-end::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+  right: 0;
+  transform: translate(0, 4px);
+}
+
+.has-tooltip--top-end:hover::after {
+  transform: translate(0, 0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .has-tooltip::after {
     transition: opacity var(--duration-fast) linear;
     transform: translate(0, -50%);
+  }
+
+  .has-tooltip--top::after,
+  .has-tooltip--top:hover::after {
+    transform: translate(-50%, 0);
+  }
+
+  .has-tooltip--top-end::after,
+  .has-tooltip--top-end:hover::after {
+    transform: none;
   }
 }
 
@@ -2149,6 +2232,8 @@ dialog::backdrop {
 
 .txn-row-amount {
   grid-area: amount;
+  /* Sized to its text (right-aligned in the column), so it can be measured. */
+  justify-self: end;
   font: var(--type-headline);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
@@ -2186,17 +2271,6 @@ dialog::backdrop {
     align-self: start;
   }
 
-  /* Linked/Split collapse to their icon so the description keeps its width. */
-  .txn-chip--kind {
-    padding: 0;
-    width: 28px;
-    height: 28px;
-    justify-content: center;
-  }
-
-  .txn-chip--kind .txn-chip-label {
-    display: none;
-  }
 }
 
 /* ── CSV import: upload + profile wizard ──────────────────────────────── */
@@ -3063,6 +3137,19 @@ dialog::backdrop {
 
 .notice-box--attention .notice-box-icon {
   color: var(--status-attention);
+}
+
+/* "N transactions need attention": the flags' warning tone. */
+.notice-box--flagged {
+  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+
+.notice-box--flagged:hover {
+  background: color-mix(in srgb, var(--status-warning) 20%, transparent);
+}
+
+.notice-box--flagged .notice-box-icon {
+  color: var(--status-warning);
 }
 
 /* ── Import review (last step of an import) ────────────────────────────── */

@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
-import { CategorizeTransactionsInputSchema, CreateTransactionInputSchema, UpdateTransactionInputSchema } from 'shared-types'
+import { CategorizeTransactionsInputSchema, CreateTransactionInputSchema, FlagTransactionsInputSchema, UpdateTransactionInputSchema } from 'shared-types'
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard.js'
 import { CurrentUserId } from '../auth/current-user-id.decorator.js'
 import { TransactionsService } from './transactions.service.js'
@@ -21,9 +21,11 @@ export class TransactionsController {
     @Query('categoryIds') categoryIds?: string,
     @Query('accountIds') accountIds?: string,
     @Query('uncategorized') uncategorized?: string,
+    @Query('flagged') flagged?: string,
   ) {
     return this.transactionsService.list(userId, {
       uncategorizedOnly: uncategorized === 'true',
+      flaggedOnly: flagged === 'true',
       dateRange: from || to ? { from, to } : undefined,
       categoryIds: categoryIds ? categoryIds.split(',').filter(Boolean) : undefined,
       accountIds: accountIds ? accountIds.split(',').filter(Boolean) : undefined,
@@ -38,10 +40,12 @@ export class TransactionsController {
     @Query('categoryIds') categoryIds?: string,
     @Query('accountIds') accountIds?: string,
     @Query('view') view?: string,
+    @Query('flagged') flagged?: string,
   ) {
     return this.reportingQueryService.listDisplayRows(
       userId,
       {
+        flaggedOnly: flagged === 'true',
         dateRange: from || to ? { from, to } : undefined,
         categoryIds: categoryIds ? categoryIds.split(',').filter(Boolean) : undefined,
         accountIds: accountIds ? accountIds.split(',').filter(Boolean) : undefined,
@@ -65,6 +69,13 @@ export class TransactionsController {
   categorize(@CurrentUserId() userId: string, @Body() body: unknown) {
     const input = CategorizeTransactionsInputSchema.parse(body)
     return this.transactionsService.categorize(userId, input)
+  }
+
+  /** Flag as needing attention, or clear the flags ("Mark as done"). */
+  @Post('flag')
+  flag(@CurrentUserId() userId: string, @Body() body: unknown) {
+    const input = FlagTransactionsInputSchema.parse(body)
+    return this.transactionsService.setFlagged(userId, input)
   }
 
   @Patch(':id')

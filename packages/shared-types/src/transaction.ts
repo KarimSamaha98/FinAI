@@ -31,6 +31,8 @@ export const TransactionSchema = z.object({
   /** amount × exchangeRate in the home currency (signed like amount); null when no rate. */
   convertedValue: z.number().nullable(),
   rateSource: RateSourceSchema,
+  /** When the user flagged it as needing attention (to act on later); null = not flagged. */
+  flaggedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -71,6 +73,13 @@ export const CategorizeTransactionsInputSchema = z.object({
     .max(1000),
 });
 export type CategorizeTransactionsInput = z.infer<typeof CategorizeTransactionsInputSchema>;
+
+/** Flag several transactions as needing attention, or clear their flags ("Mark as done"). */
+export const FlagTransactionsInputSchema = z.object({
+  transactionIds: z.array(z.string().uuid()).min(1).max(1000),
+  flagged: z.boolean(),
+});
+export type FlagTransactionsInput = z.infer<typeof FlagTransactionsInputSchema>;
 
 export const TransactionViewSchema = z.enum(["nominal", "real"]);
 export type TransactionView = z.infer<typeof TransactionViewSchema>;
@@ -121,5 +130,8 @@ export const DisplayRowSchema = z.object({
   // month_split_portion = converted_value / num_months. Null when no rate.
   convertedValue: z.number().nullable(),
   rateSource: RateSourceSchema,
+  // "Needs attention": any underlying transaction is flagged (a linked
+  // group's member, a split portion's original).
+  flagged: z.boolean(),
 });
 export type DisplayRow = z.infer<typeof DisplayRowSchema>;
