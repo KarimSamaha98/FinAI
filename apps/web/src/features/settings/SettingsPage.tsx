@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { SkeletonBlock } from '../../components/Skeleton'
 import { Card } from '../../components/Card'
 import { Alert } from '../../components/Alert'
 import { Avatar } from '../../components/Avatar'
@@ -36,7 +37,7 @@ export function SettingsPage() {
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 640, margin: '0 auto', width: '100%' }}>
       <h1>Settings</h1>
       {error && <Alert variant="error">{error}</Alert>}
-      {loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+      {loading && <SkeletonBlock height="9rem" className="settings-skeleton" />}
 
       {profile && (
         <Card style={{ marginBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>

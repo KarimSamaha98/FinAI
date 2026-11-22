@@ -1493,11 +1493,24 @@ dialog::backdrop {
   min-height: 260px;
 }
 
-.home-hero-chart-status {
-  margin: 0;
-  padding: var(--space-6) 0;
-  color: var(--text-muted);
-  text-align: center;
+/* First-ever load: the hero card and two account groups, in outline. */
+.home-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.home-skeleton .skeleton {
+  border-radius: var(--radius-lg);
+}
+
+.home-skeleton .home-buckets {
+  margin-top: 0;
+}
+
+.home-skeleton-bucket {
+  break-inside: avoid;
+  margin-bottom: var(--space-4);
 }
 
 .net-worth-tooltip {
@@ -4307,10 +4320,8 @@ dialog::backdrop {
   color: var(--text-muted);
 }
 
-.settings-loading {
-  padding: var(--space-6);
-  text-align: center;
-  color: var(--text-muted);
+.settings-skeleton .skeleton {
+  border-radius: var(--radius-lg);
 }
 
 .settings-section {
@@ -4397,4 +4408,92 @@ dialog::backdrop {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+/* ── Loading placeholders (components/Skeleton) ────────────────────────── */
+/* Only a first-ever load shows these (cached data shows instantly). The
+   group fades in after 200ms, so a fast load never flickers; the shapes
+   then pulse gently. */
+.skeleton-group {
+  animation: skeleton-appear var(--duration-fast) var(--ease-out) 200ms both;
+}
+
+.skeleton {
+  display: block;
+  height: 0.85rem;
+  border-radius: var(--radius-xs);
+  background: var(--fill-tertiary);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 5rem;
+  align-items: center;
+  column-gap: 16px;
+  min-height: var(--hit-min);
+  padding: 14px 12px;
+}
+
+.skeleton-row + .skeleton-row {
+  border-top: 0.5px solid var(--separator);
+}
+
+.skeleton-row-date {
+  width: 32px;
+  height: 32px;
+}
+
+.skeleton-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-row-subline {
+  width: 7rem;
+  height: 0.7rem;
+}
+
+.skeleton-row-amount {
+  justify-self: end;
+  width: 4.5rem;
+}
+
+.skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-block: var(--space-2);
+}
+
+/* Data on screen while newer data loads (a filter change): dim it slightly. */
+.is-updating {
+  opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+@keyframes skeleton-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
 }

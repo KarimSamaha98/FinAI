@@ -7,6 +7,7 @@ import { useScrollRestoreWhenReady } from '../../hooks/useScrollRestoreWhenReady
 import { formatCurrency } from '../../lib/formatCurrency'
 import { usePrivacy } from '../../context/PrivacyContext'
 import { Card } from '../../components/Card'
+import { SkeletonBlock } from '../../components/Skeleton'
 import { PrivateAmount } from '../../components/PrivateAmount'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
 import { Button } from '../../components/Button'
@@ -81,7 +82,7 @@ export function HomeScreen() {
   const rangeSelection = rangeFromParams(params, HOME_DEFAULT_RANGE)
   const dateRange = rangeSelection.range
   const { netWorth, loading, error, refresh } = useNetWorth()
-  const { series, loading: seriesLoading, error: seriesError, refresh: refreshSeries } = useNetWorthSeries(dateRange)
+  const { series, loading: seriesLoading, updating: seriesUpdating, error: seriesError, refresh: refreshSeries } = useNetWorthSeries(dateRange)
   // Back from an account lands where Home was scrolled, once it has loaded.
   useScrollRestoreWhenReady(!loading && !seriesLoading)
 
@@ -112,10 +113,15 @@ export function HomeScreen() {
     <main style={{ padding: 'var(--space-4) var(--space-5)', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
       <h1>Home</h1>
       {error && <Alert variant="error">{error}</Alert>}
+      {/* First-ever load only (afterwards Home opens from cache): the hero card and two groups, in outline. */}
       {loading && (
-        <p role="status" style={{ color: 'var(--text-muted)' }}>
-          Loading…
-        </p>
+        <div className="home-skeleton">
+          <SkeletonBlock height="22rem" className="home-skeleton-hero" />
+          <div className="home-buckets">
+            <SkeletonBlock height="12rem" className="home-skeleton-bucket" />
+            <SkeletonBlock height="8rem" className="home-skeleton-bucket" />
+          </div>
+        </div>
       )}
 
       {!loading && netWorth && netWorth.accounts.length > 0 && (
@@ -140,11 +146,9 @@ export function HomeScreen() {
               <DateRangePresetPicker value={rangeSelection} onChange={(next) => updateParams(rangeToParams(next, HOME_DEFAULT_RANGE))} />
             </div>
             {seriesError && <Alert variant="error">{seriesError}</Alert>}
-            <div className="home-hero-chart">
+            <div className={`home-hero-chart${seriesUpdating ? ' is-updating' : ''}`} aria-busy={seriesUpdating}>
               {seriesLoading ? (
-                <p role="status" className="home-hero-chart-status">
-                  Loading…
-                </p>
+                <SkeletonBlock height={260} />
               ) : (
                 series && <NetWorthChart points={series.points} granularity={series.granularity} currencyCode={series.homeCurrencyCode} />
               )}

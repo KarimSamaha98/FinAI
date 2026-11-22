@@ -7,6 +7,7 @@ import { Modal } from '../../components/Modal'
 import { GripIcon, PencilIcon, TrashIcon } from '../../components/icons'
 import { CategoryIcon } from '../../components/categoryIcons'
 import { CATEGORY_ICON_KEYS, DEFAULT_CATEGORY_ICON } from '../../lib/categoryIconKeys'
+import { SkeletonLines } from '../../components/Skeleton'
 import { useCategories } from '../../hooks/useCategories'
 
 /** Name + icon prompt shared by Add and Rename. */
@@ -333,7 +334,7 @@ export function CategoriesSection() {
         Add your own categories, rename them, or delete the ones you don’t use. Drag the handle to set the order they appear in.
       </p>
       {error && <Alert variant="error">{error}</Alert>}
-      {loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+      {loading && <SkeletonLines count={5} />}
 
       {!loading && (
         <ArrangeableCategoryList

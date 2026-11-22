@@ -1,6 +1,7 @@
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../../components/BackButton'
 import { Alert } from '../../components/Alert'
+import { SkeletonRows } from '../../components/Skeleton'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useProfile } from '../../hooks/useProfile'
@@ -48,7 +49,7 @@ export function InsightTransactionsPage() {
         </Link>
       </div>
       {error && <Alert variant="error">{error}</Alert>}
-      {loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+      {loading && <SkeletonRows count={8} />}
       {!loading && !error && matching.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No transactions.</p>}
       {matching.length > 0 && (
         <ul className="txn-list">

@@ -18,6 +18,7 @@ import { useTrend } from '../../hooks/useTrend'
 import { useUrlState } from '../../hooks/useUrlState'
 import { useScrollRestoreWhenReady } from '../../hooks/useScrollRestoreWhenReady'
 import { TransactionRow } from '../accounts/TransactionRow'
+import { SkeletonRows } from '../../components/Skeleton'
 import { CategoryBarChart } from './CategoryBarChart'
 import { CalendarHeatmap } from './CalendarHeatmap'
 import { MonthlyBarChart } from './MonthlyBarChart'
@@ -316,7 +317,7 @@ export function ChartsPage() {
       <div style={{ marginTop: 'var(--space-5)' }}>
         <Card style={{ padding: 'var(--space-4)' }}>
           <h4 className="insights-subheader">Top Expenses</h4>
-          {importantThings.loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+          {importantThings.loading && <SkeletonRows count={4} inset />}
           {!importantThings.loading && importantThings.topExpenses.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No expenses for this period.</p>}
           {!importantThings.loading && importantThings.topExpenses.length > 0 && (
             <ul className="txn-list">
@@ -393,7 +394,7 @@ export function ChartsPage() {
       <div style={{ marginTop: 'var(--space-5)' }}>
         <Card style={{ padding: 'var(--space-4)' }}>
           <h4 className="insights-subheader">Top Income</h4>
-          {importantThings.loading && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+          {importantThings.loading && <SkeletonRows count={4} inset />}
           {!importantThings.loading && importantThings.topIncome.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No income for this period.</p>}
           {!importantThings.loading && importantThings.topIncome.length > 0 && (
             <ul className="txn-list">

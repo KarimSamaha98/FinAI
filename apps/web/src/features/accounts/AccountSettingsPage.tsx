@@ -14,6 +14,7 @@ import { SegmentedControl } from '../../components/SegmentedControl'
 import { useCurrencies } from '../../hooks/useCurrencies'
 import { CardAppearanceEditor, MAX_CARD_PHOTO_BYTES } from './CardAppearanceEditor'
 import { UpdateBalanceModal } from './UpdateBalanceModal'
+import { SkeletonBlock } from '../../components/Skeleton'
 import { CsvWizardHost } from '../import/CsvWizardHost'
 
 /** One titled card on the settings page. */
@@ -74,7 +75,14 @@ export function AccountSettingsPage() {
     [],
   )
 
-  if (!account) return <p className="settings-loading">Loading…</p>
+  if (!account) {
+    return (
+      <main className="settings-page">
+        <SkeletonBlock height="2.75rem" width="60%" />
+        <SkeletonBlock height="14rem" className="settings-skeleton" />
+      </main>
+    )
+  }
 
   const profile = profiles[0] ?? null
   const backToAccount = `/accounts?selected=${account.id}`

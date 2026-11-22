@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ImportantThingsResponse, InsightMode } from 'shared-types'
-import { apiClient } from '../lib/apiClient'
+import { useApiQuery } from './useApiQuery'
 
 const EMPTY_RESPONSE: ImportantThingsResponse = {
   categoryChanges: [],
@@ -9,33 +8,10 @@ const EMPTY_RESPONSE: ImportantThingsResponse = {
 }
 
 export function useImportantThings(mode: InsightMode, period: string) {
-  const [data, setData] = useState<ImportantThingsResponse>(EMPTY_RESPONSE)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const query = useMemo(() => {
-    const params = new URLSearchParams()
-    params.set('mode', mode)
-    params.set('period', period)
-    return `?${params.toString()}`
-  }, [mode, period])
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await apiClient.get<ImportantThingsResponse>(`/reporting/important-things${query}`)
-      setData(response)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load important things')
-    } finally {
-      setLoading(false)
-    }
-  }, [query])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
-
-  return { ...data, loading, error, refresh }
+  const params = new URLSearchParams({ mode, period })
+  const { data, loading, updating, error, refresh } = useApiQuery<ImportantThingsResponse>(`/reporting/important-things?${params}`, {
+    keepPrevious: true,
+    errorMessage: 'Failed to load important things',
+  })
+  return { ...(data ?? EMPTY_RESPONSE), loading, updating, error, refresh }
 }
