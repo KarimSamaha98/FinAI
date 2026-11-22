@@ -1,53 +1,39 @@
-import { useCallback, useEffect, useState } from 'react'
 import type { AccountSummary, CreateAccountInput, UpdateAccountInput } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
+import { invalidateApi } from '../lib/queryClient'
+import { useApiQuery } from './useApiQuery'
+
+const EMPTY: AccountSummary[] = []
 
 export function useAccounts() {
-  const [accounts, setAccounts] = useState<AccountSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error, refresh } = useApiQuery<AccountSummary[]>('/accounts', { errorMessage: 'Failed to load accounts' })
 
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      setAccounts(await apiClient.get<AccountSummary[]>('/accounts'))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load accounts')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
-
+  // Changes refresh every read: an account change moves balances, net worth and the ledger too.
   async function createAccount(input: CreateAccountInput) {
     const account = await apiClient.post<AccountSummary>('/accounts', input)
-    await refresh()
+    await invalidateApi()
     return account
   }
 
   async function updateAccount(id: string, input: Omit<UpdateAccountInput, 'id'>) {
     await apiClient.patch<AccountSummary>(`/accounts/${id}`, input)
-    await refresh()
+    await invalidateApi()
   }
 
   async function deleteAccount(id: string) {
     await apiClient.delete(`/accounts/${id}`)
-    await refresh()
+    await invalidateApi()
   }
 
   async function uploadCardImage(id: string, file: File) {
     await apiClient.upload<AccountSummary>(`/accounts/${id}/card-image`, file)
-    await refresh()
+    await invalidateApi()
   }
 
   async function removeCardImage(id: string) {
     await apiClient.delete(`/accounts/${id}/card-image`)
-    await refresh()
+    await invalidateApi()
   }
 
-  return { accounts, loading, error, refresh, createAccount, updateAccount, deleteAccount, uploadCardImage, removeCardImage }
+  return { accounts: data ?? EMPTY, loading, error, refresh, createAccount, updateAccount, deleteAccount, uploadCardImage, removeCardImage }
 }

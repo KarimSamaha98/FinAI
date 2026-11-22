@@ -4,6 +4,7 @@ import { formatCurrency } from '../../lib/formatCurrency'
 import { useInsightTransactions } from '../../hooks/useInsightTransactions'
 import { CategoryIcon } from '../../components/categoryIcons'
 import { CloseIcon } from '../../components/icons'
+import { SkeletonLines } from '../../components/Skeleton'
 
 /** At most this many transactions render in the drawer; beyond it, "Show All" hands off. */
 const MAX_VISIBLE_ROWS = 10
@@ -57,7 +58,7 @@ export function InsightDrillPanel({ range, match, categories, currencyCode, titl
           <span className="mono">{formatCurrency(Math.abs(total), currencyCode)}</span>
         </p>
       )}
-      {loading && <p className="insight-drill-note">Loading…</p>}
+      {loading && <SkeletonLines count={4} />}
       {error && <p className="insight-drill-note">{error}</p>}
       {!loading && !error && filtered.length === 0 && <p className="insight-drill-note">No transactions.</p>}
       {!loading && visible.length > 0 && (

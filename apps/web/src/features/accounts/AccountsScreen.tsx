@@ -12,6 +12,7 @@ import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
 import { Card } from '../../components/Card'
 import { Modal } from '../../components/Modal'
+import { SkeletonRows } from '../../components/Skeleton'
 import { apiClient, isFxUnavailable } from '../../lib/apiClient'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
 import { LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
@@ -153,7 +154,7 @@ export function AccountsScreen() {
       await Promise.all([refreshRows(), refreshTransactions()])
     }
   }
-  const { rows, loading: rowsLoading, error: rowsError, refresh: refreshRows } = useDisplayRows(
+  const { rows, loading: rowsLoading, updating: rowsUpdating, error: rowsError, refresh: refreshRows } = useDisplayRows(
     dateRange,
     categoryIds,
     view,
@@ -367,21 +368,23 @@ export function AccountsScreen() {
         <SearchInput value={search} onChange={setSearch} aria-label="Search transactions by description" />
       </div>
 
-      {(loading || rowsLoading) && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+      {/* First-ever load only: afterwards the cached list shows at once, and a
+          filter change keeps it on screen (dimmed) until the new one arrives. */}
+      {rowsLoading && <SkeletonRows count={8} />}
       {(error || rowsError) && <Alert variant="error">{error ?? rowsError}</Alert>}
-      {!loading && !rowsLoading && rows.length === 0 && (
+      {!rowsLoading && !rowsUpdating && rows.length === 0 && (
         <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-5) 0' }}>
           No transactions in this range yet.
         </p>
       )}
-      {!loading && !rowsLoading && rows.length > 0 && visibleRows.length === 0 && (
+      {!rowsLoading && rows.length > 0 && visibleRows.length === 0 && (
         <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-5) 0' }}>
           No transactions match your search.
         </p>
       )}
 
       {visibleRows.length > 0 && (
-        <ul className="txn-list">
+        <ul className={`txn-list${rowsUpdating ? ' is-updating' : ''}`} aria-busy={rowsUpdating}>
           {visibleRows.map((row, index) => (
             <TransactionRow
               key={`${row.kind}-${index}-${row.sourceTransactionIds[0]}`}

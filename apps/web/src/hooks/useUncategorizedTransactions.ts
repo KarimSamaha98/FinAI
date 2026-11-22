@@ -1,31 +1,21 @@
-import { useCallback, useEffect, useState } from 'react'
 import type { CategorizeTransactionsInput, Transaction } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
+import { invalidateApi } from '../lib/queryClient'
+import { useApiQuery } from './useApiQuery'
+
+const EMPTY: Transaction[] = []
 
 /** Transactions still waiting for a category (skipped during import or saved without one), newest first. */
 export function useUncategorizedTransactions(accountIds: string[] = []) {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const accountIdsKey = accountIds.join(',')
-
-  const refresh = useCallback(async () => {
-    const params = new URLSearchParams({ uncategorized: 'true' })
-    if (accountIdsKey) params.set('accountIds', accountIdsKey)
-    try {
-      setTransactions(await apiClient.get<Transaction[]>(`/transactions?${params}`))
-    } catch {
-      // The notice is a convenience — the ledger below still lists every row.
-      setTransactions([])
-    }
-  }, [accountIdsKey])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const params = new URLSearchParams({ uncategorized: 'true' })
+  if (accountIds.length) params.set('accountIds', accountIds.join(','))
+  const { data, error, refresh } = useApiQuery<Transaction[]>(`/transactions?${params}`, { keepPrevious: true })
 
   async function categorize(assignments: CategorizeTransactionsInput['assignments']) {
     if (assignments.length > 0) await apiClient.post('/transactions/categorize', { assignments })
-    await refresh()
+    await invalidateApi()
   }
 
-  return { transactions, refresh, categorize }
+  // The notice is a convenience: on failure it just doesn't show (the ledger below still lists every row).
+  return { transactions: error ? EMPTY : (data ?? EMPTY), refresh, categorize }
 }

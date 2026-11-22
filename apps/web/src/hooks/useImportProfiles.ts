@@ -1,45 +1,31 @@
-import { useCallback, useEffect, useState } from 'react'
 import type { CreateImportProfileInput, ImportProfile } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
+import { invalidateApi } from '../lib/queryClient'
+import { useApiQuery } from './useApiQuery'
+
+const EMPTY: ImportProfile[] = []
 
 export function useImportProfiles(accountId?: string) {
-  const [profiles, setProfiles] = useState<ImportProfile[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const query = accountId ? `?accountId=${accountId}` : ''
-      setProfiles(await apiClient.get<ImportProfile[]>(`/import-profiles${query}`))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load import profiles')
-    } finally {
-      setLoading(false)
-    }
-  }, [accountId])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const { data, loading, error, refresh } = useApiQuery<ImportProfile[]>(`/import-profiles${accountId ? `?accountId=${accountId}` : ''}`, {
+    errorMessage: 'Failed to load import profiles',
+  })
 
   async function createProfile(input: CreateImportProfileInput) {
     const profile = await apiClient.post<ImportProfile>('/import-profiles', input)
-    await refresh()
+    await invalidateApi()
     return profile
   }
 
   async function updateProfile(id: string, input: Partial<CreateImportProfileInput>) {
     const profile = await apiClient.patch<ImportProfile>(`/import-profiles/${id}`, input)
-    await refresh()
+    await invalidateApi()
     return profile
   }
 
   async function deleteProfile(id: string) {
     await apiClient.delete(`/import-profiles/${id}`)
-    await refresh()
+    await invalidateApi()
   }
 
-  return { profiles, loading, error, refresh, createProfile, updateProfile, deleteProfile }
+  return { profiles: data ?? EMPTY, loading, error, refresh, createProfile, updateProfile, deleteProfile }
 }

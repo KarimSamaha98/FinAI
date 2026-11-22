@@ -1,47 +1,34 @@
-import { useCallback, useEffect, useState } from 'react'
 import type { ReconciliationGroupWithComputed } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
+import { invalidateApi } from '../lib/queryClient'
+import { useApiQuery } from './useApiQuery'
+
+const EMPTY: ReconciliationGroupWithComputed[] = []
 
 export function useReconciliationGroups() {
-  const [groups, setGroups] = useState<ReconciliationGroupWithComputed[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      setGroups(await apiClient.get<ReconciliationGroupWithComputed[]>('/reconciliation-groups'))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reconciliation groups')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  const { data, loading, error, refresh } = useApiQuery<ReconciliationGroupWithComputed[]>('/reconciliation-groups', {
+    errorMessage: 'Failed to load reconciliation groups',
+  })
 
   async function createGroup(label: string | null, transactionIds: string[]) {
     await apiClient.post<ReconciliationGroupWithComputed>('/reconciliation-groups', { label, transactionIds })
-    await refresh()
+    await invalidateApi()
   }
 
   async function addMember(groupId: string, transactionId: string) {
     await apiClient.post<ReconciliationGroupWithComputed>(`/reconciliation-groups/${groupId}/members`, { transactionId })
-    await refresh()
+    await invalidateApi()
   }
 
   async function removeMember(groupId: string, transactionId: string) {
     await apiClient.delete(`/reconciliation-groups/${groupId}/members/${transactionId}`)
-    await refresh()
+    await invalidateApi()
   }
 
   async function deleteGroup(groupId: string) {
     await apiClient.delete(`/reconciliation-groups/${groupId}`)
-    await refresh()
+    await invalidateApi()
   }
 
-  return { groups, loading, error, refresh, createGroup, addMember, removeMember, deleteGroup }
+  return { groups: data ?? EMPTY, loading, error, refresh, createGroup, addMember, removeMember, deleteGroup }
 }
