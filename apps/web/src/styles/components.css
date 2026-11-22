@@ -4254,6 +4254,41 @@ dialog::backdrop {
 /* ── Account settings page ─────────────────────────────────────────────── */
 /* A page of independent sections that save as you go (not a wizard). */
 
+/* Insights → "Show all": a sub-page listing a breakdown's transactions. */
+.insight-transactions-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+
+.insight-transactions-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  color: var(--text-muted);
+}
+
+.insight-transactions-meta p {
+  margin: 0;
+}
+
+.insight-transactions-ledger-link {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.insight-transactions-ledger-link:hover {
+  text-decoration: underline;
+}
+
 .settings-page {
   display: flex;
   flex-direction: column;

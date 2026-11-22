@@ -1,12 +1,12 @@
-import { useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { SelectDropdown } from '../../components/SelectDropdown'
 import { SearchInput } from '../../components/SearchInput'
 import { SortControl } from '../../components/SortControl'
-import { type DateRange } from '../../components/DateRangePicker'
 import { DateRangePresetPicker } from '../../components/DateRangePresetPicker'
-import { getPresetRange } from '../../lib/dateRangePresets'
+import { rangeFromParams, rangeToParams, type DateRangePreset } from '../../lib/dateRangePresets'
+import { pickParam, useUrlState } from '../../hooks/useUrlState'
+import { useScrollRestoreWhenReady } from '../../hooks/useScrollRestoreWhenReady'
 import { CategoryMultiSelect } from '../../components/CategoryMultiSelect'
 import { Button } from '../../components/Button'
 import { Alert } from '../../components/Alert'
@@ -47,6 +47,8 @@ import {
   type SortField,
 } from '../../lib/transactionSort'
 
+const LEDGER_DEFAULT_RANGE: DateRangePreset = 'current-month'
+
 function toFormValues(transaction: Transaction): TransactionFormValues {
   return {
     date: transaction.date,
@@ -62,35 +64,32 @@ function toFormValues(transaction: Transaction): TransactionFormValues {
 }
 
 export function AccountsScreen() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  // The card selection lives in the URL (?selected=id1,id2) so Back and reload
-  // restore it. Empty = every account selected (the default on arrival).
+  // Every ledger setting lives in the URL, so Back (from account settings, or
+  // to Insights and forward again) and reload bring the view back as it was:
+  // ?selected=id1,id2 (cards; empty = all), ?range= or ?from=&to=, ?category=,
+  // ?view=, ?sort=&dir=, ?q=. Defaults are left out. Insights' breakdowns
+  // link here ("Open in Transactions") with ?from=&to=&category=.
+  const [searchParams, updateParams] = useUrlState()
   const selectedParam = searchParams.get('selected') ?? ''
   const selectedIds = useMemo(() => selectedParam.split(',').filter(Boolean), [selectedParam])
   function setSelectedIds(ids: string[]) {
-    setSearchParams(
-      (current) => {
-        const next = new URLSearchParams(current)
-        if (ids.length) next.set('selected', ids.join(','))
-        else next.delete('selected')
-        return next
-      },
-      // Toggling cards shouldn't add history entries — Back leaves the page.
-      { replace: true },
-    )
+    updateParams({ selected: ids.join(',') })
   }
-  // Deep-link filters from other views (Insights "Show All" hands off its
-  // drill: ?from=&to=&category=). Read once on mount — the ledger's filters
-  // are local state after arrival.
-  const urlFrom = searchParams.get('from') ?? undefined
-  const urlTo = searchParams.get('to') ?? undefined
-  const urlCategory = searchParams.get('category') ?? null
-  const [dateRange, setDateRange] = useState<DateRange>(() => (urlFrom || urlTo ? { from: urlFrom, to: urlTo } : getPresetRange('current-month')))
-  const [categoryIds, setCategoryIds] = useState<string[]>(() => (urlCategory ? [urlCategory] : []))
-  const [view, setView] = useState<TransactionView>('real')
-  const [search, setSearch] = useState('')
-  const [sortField, setSortField] = useState<SortField>(DEFAULT_SORT_FIELD)
-  const [sortDirection, setSortDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION)
+  const rangeSelection = rangeFromParams(searchParams, LEDGER_DEFAULT_RANGE)
+  const dateRange = rangeSelection.range
+  const categoryParam = searchParams.get('category') ?? ''
+  const categoryIds = useMemo(() => categoryParam.split(',').filter(Boolean), [categoryParam])
+  const view = pickParam<TransactionView>(searchParams, 'view', ['real', 'nominal'], 'real')
+  const sortField = pickParam<SortField>(searchParams, 'sort', ['date', 'amount', 'description', 'account'], DEFAULT_SORT_FIELD)
+  const sortDirection = pickParam<SortDirection>(searchParams, 'dir', ['asc', 'desc'], DEFAULT_SORT_DIRECTION)
+  // The search box is local (so typing never waits on navigation) and mirrored to ?q=.
+  const urlSearch = searchParams.get('q') ?? ''
+  const [search, setSearch] = useState(urlSearch)
+  useEffect(() => {
+    if (search !== urlSearch) updateParams({ q: search })
+    // Only typing drives this; the URL is read once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
   // At most one setup wizard is open. Wizards hand over only from their final
   // screen (Add account → Set up CSV import / Add a transaction); `handoff`
   // makes the next one appear without animating in, so it reads as continuing.
@@ -160,6 +159,8 @@ export function AccountsScreen() {
     view,
     accountIds,
   )
+  // Back from account settings returns to the same spot in the list, once it has loaded.
+  useScrollRestoreWhenReady(!loading && !rowsLoading && !accountsLoading)
   const { groups, createGroup, addMember, removeMember, deleteGroup } = useReconciliationGroups()
   const { splits, createSplit, updateSplit } = useMonthSplits()
 
@@ -346,8 +347,8 @@ export function AccountsScreen() {
 
       <UncategorizedNotice count={uncategorized.length} onOpen={openCategorizeDeck} />
       <div className="filter-bar" style={{ margin: 'var(--space-4) 0' }}>
-        <DateRangePresetPicker value={dateRange} onChange={setDateRange} defaultPreset={urlFrom || urlTo ? 'custom' : 'current-month'} />
-        <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={setCategoryIds} />
+        <DateRangePresetPicker value={rangeSelection} onChange={(next) => updateParams(rangeToParams(next, LEDGER_DEFAULT_RANGE))} />
+        <CategoryMultiSelect categories={activeCategories} selectedIds={categoryIds} onChange={(ids) => updateParams({ category: ids.join(',') })} />
         <SelectDropdown<TransactionView>
           label="View"
           value={view}
@@ -355,13 +356,13 @@ export function AccountsScreen() {
             { value: 'real', label: 'Real' },
             { value: 'nominal', label: 'Nominal' },
           ]}
-          onChange={setView}
+          onChange={(next) => updateParams({ view: next === 'real' ? null : next })}
         />
         <SortControl
           field={sortField}
           direction={sortDirection}
-          onFieldChange={setSortField}
-          onDirectionChange={setSortDirection}
+          onFieldChange={(next) => updateParams({ sort: next === DEFAULT_SORT_FIELD ? null : next })}
+          onDirectionChange={(next) => updateParams({ dir: next === DEFAULT_SORT_DIRECTION ? null : next })}
         />
         <SearchInput value={search} onChange={setSearch} aria-label="Search transactions by description" />
       </div>

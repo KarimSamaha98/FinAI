@@ -1,32 +1,28 @@
-import { useState } from 'react'
-import { DateRangePicker, type DateRange } from './DateRangePicker'
+import { DateRangePicker } from './DateRangePicker'
 import { SelectDropdown } from './SelectDropdown'
-import { DATE_RANGE_PRESET_LABELS, getPresetRange, type DateRangePreset } from '../lib/dateRangePresets'
+import { DATE_RANGE_PRESET_LABELS, getPresetRange, type DateRangePreset, type RangeSelection } from '../lib/dateRangePresets'
 
 interface DateRangePresetPickerProps {
-  value: DateRange
-  onChange: (value: DateRange) => void
-  /** Initial selection of the preset dropdown — keep it in sync with the caller's initial range. */
-  defaultPreset?: DateRangePreset
+  /** Controlled, so the label always matches the range (e.g. one restored from the URL). */
+  value: RangeSelection
+  onChange: (value: RangeSelection) => void
 }
 
-export function DateRangePresetPicker({ value, onChange, defaultPreset = 'current-month' }: DateRangePresetPickerProps) {
-  const [preset, setPreset] = useState<DateRangePreset>(defaultPreset)
-
+export function DateRangePresetPicker({ value, onChange }: DateRangePresetPickerProps) {
   function handlePresetChange(next: DateRangePreset) {
-    setPreset(next)
-    if (next !== 'custom') onChange(getPresetRange(next))
+    // Custom starts from the range on screen, so the date fields aren't blank.
+    onChange({ preset: next, range: next === 'custom' ? value.range : getPresetRange(next) })
   }
 
   return (
     <div className="filter-group">
       <SelectDropdown
         label="Range"
-        value={preset}
+        value={value.preset}
         options={(Object.keys(DATE_RANGE_PRESET_LABELS) as DateRangePreset[]).map((key) => ({ value: key, label: DATE_RANGE_PRESET_LABELS[key] }))}
         onChange={handlePresetChange}
       />
-      {preset === 'custom' && <DateRangePicker value={value} onChange={onChange} />}
+      {value.preset === 'custom' && <DateRangePicker value={value.range} onChange={(range) => onChange({ preset: 'custom', range })} />}
     </div>
   )
 }

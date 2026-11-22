@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import type { DisplayRow, InsightMode, TopTransaction } from 'shared-types'
 import { PeriodSentence } from '../../components/PeriodSentence'
-import { formatPeriod, periodRange, shiftPeriod } from '../../lib/period'
+import { shiftPeriod } from '../../lib/period'
 import { Card } from '../../components/Card'
 import { Alert } from '../../components/Alert'
 import { SegmentedControl } from '../../components/SegmentedControl'
@@ -14,6 +15,8 @@ import { useHeatmap } from '../../hooks/useHeatmap'
 import { useDashboardSummary } from '../../hooks/useDashboardSummary'
 import { useImportantThings } from '../../hooks/useImportantThings'
 import { useTrend } from '../../hooks/useTrend'
+import { useUrlState } from '../../hooks/useUrlState'
+import { useScrollRestoreWhenReady } from '../../hooks/useScrollRestoreWhenReady'
 import { TransactionRow } from '../accounts/TransactionRow'
 import { CategoryBarChart } from './CategoryBarChart'
 import { CalendarHeatmap } from './CalendarHeatmap'
@@ -22,7 +25,7 @@ import { SummaryCard } from './DashboardMetrics'
 import { IncomeExpenseChart } from './IncomeExpenseChart'
 import { InsightDrillPanel } from './InsightDrillPanel'
 import { SplitPanelCard } from './SplitPanelCard'
-import { categoryKey, rowKind } from './drillDown'
+import { breakdownDetails, currentPeriod, readInsightsView, type FlowTab } from './insightsView'
 
 const TREND_WINDOW = { monthly: 12, yearly: 5 } as const
 const TREND_STEP = { monthly: 4, yearly: 1 } as const
@@ -49,23 +52,19 @@ function topTxnRow(item: TopTransaction, kind: 'expense' | 'income'): DisplayRow
   }
 }
 
-interface ActiveSplit {
-  type: 'category' | 'calendar'
-  itemKey: string
-  kind: 'expense' | 'income'
-}
-
 export function ChartsPage() {
-  const [mode, setMode] = useState<InsightMode>('monthly')
-  const [period, setPeriod] = useState<string>(() => format(new Date(), 'yyyy-MM'))
-  const [trendAnchor, setTrendAnchor] = useState<string>(period)
-  const [activeSplit, setActiveSplit] = useState<ActiveSplit | null>(null)
-  // Which side's sections show below the summary: expenses (default) or income.
-  const [flowTab, setFlowTab] = useState<'expense' | 'income'>('expense')
+  // The whole view lives in the URL (see insightsView.ts), so leaving (e.g.
+  // "Show all") and coming Back, or reloading, restores it exactly.
+  const [params, updateParams] = useUrlState()
+  const location = useLocation()
+  const { mode, period, trendAnchor, flowTab, activeSplit } = readInsightsView(params)
 
-  const handleFlowTabChange = (tab: 'expense' | 'income') => {
-    setFlowTab(tab)
-    setActiveSplit(null)
+  const periodPatch = (nextPeriod: string, nextMode: InsightMode) => (nextPeriod === currentPeriod(nextMode) ? null : nextPeriod)
+  const trendPatch = (nextAnchor: string, forPeriod: string) => (nextAnchor === forPeriod ? null : nextAnchor)
+  const closeSplit = () => updateParams({ drill: null })
+
+  const handleFlowTabChange = (tab: FlowTab) => {
+    updateParams({ tab: tab === 'expense' ? null : tab, drill: null })
   }
   const { profile } = useProfile()
   const { categories } = useCategories()
@@ -79,6 +78,11 @@ export function ChartsPage() {
   const importantThings = useImportantThings(mode, period)
   const trend = useTrend(mode, trendAnchor)
 
+  // Back from "Show all" lands where the page was scrolled, once its sections have loaded.
+  useScrollRestoreWhenReady(
+    !summary.loading && !expenseByCategory.loading && !incomeByCategory.loading && !expenseHeatmap.loading && !incomeHeatmap.loading && !importantThings.loading && !trend.loading,
+  )
+
   const error =
     summary.error ??
     expenseByCategory.error ??
@@ -89,17 +93,22 @@ export function ChartsPage() {
     trend.error
 
   const handleModeChange = (nextMode: InsightMode) => {
-    const nextPeriod = nextMode === 'monthly' ? format(new Date(), 'yyyy-MM') : format(new Date(), 'yyyy')
-    setMode(nextMode)
-    setPeriod(nextPeriod)
-    setTrendAnchor(nextPeriod)
-    setActiveSplit(null)
+    // Picking the mode already shown changes nothing (it used to jump back to today).
+    if (nextMode === mode) return
+    // Monthly → Yearly keeps the selected month's year; Yearly → Monthly opens this month.
+    const nextPeriod = nextMode === 'yearly' ? period.slice(0, 4) : currentPeriod('monthly')
+    updateParams({
+      mode: nextMode === 'monthly' ? null : nextMode,
+      period: periodPatch(nextPeriod, nextMode),
+      trend: null,
+      drill: null,
+    })
   }
 
   const handlePeriodChange = (nextPeriod: string) => {
-    setPeriod(nextPeriod)
-    if (!trend.points.some((p) => p.period === nextPeriod)) setTrendAnchor(nextPeriod)
-    setActiveSplit(null)
+    // Keep the trend window where it is if the new period is already on screen.
+    const nextAnchor = trend.points.some((p) => p.period === nextPeriod) ? trendAnchor : nextPeriod
+    updateParams({ period: periodPatch(nextPeriod, mode), trend: trendPatch(nextAnchor, nextPeriod), drill: null })
   }
 
   // Clicking anywhere outside the open drawer (but not inside a chart, where
@@ -111,23 +120,19 @@ export function ChartsPage() {
       if (!target) return
       if (target.closest('.split-panel-drawer')) return
       if (target.closest('.recharts-wrapper, .insight-heatmap')) return
-      setActiveSplit(null)
+      closeSplit()
     }
     document.addEventListener('mousedown', handleDocClick)
     return () => document.removeEventListener('mousedown', handleDocClick)
-  }, [activeSplit])
+    // closeSplit only patches the URL; re-subscribing when it changes identity would be noise.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSplit?.type, activeSplit?.itemKey])
 
   const currencyCode = profile?.homeCurrencyCode ?? 'USD'
-  const periodLabel = formatPeriod(mode, period)
-  const currentRange = periodRange(mode, period)
 
   const handleSplitSelect = (type: 'category' | 'calendar', itemKey: string, kind: 'expense' | 'income') => {
-    const newSplit: ActiveSplit = { type, itemKey, kind }
-    if (activeSplit && activeSplit.type === type && activeSplit.itemKey === itemKey && activeSplit.kind === kind) {
-      setActiveSplit(null)
-    } else {
-      setActiveSplit(newSplit)
-    }
+    const isOpen = activeSplit && activeSplit.type === type && activeSplit.itemKey === itemKey && activeSplit.kind === kind
+    updateParams({ drill: isOpen ? null : `${type}:${itemKey}` })
   }
 
   const { earliestPeriod, latestPeriod } = trend
@@ -169,13 +174,13 @@ export function ChartsPage() {
     if (!earliestPeriod) return
     const stepped = shiftPeriod(mode, trendAnchor, -TREND_STEP[mode])
     const fullWindowFromStart = shiftPeriod(mode, earliestPeriod, TREND_WINDOW[mode] - 1)
-    setTrendAnchor(stepped > fullWindowFromStart ? stepped : fullWindowFromStart)
+    updateParams({ trend: trendPatch(stepped > fullWindowFromStart ? stepped : fullWindowFromStart, period) })
   }
 
   const pageForward = () => {
     if (!latestPeriod) return
     const stepped = shiftPeriod(mode, trendAnchor, TREND_STEP[mode])
-    setTrendAnchor(stepped < latestPeriod ? stepped : latestPeriod)
+    updateParams({ trend: trendPatch(stepped < latestPeriod ? stepped : latestPeriod, period) })
   }
 
   const trendRange = trendPoints.length > 0
@@ -185,45 +190,19 @@ export function ChartsPage() {
   const isCategorySplit = (kind: string) => activeSplit?.type === 'category' && activeSplit.kind === kind
   const isCalendarSplit = (kind: string) => activeSplit?.type === 'calendar' && activeSplit.kind === kind
 
-  const buildCategoryMatch = (key: string, kind: 'expense' | 'income') =>
-    (row: { convertedValue?: number; amount: number; categoryId: string | null }) =>
-      rowKind(row as never) === kind && categoryKey(row.categoryId) === key
-
-  const buildCalendarMatch = (date: string, kind: 'expense' | 'income') =>
-    (row: { convertedValue?: number; amount: number; date: string }) =>
-      rowKind(row as never) === kind && row.date === date
-
-  const splitDetails = (type: 'category' | 'calendar', kind: 'expense' | 'income') => {
+  const splitDetails = (type: 'category' | 'calendar', kind: FlowTab) => {
     if (!activeSplit || activeSplit.type !== type || activeSplit.kind !== kind) return null
-    const itemKey = activeSplit.itemKey
-    // In yearly mode the calendar drill targets a month ('yyyy-MM' key); in
-    // monthly mode it targets a single day ('yyyy-MM-dd').
-    const isMonthDrill = itemKey.length === 7
-    const drillRange = isMonthDrill ? periodRange('monthly', itemKey) : currentRange
-    const match = type === 'category'
-      ? buildCategoryMatch(itemKey, kind)
-      : isMonthDrill
-        ? (row: { date: string }) => row.date.startsWith(itemKey)
-        : buildCalendarMatch(itemKey, kind)
-    const title = type === 'category'
-      ? `${categories.find(c => c.id === itemKey)?.name ?? 'Uncategorized'} · ${periodLabel}`
-      : isMonthDrill
-        ? formatPeriod('monthly', itemKey)
-        : format(parseISO(itemKey), 'EEEE, MMMM do')
-    // Hand-off for the drawer's "Show All": the Transactions view opened with
-    // this drill's exact filters (range + the selected day/month/category).
-    const showAllParams = new URLSearchParams({ from: drillRange.from, to: drillRange.to })
-    if (type === 'category' && itemKey !== categoryKey(null)) showAllParams.set('category', itemKey)
-    const showAllHref = `/accounts?${showAllParams.toString()}`
+    const { range, match, title } = breakdownDetails(activeSplit, mode, period, categories)
     return (
       <InsightDrillPanel
-        range={drillRange}
-        match={match as never}
+        range={range}
+        match={match}
         categories={categories}
         currencyCode={currencyCode}
         title={title}
-        showAllHref={showAllHref}
-        onClose={() => setActiveSplit(null)}
+        // The full list, as a sub-page of Insights with the same params; its back button returns here.
+        showAllHref={`/insights/transactions${location.search}`}
+        onClose={closeSplit}
       />
     )
   }
