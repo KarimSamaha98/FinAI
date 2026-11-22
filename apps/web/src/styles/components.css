@@ -1488,8 +1488,10 @@ dialog::backdrop {
 }
 
 /* The chart bleeds a little into the card's side padding so the area reads edge to edge. */
+/* Bleeds into the card's right padding so the area reads edge to edge; the
+   left stays in line with the total, so the axis labels align with it. */
 .home-hero-chart {
-  margin-inline: calc(-1 * var(--space-2));
+  margin-inline-end: calc(-1 * var(--space-2));
   min-height: 260px;
 }
 
