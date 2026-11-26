@@ -1,6 +1,6 @@
 import type { DisplayRowPeople } from 'shared-types'
 
-/** One person entry tied to a transaction (cash entries have none and never show in a ledger). */
+/** One person entry; every entry is tied to a transaction (a share, or a settle-up adjustment). */
 export interface RealViewEntry {
   transactionId: string
   contactId: string

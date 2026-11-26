@@ -48,13 +48,10 @@ describe('computeSplit', () => {
     expect(computeSplit(100, 'percent', [60, 50]).problem).toBe('percent_over_100')
   })
 
-  it('splits by shares including the user', () => {
-    const result = computeSplit(90, 'shares', [2, 1], { myValue: 0 })
-    expect(result.shares).toEqual([60, 30])
-    expect(result.myShare).toBe(0)
-    const withMe = computeSplit(100, 'shares', [1, 2], { myValue: 1 })
-    expect(withMe.shares).toEqual([25, 50])
-    expect(withMe.myShare).toBe(25)
+  it('splits by percent and gives the user the rest', () => {
+    const result = computeSplit(100, 'percent', [25, 50])
+    expect(result.shares).toEqual([25, 50])
+    expect(result.myShare).toBe(25)
   })
 
   it('flags a zero share', () => {

@@ -34,7 +34,7 @@ import { CsvWizardHost } from '../import/CsvWizardHost'
 import { ReconcilePicker } from '../reconciliation/ReconcilePicker'
 import { ReconciliationGroupModal } from '../reconciliation/ReconciliationGroupModal'
 import { SplitModal } from '../month-split/SplitModal'
-import { SplitSheet } from '../people/SplitSheet'
+import { SplitWizard } from '../people/SplitWizard'
 import { apiErrorMessage, peopleApi } from '../../hooks/usePeople'
 import { AccountCarousel } from './AccountCarousel'
 import { nextAccountSelection } from '../../lib/accountSelection'
@@ -275,7 +275,7 @@ export function AccountsScreen() {
       label: `Open ${people!.names[i]}`,
       detail: 'See your balance with them',
       icon: <PeopleIcon />,
-      onClick: () => navigate(`/people/${contactId}`),
+      onClick: () => navigate(`/people?selected=${contactId}`),
     }))
     if (people?.kind === 'settle_up') return openPeople
     if (people) {
@@ -627,7 +627,7 @@ export function AccountsScreen() {
         />
       )}
 
-      {peopleSheet && <SplitSheet transaction={peopleSheet} onClose={() => setPeopleSheet(null)} />}
+      {peopleSheet && <SplitWizard transaction={peopleSheet} onClose={() => setPeopleSheet(null)} />}
 
       {splitTarget && (
         <SplitModal

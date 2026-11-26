@@ -211,10 +211,9 @@ export const transactionSplits = pgTable('transaction_splits', {
     .notNull()
     .unique()
     .references(() => transactions.id),
-  mode: text('mode', { enum: ['equal', 'amount', 'percent', 'shares'] }).notNull(),
+  mode: text('mode', { enum: ['equal', 'amount', 'percent'] }).notNull(),
   inputs: jsonb('inputs').$type<TransactionSplitInputs>().notNull(),
   myShare: numeric('my_share', { precision: 14, scale: 2 }).notNull(),
-  note: text('note'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -225,7 +224,7 @@ export const personEntries = pgTable('person_entries', {
   contactId: uuid('contact_id')
     .notNull()
     .references(() => contacts.id),
-  kind: text('kind', { enum: ['share', 'cash', 'writeoff'] }).notNull(),
+  kind: text('kind', { enum: ['share', 'writeoff'] }).notNull(),
   transactionId: uuid('transaction_id').references(() => transactions.id),
   splitId: uuid('split_id').references(() => transactionSplits.id),
   amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
@@ -233,6 +232,5 @@ export const personEntries = pgTable('person_entries', {
     .notNull()
     .references(() => currencies.code),
   date: date('date').notNull(),
-  note: text('note'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

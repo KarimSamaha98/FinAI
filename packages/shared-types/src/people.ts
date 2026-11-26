@@ -13,15 +13,16 @@ import { CurrencyCodeSchema } from "./currency.js";
  *   the transaction amount). A −120 dinner split with Sam at 60 → +60; Sam's
  *   +60 transfer tagged to Sam → −60. Lending is a split with the user's
  *   share at 0; borrowing is an incoming transfer tagged to the lender.
- * - cash: money that changed hands outside any tracked account.
- * - writeoff: "settle up" — clears what's left, booked as an account-less
- *   adjustment transaction of the same amount.
+ *   Settling up with a transaction (an existing one, or a new one) is a share
+ *   too: the whole transaction goes to the person.
+ * - writeoff: settling up by forgiving what's left, booked as an
+ *   account-less adjustment transaction of the same amount.
  */
 
-export const SplitModeSchema = z.enum(["equal", "amount", "percent", "shares"]);
+export const SplitModeSchema = z.enum(["equal", "amount", "percent"]);
 export type SplitMode = z.infer<typeof SplitModeSchema>;
 
-export const PersonEntryKindSchema = z.enum(["share", "cash", "writeoff"]);
+export const PersonEntryKindSchema = z.enum(["share", "writeoff"]);
 export type PersonEntryKind = z.infer<typeof PersonEntryKindSchema>;
 
 // ── Contacts ───────────────────────────────────────────────────────────────
@@ -57,16 +58,12 @@ export const PersonSummarySchema = z.object({
   net: z.number(),
   /** Non-zero balances per currency. */
   balances: z.array(PersonBalanceSchema),
-  lastActivityDate: z.string().date().nullable(),
 });
 export type PersonSummary = z.infer<typeof PersonSummarySchema>;
 
 export const PeopleSummarySchema = z.object({
   homeCurrencyCode: CurrencyCodeSchema,
-  /** Σ of positive nets (people who owe the user), in home currency. */
-  owedToMe: z.number(),
-  /** Σ of negative nets as a positive number (people the user owes). */
-  iOwe: z.number(),
+  /** People with an open balance, largest first. */
   people: z.array(PersonSummarySchema),
 });
 export type PeopleSummary = z.infer<typeof PeopleSummarySchema>;
@@ -80,13 +77,8 @@ export const PersonEntrySchema = z.object({
   amount: z.number(),
   currencyCode: CurrencyCodeSchema,
   date: z.string().date(),
-  note: z.string().nullable(),
-  /** The transaction's description, or a description of the cash entry. */
+  /** The transaction's description ("Settled up" for a write-off). */
   label: z.string(),
-  /** The tagged transaction's own amount (null for cash). */
-  transactionAmount: z.number().nullable(),
-  /** The balance in this currency after this entry. */
-  balanceAfter: z.number(),
 });
 export type PersonEntry = z.infer<typeof PersonEntrySchema>;
 
@@ -101,7 +93,7 @@ export type PersonDetail = z.infer<typeof PersonDetailSchema>;
 
 export const SplitParticipantInputSchema = z.object({
   contactId: z.string().uuid(),
-  /** amount mode: the amount · percent: the percentage · shares: the share count · equal: ignored. */
+  /** amount mode: the amount · percent: the percentage · equal: ignored. */
   value: z.number().min(0),
 });
 export type SplitParticipantInput = z.infer<typeof SplitParticipantInputSchema>;
@@ -109,13 +101,11 @@ export type SplitParticipantInput = z.infer<typeof SplitParticipantInputSchema>;
 export const TransactionSplitInputSchema = z.object({
   mode: SplitModeSchema,
   /**
-   * The user's own weight: equal mode 1 (include me) or 0 (all theirs);
-   * shares mode the user's share count. Amount and percent give the user
-   * whatever the others don't take.
+   * Equal mode: 1 (include me) or 0 (all theirs). Amount and percent give the
+   * user whatever the others don't take.
    */
   myValue: z.number().min(0).default(1),
   participants: z.array(SplitParticipantInputSchema).min(1).max(30),
-  note: z.string().max(500).nullable().optional(),
 });
 export type TransactionSplitInput = z.infer<typeof TransactionSplitInputSchema>;
 
@@ -126,7 +116,6 @@ export const TransactionSplitSchema = z.object({
   myValue: z.number(),
   /** The user's portion, as a magnitude. */
   myShare: z.number(),
-  note: z.string().nullable(),
   participants: z.array(
     z.object({
       contactId: z.string().uuid(),
@@ -144,17 +133,39 @@ export const TransactionPeopleSchema = z.object({
 });
 export type TransactionPeople = z.infer<typeof TransactionPeopleSchema>;
 
-// ── Cash and settle up ─────────────────────────────────────────────────────
+// ── Settle up ──────────────────────────────────────────────────────────────
 
-export const RecordCashInputSchema = z.object({
-  /** they_paid: the person gave the user money · i_paid: the user gave the person money. */
-  direction: z.enum(["they_paid", "i_paid"]),
-  amount: z.number().positive(),
-  currencyCode: CurrencyCodeSchema,
+/**
+ * - forgive: write off what's left (every currency) as an account-less
+ *   adjustment: spending when they owed the user, income when the user owed them.
+ * - link: an existing transaction (their transfer in, or the user's payment
+ *   out) goes entirely to the person.
+ * - new: record a new transaction on an account for `amount`, and give it
+ *   entirely to the person. Money in when they owe the user, out otherwise.
+ */
+export const SettleUpInputSchema = z.discriminatedUnion("method", [
+  z.object({ method: z.literal("forgive") }),
+  z.object({ method: z.literal("link"), transactionId: z.string().uuid() }),
+  z.object({
+    method: z.literal("new"),
+    accountId: z.string().uuid(),
+    amount: z.number().positive(),
+    date: z.string().date(),
+    description: z.string().trim().min(1).max(200),
+  }),
+]);
+export type SettleUpInput = z.infer<typeof SettleUpInputSchema>;
+
+/** A transaction that could settle up with a person (right direction, not already linked to anything). */
+export const SettleUpCandidateSchema = z.object({
+  id: z.string().uuid(),
   date: z.string().date(),
-  note: z.string().max(500).nullable().optional(),
+  description: z.string(),
+  amount: z.number(),
+  currencyCode: CurrencyCodeSchema,
+  accountName: z.string().nullable(),
 });
-export type RecordCashInput = z.infer<typeof RecordCashInputSchema>;
+export type SettleUpCandidate = z.infer<typeof SettleUpCandidateSchema>;
 
 // ── Calculations shared by the web preview and the API ─────────────────────
 
@@ -179,7 +190,6 @@ export interface SplitComputation {
  * - equal: each participant weighs 1, the user `myValue` (1 or 0).
  * - amount: participants' values are amounts; the user gets what's left.
  * - percent: participants' values are percentages; the user gets the rest.
- * - shares: values are share counts; the user's count is `myValue`.
  */
 export function computeSplit(total: number, mode: SplitMode, participants: number[], options: { myValue?: number } = {}): SplitComputation {
   const totalCents = toCents(Math.abs(total));
@@ -196,9 +206,9 @@ export function computeSplit(total: number, mode: SplitMode, participants: numbe
     userTakesNothing = Math.abs(percentTotal - 100) < 1e-9;
     shareCents = participants.map((value) => Math.floor((totalCents * value) / 100));
   } else {
-    const weights = mode === "equal" ? participants.map(() => 1) : participants;
-    const myWeight = mode === "equal" ? (myValue > 0 ? 1 : 0) : myValue;
-    const weightTotal = weights.reduce((sum, w) => sum + w, 0) + myWeight;
+    const weights = participants.map(() => 1);
+    const myWeight = myValue > 0 ? 1 : 0;
+    const weightTotal = weights.length + myWeight;
     if (weightTotal <= 0) {
       return { myShare: fromCents(totalCents), shares: participants.map(() => 0), problem: "no_shares" };
     }

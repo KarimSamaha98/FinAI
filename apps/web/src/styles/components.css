@@ -749,6 +749,11 @@
   min-width: 0;
 }
 
+/* In a wizard's column it's one row high, not a 16rem flex basis. */
+.wizard-question > .search-input {
+  flex: none;
+}
+
 /* In the filter bar it takes the whole first row; the filter chips follow. */
 .filter-bar > .search-input {
   flex-basis: 100%;
@@ -4655,14 +4660,6 @@ dialog::backdrop {
   margin-top: var(--space-4);
 }
 
-.people-card-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
 .people-card h2 {
   font: var(--type-footnote);
   font-weight: 600;
@@ -4673,29 +4670,12 @@ dialog::backdrop {
   letter-spacing: 0.02em;
 }
 
-.people-card-totals {
-  margin: 0.25rem 0 0;
-  padding-left: 0.25rem;
-  font: var(--type-subhead);
-  color: var(--text-muted);
-}
-
-.people-card-totals strong {
-  color: var(--text);
-  font-weight: 600;
-}
-
 .people-card-empty {
   margin: 0;
   padding: 0 0.25rem;
   color: var(--text-muted);
   font: var(--type-subhead);
   max-width: 40rem;
-}
-
-.people-card-toggle {
-  align-self: flex-start;
-  padding-left: 0.25rem;
 }
 
 .people-table {
@@ -4730,14 +4710,6 @@ dialog::backdrop {
   min-width: 0;
   font: var(--type-body);
   font-weight: 500;
-}
-
-.people-row-detail {
-  color: var(--text-muted);
-  font: var(--type-footnote);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .people-row-amount {
@@ -4778,14 +4750,148 @@ dialog::backdrop {
 }
 
 /* Person page */
-.person-page {
+/* People page: the list of everyone beside the selected person (stacked and taking turns on a phone). */
+.people-page-wrap {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-5);
-  max-width: 720px;
+  max-width: 1100px;
   margin: 0 auto;
   width: 100%;
+}
+
+.people-page {
+  display: grid;
+  grid-template-columns: minmax(15rem, 20rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.people-list {
+  padding: var(--space-1);
+}
+
+.people-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.people-list li + li {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.people-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.people-list-row:hover {
+  background: var(--fill-quaternary);
+}
+
+.people-list-row.is-selected {
+  background: var(--tint-soft);
+}
+
+.people-list-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.people-list-name {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-list-status {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.people-list-status.is-owed {
+  color: var(--accent-text);
+}
+
+.people-list-status.is-owe {
+  color: var(--outflow);
+}
+
+.people-list-amount {
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.people-page-placeholder {
+  padding: var(--space-5) 0;
+}
+
+.person-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.person-detail-back {
+  display: none;
+  align-self: flex-start;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.person-detail-back svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.rename-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.person-hero-name {
+  margin: 0;
+  font: var(--type-title-3);
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .people-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* One person at a time: their "‹ People" back link stands in for the page title. */
+  .people-page-wrap.has-selection > h1,
+  .people-page.has-selection .people-list,
+  .people-page-placeholder {
+    display: none;
+  }
+
+  .person-detail-back {
+    display: inline-flex;
+  }
 }
 
 .person-hero {
@@ -4810,11 +4916,6 @@ dialog::backdrop {
   line-height: 1.1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-}
-
-.person-hero-detail {
-  color: var(--text-muted);
-  font: var(--type-footnote);
 }
 
 .person-hero-actions {
@@ -4895,13 +4996,6 @@ dialog::backdrop {
   font: var(--type-footnote);
 }
 
-.person-row-end {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.2rem;
-}
-
 .person-row-amount {
   font: var(--type-headline);
   font-variant-numeric: tabular-nums;
@@ -4921,66 +5015,16 @@ dialog::backdrop {
   color: var(--accent-text);
 }
 
-.person-row-balance {
-  color: var(--text-muted);
-  font: var(--type-caption-1);
-  white-space: nowrap;
-}
-
 .person-empty {
   margin: 0;
   color: var(--text-muted);
 }
 
-/* Sheets: split with people, cash, settle up */
-.people-sheet {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.people-sheet p {
-  margin: 0;
-}
-
-.people-sheet-subject {
-  color: var(--text-muted);
-}
-
-.people-sheet-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.people-sheet-section h3 {
-  margin: 0;
-  font: var(--type-headline);
-}
-
-.people-sheet-section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.people-sheet-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--space-3);
-}
-
+/* Settings: the "count money owed in net worth" switch */
 .people-sheet-hint {
   display: block;
   color: var(--text-muted);
   font: var(--type-footnote);
-}
-
-.people-sheet-summary {
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--tint-soft);
 }
 
 .people-sheet-check {
@@ -4996,26 +5040,6 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
-}
-
-.people-sheet-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  justify-content: flex-end;
-}
-
-.people-sheet-actions-start {
-  margin-right: auto;
-}
-
-.people-sheet-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent);
 }
 
 /* Split rows: person · their value · their share */
@@ -5047,12 +5071,6 @@ dialog::backdrop {
   font-weight: 500;
 }
 
-.split-row-sub {
-  color: var(--text-muted);
-  font: var(--type-footnote);
-  font-weight: 400;
-}
-
 .split-row-input {
   width: 5.5rem;
   text-align: right;
@@ -5064,6 +5082,66 @@ dialog::backdrop {
   text-align: right;
   font: var(--type-headline);
   font-variant-numeric: tabular-nums;
+}
+
+/* Settle up: pick the transaction that paid */
+.settle-candidates {
+  display: flex;
+  flex-direction: column;
+  max-height: 22rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.settle-candidate {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settle-candidate:hover {
+  background: var(--fill-quaternary);
+}
+
+.settle-candidate.is-selected {
+  background: var(--tint-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.settle-candidate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.settle-candidate-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settle-candidate-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settle-candidate-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
 }
 
 /* Contact picker */

@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNotNull, lt, lte, notInArray } from 'drizzle-orm'
 import { format } from 'date-fns'
 import {
   computeSplit,
@@ -10,7 +10,8 @@ import {
   type PersonDetail,
   type PersonEntry,
   type PersonSummary,
-  type RecordCashInput,
+  type SettleUpCandidate,
+  type SettleUpInput,
   type TransactionPeople,
   type TransactionSplit,
   type TransactionSplitInput,
@@ -19,15 +20,17 @@ import {
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { contacts, monthSplits, personEntries, reconciliationGroupMembers, transactionSplits, transactions } from '../../db/schema.js'
+import { accounts, contacts, monthSplits, personEntries, reconciliationGroupMembers, transactionSplits, transactions } from '../../db/schema.js'
 import { loadHomeCurrency } from '../../common/profile.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.js'
 import { roundMoney, type TransactionConversion } from '../exchange-rates/conversion.js'
+import { peopleLinkedTransactionIds } from './people-store.js'
 
 type ContactRow = typeof contacts.$inferSelect
 type EntryRow = typeof personEntries.$inferSelect
 type SplitRow = typeof transactionSplits.$inferSelect
+type TransactionRow = typeof transactions.$inferSelect
 
 const cents = (value: string | number) => Math.round(Number(value) * 100)
 
@@ -54,8 +57,8 @@ const SPLIT_PROBLEMS = {
   no_shares: 'Give at least one person a share',
 } as const
 
-/** What settle up will write, computed identically before and inside the write transaction. */
-interface SettleUpPlan {
+/** What forgiving will write, computed identically before and inside the write transaction. */
+interface ForgivePlan {
   homeCurrencyCode: string
   name: string
   date: string
@@ -120,7 +123,7 @@ export class PeopleService {
 
   // ── Balances ─────────────────────────────────────────────────────────────
 
-  /** Everyone with activity, with their balance netted in the home currency (Home's People table). */
+  /** Everyone with an open balance, netted in the home currency, largest first (Home's People table). */
   async people(userId: string): Promise<PeopleSummary> {
     const homeCurrencyCode = await this.warm(userId)
     return runInTenantContext(this.db, userId, async (tx) => {
@@ -129,26 +132,19 @@ export class PeopleService {
       for (const contact of contactRows) {
         const own = entryRows.filter((e) => e.contactId === contact.id)
         if (own.length === 0) continue
-        people.push(await this.summarize(contact, own, homeCurrencyCode))
+        const summary = await this.summarize(contact, own, homeCurrencyCode)
+        if (summary.balances.length > 0) people.push(summary)
       }
-      // Open balances first (largest either way), then settled, most recent first.
       people.sort(
         (a, b) =>
-          Number(b.net !== 0) - Number(a.net !== 0) ||
           Math.abs(b.net) - Math.abs(a.net) ||
-          (b.lastActivityDate ?? '').localeCompare(a.lastActivityDate ?? '') ||
           a.contact.displayName.localeCompare(b.contact.displayName),
       )
-      return {
-        homeCurrencyCode,
-        owedToMe: roundMoney(people.reduce((sum, p) => sum + Math.max(p.net, 0), 0)),
-        iOwe: roundMoney(people.reduce((sum, p) => sum + Math.max(-p.net, 0), 0)),
-        people,
-      }
+      return { homeCurrencyCode, people }
     })
   }
 
-  /** One person: their balance and every entry, newest first, with the running balance. */
+  /** One person: their balance and every entry, newest first. */
   async person(userId: string, contactId: string): Promise<PersonDetail> {
     const homeCurrencyCode = await this.warm(userId)
     return runInTenantContext(this.db, userId, async (tx) => {
@@ -158,40 +154,25 @@ export class PeopleService {
       const transactionIds = rows.map((r) => r.transactionId).filter((id): id is string => id !== null)
       const transactionRows = transactionIds.length
         ? await tx
-            .select({ id: transactions.id, description: transactions.description, amount: transactions.amount })
+            .select({ id: transactions.id, description: transactions.description })
             .from(transactions)
             .where(inArray(transactions.id, transactionIds))
         : []
       const byId = new Map(transactionRows.map((t) => [t.id, t]))
 
-      const ordered = [...rows].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.getTime() - b.createdAt.getTime())
-      const running = new Map<string, number>()
-      const entries: PersonEntry[] = ordered.map((row) => {
-        const after = (running.get(row.currencyCode) ?? 0) + cents(row.amount)
-        running.set(row.currencyCode, after)
-        const transaction = row.transactionId ? byId.get(row.transactionId) : undefined
-        const amount = Number(row.amount)
-        const label =
-          row.kind === 'share'
-            ? transaction?.description || 'Untitled'
-            : row.kind === 'writeoff'
-              ? 'Settled up'
-              : row.note || (amount < 0 ? `Cash from ${contact.displayName}` : `Cash to ${contact.displayName}`)
-        return {
+      const entries: PersonEntry[] = [...rows]
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.getTime() - a.createdAt.getTime())
+        .map((row) => ({
           id: row.id,
           contactId: row.contactId,
           kind: row.kind,
           transactionId: row.transactionId,
-          amount,
+          amount: Number(row.amount),
           currencyCode: row.currencyCode,
           date: row.date,
-          note: row.note,
-          label,
-          transactionAmount: row.kind === 'share' && transaction ? Number(transaction.amount) : null,
-          balanceAfter: after / 100,
-        }
-      })
-      return { summary: await this.summarize(contact, rows, homeCurrencyCode), entries: entries.reverse() }
+          label: row.kind === 'writeoff' ? 'Settled up' : (row.transactionId && byId.get(row.transactionId)?.description) || 'Untitled',
+        }))
+      return { summary: await this.summarize(contact, rows, homeCurrencyCode), entries }
     })
   }
 
@@ -213,52 +194,8 @@ export class PeopleService {
    */
   async setSplit(userId: string, transactionId: string, input: TransactionSplitInput): Promise<TransactionSplit> {
     return runInTenantContext(this.db, userId, async (tx) => {
-      const [transaction] = await tx.select().from(transactions).where(eq(transactions.id, transactionId))
-      if (!transaction) throw new NotFoundException('Transaction not found')
-      if (transaction.sourceType !== 'manual' && transaction.sourceType !== 'import') {
-        throw new BadRequestException('Only a transaction from one of your accounts can be shared with people')
-      }
-      await this.assertNotReconciledOrMonthSplit(tx, transactionId)
-
-      const contactIds = input.participants.map((p) => p.contactId)
-      if (new Set(contactIds).size !== contactIds.length) throw new BadRequestException('Each person can only be in a split once')
-      const found = await tx.select({ id: contacts.id }).from(contacts).where(inArray(contacts.id, contactIds))
-      if (found.length !== contactIds.length) throw new BadRequestException('Person not found')
-
-      const amount = Number(transaction.amount)
-      const result = computeSplit(
-        amount,
-        input.mode,
-        input.participants.map((p) => p.value),
-        { myValue: input.myValue },
-      )
-      if (result.problem) throw new BadRequestException(SPLIT_PROBLEMS[result.problem])
-
-      await tx.delete(transactionSplits).where(eq(transactionSplits.transactionId, transactionId))
-      const [splitRow] = await tx
-        .insert(transactionSplits)
-        .values({
-          userId,
-          transactionId,
-          mode: input.mode,
-          inputs: { me: input.myValue, participants: input.participants },
-          myShare: String(result.myShare),
-          note: input.note ?? null,
-        })
-        .returning()
-      await tx.insert(personEntries).values(
-        input.participants.map((p, i) => ({
-          userId,
-          contactId: p.contactId,
-          kind: 'share' as const,
-          transactionId,
-          splitId: splitRow.id,
-          amount: String(shareEntryAmount(amount, result.shares[i])),
-          currencyCode: transaction.currencyCode,
-          date: transaction.date,
-          note: input.note ?? null,
-        })),
-      )
+      const transaction = await this.requireShareable(tx, transactionId)
+      const splitRow = await this.writeSplit(tx, userId, transaction, input)
       return this.toSplit(tx, splitRow)
     })
   }
@@ -270,44 +207,114 @@ export class PeopleService {
     })
   }
 
-  // ── Cash and settle up ───────────────────────────────────────────────────
+  // ── Settle up ────────────────────────────────────────────────────────────
 
-  /** Money that changed hands outside any tracked account. */
-  async recordCash(userId: string, contactId: string, input: RecordCashInput): Promise<void> {
+  /**
+   * Settles up with a person:
+   * - forgive: each currency's balance is written off by an account-less
+   *   adjustment transaction of −balance (spending when they owed the user,
+   *   income when the user owed them) and a matching writeoff entry.
+   * - link: an existing transaction goes entirely to the person.
+   * - new: a new transaction on an account goes entirely to the person.
+   * A transaction that goes to the person is an ordinary split (the user's
+   * share 0), so it can be edited or removed like any other.
+   */
+  async settleUp(userId: string, contactId: string, input: SettleUpInput): Promise<void> {
+    if (input.method === 'forgive') return this.forgive(userId, contactId)
+    // The direction converts balances at today's rate: warm them before the tenant transaction.
+    await this.warm(userId)
+    if (input.method === 'link') {
+      return runInTenantContext(this.db, userId, async (tx) => {
+        const direction = await this.settleDirection(tx, userId, contactId)
+        const transaction = await this.requireShareable(tx, input.transactionId)
+        if ((await peopleLinkedTransactionIds(tx, [transaction.id])).size > 0) {
+          throw new ConflictException('This transaction is already shared with people')
+        }
+        if (Math.sign(Number(transaction.amount)) !== direction) {
+          throw new BadRequestException(direction > 0 ? 'Pick money you received' : 'Pick money you paid out')
+        }
+        await this.giveToPerson(tx, userId, transaction, contactId)
+      })
+    }
+
+    const { homeCurrencyCode, account, direction } = await runInTenantContext(this.db, userId, async (tx) => {
+      const [account] = await tx.select().from(accounts).where(eq(accounts.id, input.accountId))
+      if (!account || account.isArchived) throw new NotFoundException('Account not found')
+      return { homeCurrencyCode: await loadHomeCurrency(tx, userId), account, direction: await this.settleDirection(tx, userId, contactId) }
+    })
+    const amount = (direction * cents(input.amount)) / 100
+    // Rates are fetched outside the tenant transaction.
+    const conversion = await this.exchangeRates.conversionFor({ amount, currencyCode: account.currencyCode, homeCurrencyCode, date: input.date })
     return runInTenantContext(this.db, userId, async (tx) => {
-      await this.requireContact(tx, contactId)
-      const amountCents = cents(input.amount)
-      try {
-        await tx.insert(personEntries).values({
+      if ((await this.settleDirection(tx, userId, contactId)) !== direction) throw new ConflictException('Something changed with this person. Try again.')
+      const [transaction] = await tx
+        .insert(transactions)
+        .values({
           userId,
-          contactId,
-          kind: 'cash',
-          amount: String((input.direction === 'they_paid' ? -amountCents : amountCents) / 100),
-          currencyCode: input.currencyCode,
           date: input.date,
-          note: input.note?.trim() || null,
+          amount: String(amount),
+          currencyCode: account.currencyCode,
+          description: input.description,
+          categoryId: null,
+          accountId: account.id,
+          sourceType: 'manual',
+          ...conversionColumns(conversion),
         })
-      } catch (error) {
-        mapPostgresError(error)
-      }
+        .returning()
+      await this.giveToPerson(tx, userId, transaction, contactId)
     })
   }
 
   /**
-   * Clears what's left with a person. Each currency's balance is written off
-   * by an account-less adjustment transaction of −balance (spending when
-   * they owed the user, income when the user owed them) and a matching
-   * writeoff entry that brings the balance to zero.
+   * Transactions that could settle up with a person: money in when they owe
+   * the user, money out when the user owes them; from an account, not dated
+   * in the future, and not already shared, linked or split across months.
+   * Newest first.
    */
-  async settleUp(userId: string, contactId: string): Promise<void> {
-    const plan = await runInTenantContext(this.db, userId, (tx) => this.planSettleUp(tx, userId, contactId))
+  async settleUpCandidates(userId: string, contactId: string): Promise<SettleUpCandidate[]> {
+    await this.warm(userId)
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const direction = await this.settleDirection(tx, userId, contactId)
+      const [peopleRows, groupedRows, monthSplitRows] = await Promise.all([
+        tx.selectDistinct({ id: personEntries.transactionId }).from(personEntries).where(isNotNull(personEntries.transactionId)),
+        tx.selectDistinct({ id: reconciliationGroupMembers.transactionId }).from(reconciliationGroupMembers),
+        tx.select({ id: monthSplits.transactionId }).from(monthSplits),
+      ])
+      const taken = [...peopleRows, ...groupedRows, ...monthSplitRows].map((r) => r.id).filter((id): id is string => id !== null)
+      const rows = await tx
+        .select({ transaction: transactions, accountName: accounts.name })
+        .from(transactions)
+        .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+        .where(
+          and(
+            inArray(transactions.sourceType, ['manual', 'import']),
+            direction > 0 ? gt(transactions.amount, '0') : lt(transactions.amount, '0'),
+            lte(transactions.date, todayISO()),
+            taken.length ? notInArray(transactions.id, taken) : undefined,
+          ),
+        )
+        .orderBy(desc(transactions.date), desc(transactions.createdAt))
+        .limit(200)
+      return rows.map(({ transaction, accountName }) => ({
+        id: transaction.id,
+        date: transaction.date,
+        description: transaction.description,
+        amount: Number(transaction.amount),
+        currencyCode: transaction.currencyCode,
+        accountName,
+      }))
+    })
+  }
+
+  private async forgive(userId: string, contactId: string): Promise<void> {
+    const plan = await runInTenantContext(this.db, userId, (tx) => this.planForgive(tx, userId, contactId))
     if (plan.writeoffs.length === 0) throw new BadRequestException('Nothing to settle')
     // Rates are fetched outside the tenant transaction.
     const conversions = await Promise.all(
       plan.writeoffs.map((w) => this.exchangeRates.conversionFor({ amount: w.amount, currencyCode: w.currencyCode, homeCurrencyCode: plan.homeCurrencyCode, date: plan.date })),
     )
     return runInTenantContext(this.db, userId, async (tx) => {
-      const again = await this.planSettleUp(tx, userId, contactId)
+      const again = await this.planForgive(tx, userId, contactId)
       if (JSON.stringify(again) !== JSON.stringify(plan)) throw new ConflictException('Something changed with this person. Try again.')
       for (const [i, w] of plan.writeoffs.entries()) {
         const [adjustment] = await tx
@@ -337,23 +344,43 @@ export class PeopleService {
     })
   }
 
-  private async planSettleUp(tx: Db, userId: string, contactId: string): Promise<SettleUpPlan> {
+  private async planForgive(tx: Db, userId: string, contactId: string): Promise<ForgivePlan> {
     const contact = await this.requireContact(tx, contactId)
     const rows = await tx.select({ currencyCode: personEntries.currencyCode, amount: personEntries.amount }).from(personEntries).where(eq(personEntries.contactId, contactId))
     const writeoffs = [...balancesOf(rows)].sort(([a], [b]) => a.localeCompare(b)).map(([currencyCode, c]) => ({ currencyCode, amount: -c / 100 }))
     return { homeCurrencyCode: await loadHomeCurrency(tx, userId), name: contact.displayName, date: todayISO(), writeoffs }
   }
 
-  /** Removes a cash entry, or undoes a settle up (with its adjustment). Shares go with their transaction's split. */
+  /**
+   * +1 when the person owes the user (settling is money in), −1 when the user
+   * owes them (money out). Throws when there's nothing to settle in one
+   * direction, e.g. balances that cancel out across currencies.
+   */
+  private async settleDirection(tx: Db, userId: string, contactId: string): Promise<1 | -1> {
+    const contact = await this.requireContact(tx, contactId)
+    const rows = await tx.select().from(personEntries).where(eq(personEntries.contactId, contactId))
+    if (rows.length > 0) {
+      const homeCurrencyCode = await loadHomeCurrency(tx, userId)
+      const { net } = await this.summarize(contact, rows, homeCurrencyCode)
+      if (net > 0) return 1
+      if (net < 0) return -1
+    }
+    throw new BadRequestException('Nothing to settle with a transaction. Forgive what’s left instead.')
+  }
+
+  /** The whole transaction goes to one person: a split with the user's share at 0. */
+  private async giveToPerson(tx: Db, userId: string, transaction: TransactionRow, contactId: string): Promise<void> {
+    await this.writeSplit(tx, userId, transaction, { mode: 'equal', myValue: 0, participants: [{ contactId, value: 0 }] })
+  }
+
+  /** Undoes a forgiving settle up (with its adjustment). Shares go with their transaction's split. */
   async deleteEntry(userId: string, entryId: string): Promise<void> {
     return runInTenantContext(this.db, userId, async (tx) => {
       const [entry] = await tx.select().from(personEntries).where(eq(personEntries.id, entryId))
       if (!entry) throw new NotFoundException('Entry not found')
       if (entry.kind === 'share') throw new BadRequestException('Remove the people from the transaction instead')
-      if (entry.kind === 'writeoff') {
-        // The entry cascades with its adjustment.
-        await tx.delete(transactions).where(and(eq(transactions.id, entry.transactionId!), eq(transactions.sourceType, 'adjustment')))
-      }
+      // The entry cascades with its adjustment.
+      await tx.delete(transactions).where(and(eq(transactions.id, entry.transactionId!), eq(transactions.sourceType, 'adjustment')))
       await tx.delete(personEntries).where(eq(personEntries.id, entryId))
     })
   }
@@ -383,7 +410,6 @@ export class PeopleService {
       homeCurrencyCode,
       net: roundMoney(net),
       balances,
-      lastActivityDate: own.reduce<string | null>((latest, e) => (!latest || e.date > latest ? e.date : latest), null),
     }
   }
 
@@ -395,12 +421,68 @@ export class PeopleService {
       mode: splitRow.mode,
       myValue: splitRow.inputs.me,
       myShare: Number(splitRow.myShare),
-      note: splitRow.note,
       participants: splitRow.inputs.participants.flatMap((p) => {
         const entry = rows.find((r) => r.contactId === p.contactId)
         return entry ? [{ contactId: p.contactId, value: p.value, amount: Math.abs(Number(entry.amount)) }] : []
       }),
     }
+  }
+
+  /** A transaction from one of the user's accounts that may be shared with people. */
+  private async requireShareable(tx: Db, transactionId: string): Promise<TransactionRow> {
+    const [transaction] = await tx.select().from(transactions).where(eq(transactions.id, transactionId))
+    if (!transaction) throw new NotFoundException('Transaction not found')
+    if (transaction.sourceType !== 'manual' && transaction.sourceType !== 'import') {
+      throw new BadRequestException('Only a transaction from one of your accounts can be shared with people')
+    }
+    await this.assertNotReconciledOrMonthSplit(tx, transactionId)
+    return transaction
+  }
+
+  /**
+   * Writes how a transaction is shared: each person's portion becomes a share
+   * entry on their balance (the opposite sign of the transaction). Replaces
+   * any earlier split of the same transaction.
+   */
+  private async writeSplit(tx: Db, userId: string, transaction: TransactionRow, input: TransactionSplitInput): Promise<SplitRow> {
+    const contactIds = input.participants.map((p) => p.contactId)
+    if (new Set(contactIds).size !== contactIds.length) throw new BadRequestException('Each person can only be in a split once')
+    const found = await tx.select({ id: contacts.id }).from(contacts).where(inArray(contacts.id, contactIds))
+    if (found.length !== contactIds.length) throw new BadRequestException('Person not found')
+
+    const amount = Number(transaction.amount)
+    const result = computeSplit(
+      amount,
+      input.mode,
+      input.participants.map((p) => p.value),
+      { myValue: input.myValue },
+    )
+    if (result.problem) throw new BadRequestException(SPLIT_PROBLEMS[result.problem])
+
+    await tx.delete(transactionSplits).where(eq(transactionSplits.transactionId, transaction.id))
+    const [splitRow] = await tx
+      .insert(transactionSplits)
+      .values({
+        userId,
+        transactionId: transaction.id,
+        mode: input.mode,
+        inputs: { me: input.myValue, participants: input.participants },
+        myShare: String(result.myShare),
+      })
+      .returning()
+    await tx.insert(personEntries).values(
+      input.participants.map((p, i) => ({
+        userId,
+        contactId: p.contactId,
+        kind: 'share' as const,
+        transactionId: transaction.id,
+        splitId: splitRow.id,
+        amount: String(shareEntryAmount(amount, result.shares[i])),
+        currencyCode: transaction.currencyCode,
+        date: transaction.date,
+      })),
+    )
+    return splitRow
   }
 
   private async requireContact(tx: Db, contactId: string): Promise<ContactRow> {

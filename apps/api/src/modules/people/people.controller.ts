@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, UseGuards } from '@nestjs/common'
-import { CreateContactInputSchema, RecordCashInputSchema, TransactionSplitInputSchema, UpdateContactInputSchema } from 'shared-types'
+import { CreateContactInputSchema, SettleUpInputSchema, TransactionSplitInputSchema, UpdateContactInputSchema } from 'shared-types'
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard.js'
 import { CurrentUserId } from '../auth/current-user-id.decorator.js'
 import { PeopleService } from './people.service.js'
@@ -67,13 +67,14 @@ export class PeopleController {
     return this.people.person(userId, contactId)
   }
 
-  @Post(':contactId/cash')
-  recordCash(@CurrentUserId() userId: string, @Param('contactId') contactId: string, @Body() body: unknown) {
-    return this.people.recordCash(userId, contactId, RecordCashInputSchema.parse(body))
+  /** Transactions that could settle up with this person ("Link a transaction"). */
+  @Get(':contactId/settle-up/candidates')
+  settleUpCandidates(@CurrentUserId() userId: string, @Param('contactId') contactId: string) {
+    return this.people.settleUpCandidates(userId, contactId)
   }
 
   @Post(':contactId/settle-up')
-  settleUp(@CurrentUserId() userId: string, @Param('contactId') contactId: string) {
-    return this.people.settleUp(userId, contactId)
+  settleUp(@CurrentUserId() userId: string, @Param('contactId') contactId: string, @Body() body: unknown) {
+    return this.people.settleUp(userId, contactId, SettleUpInputSchema.parse(body))
   }
 }

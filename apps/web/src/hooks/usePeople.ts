@@ -1,4 +1,4 @@
-import type { Contact, PeopleSummary, PersonDetail, RecordCashInput, TransactionPeople, TransactionSplit, TransactionSplitInput } from 'shared-types'
+import type { Contact, PeopleSummary, PersonDetail, SettleUpCandidate, SettleUpInput, TransactionPeople, TransactionSplit, TransactionSplitInput } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
 import { invalidateApi } from '../lib/queryClient'
 import { useApiQuery } from './useApiQuery'
@@ -31,6 +31,16 @@ export function useTransactionPeople(transactionId: string | null) {
   return { details: data ?? null, loading, error }
 }
 
+const NO_CANDIDATES: SettleUpCandidate[] = []
+
+/** Transactions that could settle up with a person (null id: don't load yet). */
+export function useSettleUpCandidates(contactId: string | null) {
+  const { data, loading, error } = useApiQuery<SettleUpCandidate[]>(contactId ? `/people/${contactId}/settle-up/candidates` : null, {
+    errorMessage: 'Failed to load transactions',
+  })
+  return { candidates: data ?? NO_CANDIDATES, loading, error }
+}
+
 /** Every change can move net worth, the ledger and Home, so each one refreshes all reads. */
 async function mutate<T>(request: Promise<T>): Promise<T> {
   const result = await request
@@ -44,8 +54,7 @@ export const peopleApi = {
   deleteContact: (id: string) => mutate(apiClient.delete<void>(`/contacts/${id}`)),
   setSplit: (transactionId: string, input: TransactionSplitInput) => mutate(apiClient.put<TransactionSplit>(`/people/splits/${transactionId}`, input)),
   deleteSplit: (transactionId: string) => mutate(apiClient.delete<void>(`/people/splits/${transactionId}`)),
-  recordCash: (contactId: string, input: RecordCashInput) => mutate(apiClient.post<void>(`/people/${contactId}/cash`, input)),
-  settleUp: (contactId: string) => mutate(apiClient.post<void>(`/people/${contactId}/settle-up`)),
+  settleUp: (contactId: string, input: SettleUpInput) => mutate(apiClient.post<void>(`/people/${contactId}/settle-up`, input)),
   deleteEntry: (entryId: string) => mutate(apiClient.delete<void>(`/people/entries/${entryId}`)),
 }
 
