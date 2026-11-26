@@ -122,8 +122,13 @@ export type NetWorthAccount = z.infer<typeof NetWorthAccountSchema>;
 export const NetWorthSchema = z.object({
   asOf: z.string().date(),
   homeCurrencyCode: CurrencyCodeSchema,
+  /** Accounts, plus balances with people when `peopleIncluded`. */
   total: z.number(),
   accounts: z.array(NetWorthAccountSchema),
+  /** Net balance with people, in home currency: positive = owed to the user, negative = the user owes. */
+  peopleBalance: z.number(),
+  /** The profile's "count money owed in net worth" setting. */
+  peopleIncluded: z.boolean(),
 });
 export type NetWorth = z.infer<typeof NetWorthSchema>;
 

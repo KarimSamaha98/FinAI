@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { SelectDropdown } from '../../components/SelectDropdown'
 import { SearchInput } from '../../components/SearchInput'
@@ -15,7 +16,7 @@ import { Modal } from '../../components/Modal'
 import { SkeletonRows } from '../../components/Skeleton'
 import { apiClient, isFxUnavailable } from '../../lib/apiClient'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
-import { CheckIcon, FlagIcon, LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
+import { CheckIcon, FlagIcon, LinkIcon, PencilIcon, PeopleIcon, SplitIcon, TrashIcon } from '../../components/icons'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useTransactions } from '../../hooks/useTransactions'
@@ -33,6 +34,8 @@ import { CsvWizardHost } from '../import/CsvWizardHost'
 import { ReconcilePicker } from '../reconciliation/ReconcilePicker'
 import { ReconciliationGroupModal } from '../reconciliation/ReconciliationGroupModal'
 import { SplitModal } from '../month-split/SplitModal'
+import { SplitSheet } from '../people/SplitSheet'
+import { apiErrorMessage, peopleApi } from '../../hooks/usePeople'
 import { AccountCarousel } from './AccountCarousel'
 import { nextAccountSelection } from '../../lib/accountSelection'
 import { SelectionSummary } from './SelectionSummary'
@@ -126,6 +129,10 @@ export function AccountsScreen() {
   const [splitTarget, setSplitTarget] = useState<Transaction | null>(null)
   const [viewingGroupId, setViewingGroupId] = useState<string | null>(null)
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
+  // The transaction being tagged with people (split, loan, money received).
+  const [peopleSheet, setPeopleSheet] = useState<Transaction | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const { categories, activeCategories } = useCategories()
   const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
@@ -247,9 +254,57 @@ export function AccountsScreen() {
   }
 
   async function handleDeleteTransaction(id: string) {
-    await deleteTransaction(id)
+    setActionError(null)
+    try {
+      await deleteTransaction(id)
+    } catch (err) {
+      setActionError(apiErrorMessage(err, 'Couldn’t delete the transaction'))
+      return
+    }
     await refreshLedger()
     await refreshAccounts()
+  }
+
+  /**
+   * People actions for a plain row: tag it with people (an expense split or
+   * loan, or money someone sent), or work with the people it's tagged with.
+   */
+  function peopleActionsFor(row: DisplayRow, transaction: Transaction): ActionMenuItem[] {
+    const people = row.people
+    const openPeople: ActionMenuItem[] = (people?.contactIds ?? []).slice(0, 3).map((contactId, i) => ({
+      label: `Open ${people!.names[i]}`,
+      detail: 'See your balance with them',
+      icon: <PeopleIcon />,
+      onClick: () => navigate(`/people/${contactId}`),
+    }))
+    if (people?.kind === 'settle_up') return openPeople
+    if (people) {
+      return [
+        { label: 'Edit people', detail: 'Change who’s in on it and how it’s shared', icon: <PeopleIcon />, onClick: () => setPeopleSheet(transaction) },
+        ...openPeople,
+        {
+          label: 'Remove people',
+          detail: 'It goes back to being only yours',
+          icon: <LinkIcon />,
+          confirm: { title: 'Remove the people?', message: 'Their balances will no longer include this transaction.', confirmLabel: 'Remove' },
+          onClick: () =>
+            void (async () => {
+              setActionError(null)
+              try {
+                await peopleApi.deleteSplit(transaction.id)
+              } catch (err) {
+                setActionError(apiErrorMessage(err, 'Couldn’t remove the people'))
+              }
+            })(),
+        },
+      ]
+    }
+    if (transaction.sourceType === 'adjustment' || transaction.amount === 0) return []
+    return [
+      transaction.amount < 0
+        ? { label: 'Split with people', detail: 'Others owe you their share, or all of it if you lent it', icon: <PeopleIcon />, onClick: () => setPeopleSheet(transaction) }
+        : { label: 'Received from someone', detail: 'It comes off what they owe you, or you now owe them', icon: <PeopleIcon />, onClick: () => setPeopleSheet(transaction) },
+    ]
   }
 
   function actionsFor(row: DisplayRow): ActionMenuItem[] {
@@ -270,7 +325,10 @@ export function AccountsScreen() {
     if (!anchorTransaction) return [flagAction]
 
     const actions: ActionMenuItem[] = [flagAction]
-    if (row.kind === 'plain') {
+    // Settle-up adjustments have no account, so the form can't edit them.
+    const accountless = anchorTransaction.sourceType === 'adjustment'
+    if (row.kind === 'plain') actions.push(...peopleActionsFor(row, anchorTransaction))
+    if (row.kind === 'plain' && !accountless) {
       actions.push({
         label: 'Edit transaction',
         detail: 'Change the amount, date, category or account',
@@ -287,13 +345,16 @@ export function AccountsScreen() {
         onClick: () => setViewingGroupId(groupId),
       })
     }
-    actions.push({ label: 'Split transaction', detail: 'Spread it across several months', icon: <SplitIcon />, onClick: () => setSplitTarget(anchorTransaction) })
-    actions.push({
-      label: 'Link transactions',
-      detail: 'Match it with a transfer or refund elsewhere',
-      icon: <LinkIcon />,
-      onClick: () => setReconcileAnchor(anchorTransaction),
-    })
+    // A transaction shared with people can't also be spread over months or linked (it would count twice).
+    if (!row.people && !accountless) {
+      actions.push({ label: 'Split across months', detail: 'Spread it across several months', icon: <SplitIcon />, onClick: () => setSplitTarget(anchorTransaction) })
+      actions.push({
+        label: 'Link transactions',
+        detail: 'Match it with a transfer or refund elsewhere',
+        icon: <LinkIcon />,
+        onClick: () => setReconcileAnchor(anchorTransaction),
+      })
+    }
     if (row.kind === 'plain') {
       actions.push({
         label: 'Delete',
@@ -375,6 +436,7 @@ export function AccountsScreen() {
         />
       )}
 
+      {actionError && <Alert variant="error">{actionError}</Alert>}
       <UncategorizedNotice count={uncategorized.length} onOpen={openCategorizeDeck} />
       {!flaggedOnly && <FlaggedNotice count={flaggedCount} onOpen={() => setFlaggedOnly(true)} />}
       {/* Search on its own full-width row, the filters beneath it: a layout
@@ -564,6 +626,8 @@ export function AccountsScreen() {
           onDeleteGroup={handleDeleteGroup}
         />
       )}
+
+      {peopleSheet && <SplitSheet transaction={peopleSheet} onClose={() => setPeopleSheet(null)} />}
 
       {splitTarget && (
         <SplitModal

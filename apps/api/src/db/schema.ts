@@ -32,6 +32,8 @@ export const profiles = pgTable('profiles', {
     .references(() => currencies.code),
   countryCode: text('country_code'),
   avatarPath: text('avatar_path'),
+  // Whether balances with people (owed to me / I owe) count in net worth.
+  countIousInNetWorth: boolean('count_ious_in_net_worth').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -138,7 +140,8 @@ export const transactions = pgTable('transactions', {
   description: text('description').notNull().default(''),
   categoryId: uuid('category_id').references(() => categories.id),
   accountId: uuid('account_id').references(() => accounts.id),
-  sourceType: text('source_type', { enum: ['manual', 'import'] }).notNull(),
+  // 'adjustment' rows are created by "settle up" with a person and have no account.
+  sourceType: text('source_type', { enum: ['manual', 'import', 'adjustment'] }).notNull(),
   importProfileId: uuid('import_profile_id').references(() => importProfiles.id),
   importRunId: uuid('import_run_id').references(() => importRuns.id),
   // Home-currency materialization (see exchange_rates migration): the rate
@@ -185,3 +188,51 @@ export const monthSplits = pgTable(
 )
 
 
+
+// ── People (see supabase/migrations/*_people.sql) ────────────────────────────
+
+export const contacts = pgTable('contacts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  displayName: text('display_name').notNull(),
+  linkedUserId: uuid('linked_user_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export interface TransactionSplitInputs {
+  me: number
+  participants: { contactId: string; value: number }[]
+}
+
+export const transactionSplits = pgTable('transaction_splits', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  transactionId: uuid('transaction_id')
+    .notNull()
+    .unique()
+    .references(() => transactions.id),
+  mode: text('mode', { enum: ['equal', 'amount', 'percent', 'shares'] }).notNull(),
+  inputs: jsonb('inputs').$type<TransactionSplitInputs>().notNull(),
+  myShare: numeric('my_share', { precision: 14, scale: 2 }).notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const personEntries = pgTable('person_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  contactId: uuid('contact_id')
+    .notNull()
+    .references(() => contacts.id),
+  kind: text('kind', { enum: ['share', 'cash', 'writeoff'] }).notNull(),
+  transactionId: uuid('transaction_id').references(() => transactions.id),
+  splitId: uuid('split_id').references(() => transactionSplits.id),
+  amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text('currency_code')
+    .notNull()
+    .references(() => currencies.code),
+  date: date('date').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})

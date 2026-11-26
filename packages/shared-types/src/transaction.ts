@@ -7,7 +7,8 @@ import { CurrencyCodeSchema } from "./currency.js";
  * positive = money in (income). Every input path converts into this form
  * at write time so charts/aggregates/reconciliation sums are plain SUM(amount).
  */
-export const TransactionSourceTypeSchema = z.enum(["manual", "import"]);
+// "adjustment" is created by "settle up" with a person and has no account (see people.ts).
+export const TransactionSourceTypeSchema = z.enum(["manual", "import", "adjustment"]);
 export type TransactionSourceType = z.infer<typeof TransactionSourceTypeSchema>;
 
 /** Whether a transaction's home-currency value was inferred or set by the user. */
@@ -106,6 +107,19 @@ export type TransactionListQuery = z.infer<typeof TransactionListQuerySchema>;
 export const DisplayRowKindSchema = z.enum(["plain", "reconciliation_net", "month_split_portion"]);
 export type DisplayRowKind = z.infer<typeof DisplayRowKindSchema>;
 
+/**
+ * How a row involves people, for the ledger's subline:
+ * split — a transaction tagged with people (an expense split, a loan, a
+ *   repayment received or paid); settle_up — the adjustment "settle up" booked.
+ */
+export const DisplayRowPeopleSchema = z.object({
+  kind: z.enum(["split", "settle_up"]),
+  /** The people involved, by display name, and their contact ids (same order). */
+  names: z.array(z.string()),
+  contactIds: z.array(z.string().uuid()),
+});
+export type DisplayRowPeople = z.infer<typeof DisplayRowPeopleSchema>;
+
 export const DisplayRowSchema = z.object({
   kind: DisplayRowKindSchema,
   date: z.string().date(),
@@ -133,5 +147,9 @@ export const DisplayRowSchema = z.object({
   // "Needs attention": any underlying transaction is flagged (a linked
   // group's member, a split portion's original).
   flagged: z.boolean(),
+  // People involved (null when none). In the real view the amount is already
+  // net of their shares: a split expense shows the user's share, a loan or a
+  // repayment is hidden. In the nominal view the amount is untouched.
+  people: DisplayRowPeopleSchema.nullable(),
 });
 export type DisplayRow = z.infer<typeof DisplayRowSchema>;

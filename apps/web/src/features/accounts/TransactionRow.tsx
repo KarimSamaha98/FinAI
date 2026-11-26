@@ -1,11 +1,11 @@
 import type { CSSProperties } from 'react'
 import { format, parseISO } from 'date-fns'
-import type { Account, Category, DisplayRow, MonthSplit } from 'shared-types'
+import type { Account, Category, DisplayRow, DisplayRowPeople, MonthSplit } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate, formatMonthYear } from '../../lib/formatDate'
 import { accountTypeIcon } from '../../lib/accountIcons'
 import { CategoryIcon } from '../../components/categoryIcons'
-import { AccountIcon, FlagIcon, LinkIcon, SplitIcon } from '../../components/icons'
+import { AccountIcon, FlagIcon, LinkIcon, PeopleIcon, SplitIcon } from '../../components/icons'
 
 interface TransactionRowProps {
   row: DisplayRow
@@ -24,6 +24,18 @@ function monthIndexIn(portionDate: string, startMonth: string): number {
   const [portionYear, portionMonth] = portionDate.split('-').slice(0, 2).map(Number)
   const [startYear, startMonthNum] = startMonth.split('-').slice(0, 2).map(Number)
   return portionYear * 12 + portionMonth - (startYear * 12 + startMonthNum) + 1
+}
+
+function names(people: string[]): string {
+  if (people.length <= 2) return people.join(' and ')
+  return `${people.slice(0, 2).join(', ')} +${people.length - 2}`
+}
+
+/** The subline for a row shared with people, e.g. "With Sam and Priya". */
+function peopleMeta(people: DisplayRowPeople, amount: number): string {
+  const who = names(people.names)
+  if (people.kind === 'settle_up') return `Settled up with ${who}`
+  return amount < 0 ? `With ${who}` : `From ${who}`
 }
 
 /**
@@ -59,7 +71,9 @@ export function TransactionRow({
       : 'Split across months'
     : isGroup
       ? `Linked · ${linkedCount} ${linkedCount === 1 ? 'transaction' : 'transactions'}`
-      : null
+      : row.people
+        ? peopleMeta(row.people, row.amount)
+        : null
 
   // Split portions are virtual rows dated on the 1st of each covered month,
   // so they show a real date like any other row.
@@ -105,6 +119,11 @@ export function TransactionRow({
                 <span className="txn-row-meta">
                   {/* Linked / split: the icon leads the text that explains it. */}
                   {isDerived && <span className="txn-row-meta-icon" aria-hidden="true">{isSplitPortion ? <SplitIcon /> : <LinkIcon />}</span>}
+                  {!isDerived && row.people && (
+                    <span className="txn-row-meta-icon" aria-hidden="true">
+                      <PeopleIcon />
+                    </span>
+                  )}
                   {meta}
                 </span>
               )}

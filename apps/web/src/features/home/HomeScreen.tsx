@@ -16,6 +16,7 @@ import { isFxUnavailable } from '../../lib/apiClient'
 import { useNetWorth } from '../../hooks/useNetWorth'
 import { useNetWorthSeries } from '../../hooks/useNetWorthSeries'
 import { NetWorthChart } from './NetWorthChart'
+import { PeopleCard } from '../people/PeopleCard'
 
 const HOME_DEFAULT_RANGE: DateRangePreset = '6m'
 
@@ -74,6 +75,15 @@ function NetWorthChange({ points, currencyCode }: { points: NetWorthSeriesPoint[
       <span className="home-hero-change-since">since {first.bucketLabel}</span>
     </span>
   )
+}
+
+/** "Includes CA$242 owed to you" (or "you owe"): the net balance with people the total counts. Amounts hide in privacy mode. */
+function PeopleNote({ balance, included, currencyCode }: { balance: number; included: boolean; currencyCode: string }) {
+  const { hidden } = usePrivacy()
+  if (balance === 0) return null
+  const amount = hidden ? '••••' : formatCurrency(Math.abs(balance), currencyCode)
+  const part = balance > 0 ? `${amount} owed to you` : `${amount} you owe`
+  return <span className="home-hero-people">{included ? `Includes ${part}` : `Not counting ${part}`}</span>
 }
 
 export function HomeScreen() {
@@ -140,6 +150,7 @@ export function HomeScreen() {
                   className="mono home-hero-amount"
                   revealedStyle={{ color: signedColor(netWorth.total) }}
                 />
+                <PeopleNote balance={netWorth.peopleBalance} included={netWorth.peopleIncluded} currencyCode={netWorth.homeCurrencyCode} />
                 {/* How it moved over the chart's range. (No "as of": the total is always today's.) */}
                 {series && !seriesLoading && <NetWorthChange points={series.points} currencyCode={series.homeCurrencyCode} />}
               </div>
@@ -154,6 +165,8 @@ export function HomeScreen() {
               )}
             </div>
           </Card>
+
+          <PeopleCard />
 
           <div className="home-buckets">
             {HOME_BUCKETS.map(({ type, label }) => {

@@ -6,6 +6,7 @@ import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
 import { monthSplits, reconciliationGroupMembers, transactions } from '../../db/schema.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
+import { assertNotPeopleLinked } from '../people/people-store.js'
 
 function toMonthSplit(row: typeof monthSplits.$inferSelect): MonthSplit {
   return {
@@ -34,6 +35,7 @@ export class MonthSplitService {
         throw new BadRequestException('Transaction not found')
       }
       await this.assertNotReconciled(tx, transactionId)
+      await assertNotPeopleLinked(tx, [transactionId], 'split across months')
 
       try {
         const [row] = await tx.insert(monthSplits).values({ transactionId, startMonth, numMonths }).returning()

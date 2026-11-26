@@ -9,6 +9,8 @@ export const ProfileSchema = z.object({
   countryCode: z.string().regex(/^[A-Z]{2}$/).nullable(),
   /** Short-lived signed URL for the profile photo; null when none was uploaded. */
   avatarUrl: z.string().url().nullable(),
+  /** Whether balances with people (owed to me / I owe) count in net worth. */
+  countIousInNetWorth: z.boolean(),
   createdAt: z.string().datetime(),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
@@ -17,5 +19,6 @@ export const UpdateProfileInputSchema = z.object({
   displayName: z.string().min(1).max(80).nullable().optional(),
   homeCurrencyCode: CurrencyCodeSchema.optional(),
   countryCode: z.string().regex(/^[A-Z]{2}$/).nullable().optional(),
+  countIousInNetWorth: z.boolean().optional(),
 });
 export type UpdateProfileInput = z.infer<typeof UpdateProfileInputSchema>;

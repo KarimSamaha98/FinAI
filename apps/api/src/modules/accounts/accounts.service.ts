@@ -7,7 +7,7 @@ import type { Account, AccountSummary, CreateAccountInput, NetWorth, NetWorthAcc
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { accounts, importProfiles, transactions } from '../../db/schema.js'
+import { accounts, importProfiles, personEntries, profiles, transactions } from '../../db/schema.js'
 import { loadHomeCurrency } from '../../common/profile.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 import { ACCOUNT_CARDS_BUCKET, StorageService } from '../../storage/storage.module.js'
@@ -15,6 +15,7 @@ import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.j
 import { roundMoney } from '../exchange-rates/conversion.js'
 import { FxUnavailableError } from '../exchange-rates/fx-unavailable.error.js'
 import { buildBuckets, resolveGranularity } from '../reporting/buckets.js'
+import { loadPeopleBalances } from '../people/people-store.js'
 
 type AccountRow = typeof accounts.$inferSelect
 
@@ -273,11 +274,24 @@ export class AccountsService {
         netAccounts.push(toNetWorthAccount(summary, summary.balance))
       }
 
+      // Balances with people: what they owe the user adds, what the user owes
+      // subtracts, each converted once at today's rate (a stock, like balances).
+      const peopleIncluded = await this.countPeople(tx, userId)
+      let peopleBalance = 0
+      for (const balance of await loadPeopleBalances(tx)) {
+        if (balance.now === 0) continue
+        const rate = balance.currencyCode === homeCurrencyCode ? 1 : await this.exchangeRates.requireRate(balance.currencyCode, homeCurrencyCode, asOf)
+        peopleBalance += balance.now * rate
+      }
+      if (peopleIncluded) total += peopleBalance
+
       return {
         asOf,
         homeCurrencyCode,
         total: roundMoney(total),
         accounts: netAccounts,
+        peopleBalance: roundMoney(peopleBalance),
+        peopleIncluded,
       }
     })
   }
@@ -322,6 +336,19 @@ export class AccountsService {
         }
       }
 
+      // Balances with people at each bucket's end, at that day's rate.
+      if (await this.countPeople(tx, userId)) {
+        for (const balance of await loadPeopleBalances(tx)) {
+          for (const bucket of buckets) {
+            const cutoff = format(bucket.end, 'yyyy-MM-dd')
+            const outstanding = balance.at(cutoff)
+            if (outstanding === 0) continue
+            const rate = balance.currencyCode === homeCurrencyCode ? 1 : await this.exchangeRates.requireRate(balance.currencyCode, homeCurrencyCode, cutoff)
+            totalsByBucket.set(bucket.key, totalsByBucket.get(bucket.key)! + outstanding * rate)
+          }
+        }
+      }
+
       return {
         granularity,
         homeCurrencyCode,
@@ -338,6 +365,12 @@ export class AccountsService {
     return loadHomeCurrency(tx, userId)
   }
 
+  /** The profile's "count money owed in net worth" setting. */
+  private async countPeople(tx: Db, userId: string): Promise<boolean> {
+    const [row] = await tx.select({ value: profiles.countIousInNetWorth }).from(profiles).where(eq(profiles.id, userId))
+    return row?.value ?? true
+  }
+
   /**
    * Load every currency the user's accounts or transactions reference into the
    * rate cache BEFORE entering the tenant transaction, keeping network I/O out
@@ -346,11 +379,17 @@ export class AccountsService {
   private async warmUserCurrencies(userId: string): Promise<string> {
     const { homeCurrencyCode, currencies } = await runInTenantContext(this.db, userId, async (tx) => {
       const home = await this.homeCurrencyCode(tx, userId)
-      const [accountRows, txRows] = await Promise.all([
+      const [accountRows, txRows, entryRows] = await Promise.all([
         tx.select({ currencyCode: accounts.currencyCode }).from(accounts).where(eq(accounts.isArchived, false)),
         tx.select({ currencyCode: transactions.currencyCode }).from(transactions),
+        tx.selectDistinct({ currencyCode: personEntries.currencyCode }).from(personEntries),
       ])
-      const codes = new Set<string>([home, ...accountRows.map((r) => r.currencyCode), ...txRows.map((r) => r.currencyCode)])
+      const codes = new Set<string>([
+        home,
+        ...accountRows.map((r) => r.currencyCode),
+        ...txRows.map((r) => r.currencyCode),
+        ...entryRows.map((r) => r.currencyCode),
+      ])
       return { homeCurrencyCode: home, currencies: [...codes] }
     })
     await this.exchangeRates.warm(currencies)

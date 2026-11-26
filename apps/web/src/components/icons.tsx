@@ -331,3 +331,15 @@ export function EyeOffIcon() {
     </Icon>
   )
 }
+
+/** Two people: IOUs (money owed between the user and others). */
+export function PeopleIcon() {
+  return (
+    <Icon>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
+      <circle cx="16.5" cy="9" r="2.6" />
+      <path d="M15.5 14.2a4.6 4.6 0 0 1 5 5.3" />
+    </Icon>
+  )
+}

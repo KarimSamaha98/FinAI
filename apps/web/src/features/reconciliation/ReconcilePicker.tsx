@@ -96,6 +96,10 @@ export function ReconcilePicker({
       <p style={{ margin: 0, color: 'var(--text-muted)' }}>
         Linking against: {anchor.description || 'Untitled'} · <span className="mono">{formatCurrency(anchor.amount, anchor.currencyCode)}</span>
       </p>
+      <p style={{ margin: 0, color: 'var(--text-muted)', font: 'var(--type-footnote)' }}>
+        For your own money that nets out: a card payment, a transfer between your accounts, a refund. If someone paid you back, use “Split with people” or
+        “Received from someone” instead.
+      </p>
 
       {!existingGroup && (
         <label>

@@ -17,6 +17,7 @@ import { ReportingModule } from './modules/reporting/reporting.module.js'
 import { CurrenciesModule } from './modules/currencies/currencies.module.js'
 import { FxSyncModule } from './modules/fx-sync/fx-sync.module.js'
 import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module.js'
+import { PeopleModule } from './modules/people/people.module.js'
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.mod
     CurrenciesModule,
     FxSyncModule,
     ExchangeRatesModule,
+    PeopleModule,
   ],
   controllers: [HealthController],
 })

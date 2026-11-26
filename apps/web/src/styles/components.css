@@ -4586,3 +4586,572 @@ dialog::backdrop {
     animation: none;
   }
 }
+
+/* ── People: balances, splits ───────────────────────────────────────────── */
+/* Money owed between the user and other people. Balances are neutral (label
+   colour): they're neither income nor spending, so the status chip, not the
+   amount's colour, says who owes whom. */
+
+.person-initials {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  background: hsl(var(--person-hue, 152) 45% 42%);
+  color: #ffffff;
+  font: var(--type-caption-1);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.person-initials.is-lg {
+  width: 3.5rem;
+  height: 3.5rem;
+  font: var(--type-headline);
+}
+
+.person-initials.is-me {
+  background: var(--accent);
+  font-size: 0.65rem;
+}
+
+.person-initials.is-add {
+  background: var(--tint-soft);
+  color: var(--accent-text);
+  font: var(--type-headline);
+}
+
+/* Who owes whom: tint for money coming to the user. */
+.person-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-full);
+  font: var(--type-caption-1);
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--fill-tertiary);
+  color: var(--text-muted);
+}
+
+.person-status.is-owed {
+  background: var(--tint-soft);
+  color: var(--accent-text);
+}
+
+.person-status.is-owe {
+  background: color-mix(in srgb, var(--outflow) 14%, transparent);
+  color: var(--outflow);
+}
+
+/* Home: People table */
+.people-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.people-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.people-card h2 {
+  font: var(--type-footnote);
+  font-weight: 600;
+  margin: 0;
+  padding-left: 0.25rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.people-card-totals {
+  margin: 0.25rem 0 0;
+  padding-left: 0.25rem;
+  font: var(--type-subhead);
+  color: var(--text-muted);
+}
+
+.people-card-totals strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.people-card-empty {
+  margin: 0;
+  padding: 0 0.25rem;
+  color: var(--text-muted);
+  font: var(--type-subhead);
+  max-width: 40rem;
+}
+
+.people-card-toggle {
+  align-self: flex-start;
+  padding-left: 0.25rem;
+}
+
+.people-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.people-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--hit-min);
+  padding: 0.55rem 0.5rem;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  text-decoration: none;
+  transition: background var(--transition);
+}
+
+.people-row + .people-row {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.people-row:hover {
+  background: var(--fill-quaternary);
+}
+
+.people-row-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font: var(--type-body);
+  font-weight: 500;
+}
+
+.people-row-detail {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-row-amount {
+  min-width: 5.5rem;
+  text-align: right;
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  /* Status moves under the amount so the name keeps its room. */
+  .people-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'avatar name amount' 'avatar name status';
+    row-gap: 0.15rem;
+  }
+  .people-row > .person-initials {
+    grid-area: avatar;
+  }
+  .people-row-name {
+    grid-area: name;
+  }
+  .people-row-amount {
+    grid-area: amount;
+    min-width: 0;
+  }
+  .people-row > .person-status {
+    grid-area: status;
+    justify-self: end;
+  }
+}
+
+/* Home hero: the balance with people the total counts */
+.home-hero-people {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Person page */
+.person-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.person-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-5);
+}
+
+.person-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.person-hero-amount {
+  font: var(--type-large-title);
+  font-size: 2.25rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.person-hero-detail {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.person-hero-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.person-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.person-section h2 {
+  font: var(--type-footnote);
+  font-weight: 600;
+  margin: 0;
+  padding-left: 0.25rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.person-list {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1);
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--hit-min);
+  padding: 0.6rem 0.65rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.person-row + .person-row {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.person-row:hover {
+  background: var(--fill-quaternary);
+}
+
+.person-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.person-row-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.person-row-title {
+  font: var(--type-body);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-row-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.person-row-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.person-row-amount {
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.person-row.is-static {
+  cursor: default;
+}
+
+.person-row.is-static:hover {
+  background: none;
+}
+
+/* An entry's effect: + they owe more, − they owe less / the user owes more. */
+.person-row-amount.is-owed {
+  color: var(--accent-text);
+}
+
+.person-row-balance {
+  color: var(--text-muted);
+  font: var(--type-caption-1);
+  white-space: nowrap;
+}
+
+.person-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* Sheets: split with people, cash, settle up */
+.people-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.people-sheet p {
+  margin: 0;
+}
+
+.people-sheet-subject {
+  color: var(--text-muted);
+}
+
+.people-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.people-sheet-section h3 {
+  margin: 0;
+  font: var(--type-headline);
+}
+
+.people-sheet-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.people-sheet-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+}
+
+.people-sheet-hint {
+  display: block;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.people-sheet-summary {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--tint-soft);
+}
+
+.people-sheet-check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font: var(--type-body);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.people-sheet-check > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.people-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.people-sheet-actions-start {
+  margin-right: auto;
+}
+
+.people-sheet-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+/* Split rows: person · their value · their share */
+.split-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.55rem 0;
+}
+
+.split-row + .split-row {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.split-row-name {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  font: var(--type-body);
+  font-weight: 500;
+}
+
+.split-row-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  font-weight: 400;
+}
+
+.split-row-input {
+  width: 5.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-row-amount {
+  min-width: 5.5rem;
+  text-align: right;
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Contact picker */
+.contact-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.contact-picker-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contact-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.contact-picker-row:hover,
+.contact-picker-row.is-selected {
+  background: var(--fill-quaternary);
+}
+
+.contact-picker-row.is-add {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.contact-picker-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.contact-picker-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-picker-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1.5px var(--separator-opaque);
+  color: var(--on-tint);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.contact-picker-check.is-on {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.contact-picker-empty {
+  padding: 0.4rem 0.5rem;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.split-row-include {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  white-space: nowrap;
+}

@@ -1,15 +1,21 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
-import type { DateRangeFilter, DisplayRow, TransactionView } from 'shared-types'
+import type { DateRangeFilter, DisplayRow, DisplayRowPeople, TransactionView } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
 import { monthSplits, reconciliationGroupMembers, reconciliationGroups, transactions } from '../../db/schema.js'
 import { roundMoney } from '../exchange-rates/conversion.js'
+import { loadPeopleRealView } from '../people/people-store.js'
 
 type TransactionRow = typeof transactions.$inferSelect
 
-function toPlainDisplayRow(row: TransactionRow, reconciliationGroupId: string | null, monthSplitId: string | null): DisplayRow {
+function toPlainDisplayRow(
+  row: TransactionRow,
+  reconciliationGroupId: string | null,
+  monthSplitId: string | null,
+  people: DisplayRowPeople | null = null,
+): DisplayRow {
   return {
     kind: 'plain',
     date: row.date,
@@ -25,6 +31,23 @@ function toPlainDisplayRow(row: TransactionRow, reconciliationGroupId: string | 
     convertedValue: row.convertedValue != null ? Number(row.convertedValue) : null,
     rateSource: row.rateSource,
     flagged: row.flaggedAt != null,
+    people,
+  }
+}
+
+/**
+ * The real-view amount of a transaction shared with people: its amount plus
+ * their share entries (see computePeopleRealView), with the home value scaled
+ * at the transaction's own rate. Returns null when nothing is left to show (a
+ * loan, or money from someone that only moved their balance).
+ */
+function withPeopleDelta(row: DisplayRow, delta: number, exchangeRate: number | null): DisplayRow | null {
+  const amount = roundMoney(row.amount + delta)
+  if (Math.abs(amount) < 0.005) return null
+  return {
+    ...row,
+    amount,
+    convertedValue: row.convertedValue != null && exchangeRate != null ? roundMoney(row.convertedValue + delta * exchangeRate) : null,
   }
 }
 
@@ -57,8 +80,9 @@ export class ReportingQueryService {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   /**
-   * Real view collapses each reconciliation group into one synthetic net row
-   * and expands each month-split into one synthetic row per covered month.
+   * Real view collapses each reconciliation group into one synthetic net row,
+   * expands each month-split into one synthetic row per covered month, and
+   * nets people's shares out of the transactions they're tagged on (see computePeopleRealView).
    * Extracted from TransactionsService in M6 so Review and Charts share the
    * exact same nominal/real logic. Does not yet do FX conversion — see
    * ChartAggregationService, which layers currency conversion + bucketing on
@@ -85,6 +109,7 @@ export class ReportingQueryService {
 
   private async buildDisplayRows(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<DisplayRow[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
+      const peopleView = await loadPeopleRealView(tx)
       const conditions = []
       if (filter.dateRange?.from) conditions.push(gte(transactions.date, filter.dateRange.from))
       if (filter.dateRange?.to) conditions.push(lte(transactions.date, filter.dateRange.to))
@@ -123,7 +148,12 @@ export class ReportingQueryService {
         const splitByTransactionId = new Map(splitsForWindow.map((s) => [s.transactionId, s.id]))
         const groupByTransactionId = new Map(touchedMemberships.map((m) => [m.transactionId, m.groupId]))
         return windowRows.map((row) =>
-          toPlainDisplayRow(row, groupByTransactionId.get(row.id) ?? null, splitByTransactionId.get(row.id) ?? null),
+          toPlainDisplayRow(
+            row,
+            groupByTransactionId.get(row.id) ?? null,
+            splitByTransactionId.get(row.id) ?? null,
+            peopleView.infoByTransactionId.get(row.id) ?? null,
+          ),
         )
       }
 
@@ -173,6 +203,7 @@ export class ReportingQueryService {
             : null,
           rateSource: 'auto',
           flagged: members.some((m) => m.flaggedAt != null),
+          people: null,
         })
       }
 
@@ -216,13 +247,22 @@ export class ReportingQueryService {
             convertedValue: original.convertedValue != null ? roundMoney(Number(original.convertedValue) / split.numMonths) : null,
             rateSource: original.rateSource,
             flagged: original.flaggedAt != null,
+            people: null,
           })
         }
       }
 
+      // People: a split expense shows the user's share; a loan, or money
+      // from someone that only moved their balance, disappears.
       const ungroupedRows = windowRows
         .filter((row) => !groupedTransactionIds.has(row.id) && !splitTransactionIds.has(row.id))
-        .map((row) => toPlainDisplayRow(row, null, null))
+        .flatMap((row) => {
+          const display = toPlainDisplayRow(row, null, null, peopleView.infoByTransactionId.get(row.id) ?? null)
+          const delta = peopleView.deltaByTransactionId.get(row.id)
+          if (!delta) return [display]
+          const adjusted = withPeopleDelta(display, delta, row.exchangeRate != null ? Number(row.exchangeRate) : null)
+          return adjusted ? [adjusted] : []
+        })
 
       return [...ungroupedRows, ...netRows, ...splitRows].sort((a, b) => (a.date < b.date ? 1 : -1))
     })

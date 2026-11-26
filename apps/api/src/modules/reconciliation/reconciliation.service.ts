@@ -4,6 +4,7 @@ import type { ReconciliationGroupWithComputed } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
+import { assertNotPeopleLinked } from '../people/people-store.js'
 import { monthSplits, reconciliationGroupMembers, reconciliationGroups, transactions } from '../../db/schema.js'
 
 type TransactionRow = typeof transactions.$inferSelect
@@ -147,6 +148,7 @@ export class ReconciliationService {
     if (rows.some((row) => row.currencyCode !== currencyCode)) {
       throw new BadRequestException('Cannot mix currencies within a reconciliation group')
     }
+    await assertNotPeopleLinked(tx, transactionIds, 'linked with other transactions')
     return transactionIds.map((id) => rows.find((row) => row.id === id)!)
   }
 

@@ -1,6 +1,6 @@
 # FinAI
 
-A personal finance and budgeting tracker, usable on laptop and phone, that goes beyond a plain ledger: it can reconcile shared expenses with friends (non-Splitwise, link-based), spread a large annual/periodic payment across months for reporting, and show either the raw ("nominal") transaction history or a "real" view that nets out reconciliations and month-splits.
+A personal finance and budgeting tracker, usable on laptop and phone, that goes beyond a plain ledger: it keeps a running balance with the people you share costs with (tag a transaction with people; no request-to-repayment matching), reconciles your own transfers and refunds, spreads a large annual/periodic payment across months for reporting, and show either the raw ("nominal") transaction history or a "real" view that nets out reconciliations, month-splits and other people's shares.
 
 ## 1. Objective
 

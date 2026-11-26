@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common'
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lte } from 'drizzle-orm'
 import type { CategorizeTransactionsInput, CreateTransactionInput, FlagTransactionsInput, Transaction, UpdateTransactionInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
@@ -10,6 +10,7 @@ import { mapPostgresError } from '../../common/postgres-error.js'
 import type { ListTransactionsFilter } from '../reporting/reporting-query.service.js'
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.js'
 import { type TransactionConversion } from '../exchange-rates/conversion.js'
+import { peopleLinkedTransactionIds } from '../people/people-store.js'
 
 type TransactionRow = typeof transactions.$inferSelect
 
@@ -119,6 +120,17 @@ export class TransactionsService {
     const current = await runInTenantContext(this.db, userId, async (tx) => {
       const [row] = await tx.select().from(transactions).where(eq(transactions.id, id))
       if (!row) throw new NotFoundException('Transaction not found')
+      // People's shares were worked out from this amount; changing it
+      // underneath them would leave their balances wrong.
+      const amountChanges =
+        (input.amount !== undefined && Number(input.amount) !== Number(row.amount)) || (input.currencyCode !== undefined && input.currencyCode !== row.currencyCode)
+      if (amountChanges && (await peopleLinkedTransactionIds(tx, [id])).size > 0) {
+        throw new ConflictException('This transaction is shared with people. Remove the people before changing its amount or currency.')
+      }
+      // Settle-up adjustments never belong to an account.
+      if (row.sourceType === 'adjustment' && input.accountId !== undefined && input.accountId !== row.accountId) {
+        throw new ConflictException('This entry isn’t money in an account, so it can’t be moved to one')
+      }
       return { row, homeCurrencyCode: await loadHomeCurrency(tx, userId) }
     })
 
@@ -206,6 +218,7 @@ export class TransactionsService {
 
   async delete(userId: string, id: string): Promise<void> {
     return runInTenantContext(this.db, userId, async (tx) => {
+      // Its people entries (shares, or a settle up) go with it (cascade).
       const [row] = await tx.delete(transactions).where(eq(transactions.id, id)).returning()
       if (!row) {
         throw new NotFoundException('Transaction not found')
