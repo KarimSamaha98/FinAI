@@ -1,12 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
-import type { DateRangeFilter, DisplayRow, DisplayRowPeople, TransactionView } from 'shared-types'
+import { groupNet, shareOutstanding, type DateRangeFilter, type DisplayRow, type TransactionView } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { monthSplits, reconciliationGroupMembers, reconciliationGroups, transactions } from '../../db/schema.js'
+import { monthSplits, reconciliationGroupMembers, transactions } from '../../db/schema.js'
 import { roundMoney } from '../exchange-rates/conversion.js'
-import { loadPeopleRealView } from '../people/people-store.js'
+import { anchorOf, contactNames, loadGroups, memberAmount, paidByContact, type LoadedMember } from '../groups/group-store.js'
 
 type TransactionRow = typeof transactions.$inferSelect
 
@@ -14,7 +14,6 @@ function toPlainDisplayRow(
   row: TransactionRow,
   reconciliationGroupId: string | null,
   monthSplitId: string | null,
-  people: DisplayRowPeople | null = null,
 ): DisplayRow {
   return {
     kind: 'plain',
@@ -31,24 +30,16 @@ function toPlainDisplayRow(
     convertedValue: row.convertedValue != null ? Number(row.convertedValue) : null,
     rateSource: row.rateSource,
     flagged: row.flaggedAt != null,
-    people,
+    people: null,
   }
 }
 
-/**
- * The real-view amount of a transaction shared with people: its amount plus
- * their share entries (see computePeopleRealView), with the home value scaled
- * at the transaction's own rate. Returns null when nothing is left to show (a
- * loan, or money from someone that only moved their balance).
- */
-function withPeopleDelta(row: DisplayRow, delta: number, exchangeRate: number | null): DisplayRow | null {
-  const amount = roundMoney(row.amount + delta)
-  if (Math.abs(amount) < 0.005) return null
-  return {
-    ...row,
-    amount,
-    convertedValue: row.convertedValue != null && exchangeRate != null ? roundMoney(row.convertedValue + delta * exchangeRate) : null,
-  }
+/** A member's home-currency value: its transaction's, scaled to the part in the group. Null without a rate. */
+function memberConverted({ member, transaction }: LoadedMember): number | null {
+  if (transaction.convertedValue == null) return null
+  if (member.amount == null) return Number(transaction.convertedValue)
+  const amount = Number(transaction.amount)
+  return amount === 0 ? 0 : (Number(transaction.convertedValue) * Number(member.amount)) / amount
 }
 
 /** Returns the covered months of a split as "YYYY-MM-01" strings, computed without Date/timezone math. */
@@ -80,9 +71,10 @@ export class ReportingQueryService {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   /**
-   * Real view collapses each reconciliation group into one synthetic net row,
-   * expands each month-split into one synthetic row per covered month, and
-   * nets people's shares out of the transactions they're tagged on (see computePeopleRealView).
+   * Real view collapses each group into one synthetic net row (its own money
+   * plus what people owe for it; their payments settle shares and don't
+   * show), shows what's left of a transaction only partly in groups, and
+   * expands each month-split into one synthetic row per covered month.
    * Extracted from TransactionsService in M6 so Review and Charts share the
    * exact same nominal/real logic. Does not yet do FX conversion — see
    * ChartAggregationService, which layers currency conversion + bucketing on
@@ -109,7 +101,6 @@ export class ReportingQueryService {
 
   private async buildDisplayRows(userId: string, filter: ListTransactionsFilter, view: TransactionView): Promise<DisplayRow[]> {
     return runInTenantContext(this.db, userId, async (tx) => {
-      const peopleView = await loadPeopleRealView(tx)
       const conditions = []
       if (filter.dateRange?.from) conditions.push(gte(transactions.date, filter.dateRange.from))
       if (filter.dateRange?.to) conditions.push(lte(transactions.date, filter.dateRange.to))
@@ -147,63 +138,67 @@ export class ReportingQueryService {
           )
         const splitByTransactionId = new Map(splitsForWindow.map((s) => [s.transactionId, s.id]))
         const groupByTransactionId = new Map(touchedMemberships.map((m) => [m.transactionId, m.groupId]))
-        return windowRows.map((row) =>
-          toPlainDisplayRow(
-            row,
-            groupByTransactionId.get(row.id) ?? null,
-            splitByTransactionId.get(row.id) ?? null,
-            peopleView.infoByTransactionId.get(row.id) ?? null,
-          ),
-        )
+        return windowRows.map((row) => toPlainDisplayRow(row, groupByTransactionId.get(row.id) ?? null, splitByTransactionId.get(row.id) ?? null))
       }
 
-      // Reconciliation: a group is "touched" if any member's own transaction date
-      // falls in the requested window; then every member (regardless of date) is
-      // fetched to compute the net, and the whole group is re-filtered by anchor date.
+      // Groups: a group is "touched" if any member's own transaction date
+      // falls in the requested window; then every member (regardless of date)
+      // is loaded to compute the net, and the whole group is re-filtered by
+      // its anchor (biggest own transaction).
       const touchedGroupIds = [...new Set(touchedMemberships.map((m) => m.groupId))]
-      const [groups, allMembers] = touchedGroupIds.length
-        ? await Promise.all([
-            tx.select().from(reconciliationGroups).where(inArray(reconciliationGroups.id, touchedGroupIds)),
-            tx
-              .select({ member: reconciliationGroupMembers, transaction: transactions })
-              .from(reconciliationGroupMembers)
-              .innerJoin(transactions, eq(reconciliationGroupMembers.transactionId, transactions.id))
-              .where(inArray(reconciliationGroupMembers.groupId, touchedGroupIds)),
-          ])
-        : [[], []]
-
-      const groupedTransactionIds = new Set(allMembers.map((m) => m.transaction.id))
+      const loadedGroups = await loadGroups(tx, touchedGroupIds)
+      const names = loadedGroups.some((g) => g.shares.length > 0) ? await contactNames(tx) : new Map<string, string>()
 
       const netRows: DisplayRow[] = []
-      for (const group of groups) {
-        const members = allMembers.filter((m) => m.member.groupId === group.id).map((m) => m.transaction)
-        const anchor = members.reduce((biggest, row) =>
-          Math.abs(Number(row.amount)) > Math.abs(Number(biggest.amount)) ? row : biggest,
-        )
+      for (const loaded of loadedGroups) {
+        const anchorMember = anchorOf(loaded)
+        if (!anchorMember) continue
+        const anchor = anchorMember.transaction
         if (filter.dateRange?.from && anchor.date < filter.dateRange.from) continue
         if (filter.dateRange?.to && anchor.date > filter.dateRange.to) continue
         if (filter.categoryIds?.length && (!anchor.categoryId || !filter.categoryIds.includes(anchor.categoryId))) continue
         if (filter.accountIds?.length && (!anchor.accountId || !filter.accountIds.includes(anchor.accountId))) continue
 
+        const own = loaded.members.filter((m) => m.member.contactId === null)
+        const shares = loaded.shares.map((s) => ({ contactId: s.contactId, amount: Number(s.amount), forgiven: Number(s.forgiven) }))
+        const amount = groupNet(
+          own.map((m) => memberAmount(m.member, m.transaction)),
+          shares,
+        )
+        // A loan, or money borrowed, nets to nothing: it only moved a balance.
+        if (shares.length > 0 && Math.abs(amount) < 0.005) continue
+
+        const paid = paidByContact(loaded)
+        const owedByPeople = amount - own.reduce((sum, m) => sum + memberAmount(m.member, m.transaction), 0)
+        const ownConverted = own.map(memberConverted)
+        const rate = anchor.exchangeRate != null ? Number(anchor.exchangeRate) : null
+        const convertedValue =
+          ownConverted.every((v) => v != null) && (shares.length === 0 || rate != null)
+            ? roundMoney(ownConverted.reduce((sum: number, v) => sum + v!, 0) + owedByPeople * (rate ?? 0))
+            : null
+
         netRows.push({
           kind: 'reconciliation_net',
           date: anchor.date,
-          amount: members.reduce((sum, row) => sum + Number(row.amount), 0),
+          amount: roundMoney(amount),
           currencyCode: anchor.currencyCode,
-          description: group.label ?? anchor.description,
+          description: loaded.group.label || anchor.description,
           categoryId: anchor.categoryId,
-          accountIds: [...new Set(members.map((m) => m.accountId).filter((id): id is string => id !== null))],
+          accountIds: [...new Set(loaded.members.map((m) => m.transaction.accountId).filter((id): id is string => id !== null))],
           anchorAccountId: anchor.accountId,
-          sourceTransactionIds: members.map((m) => m.id),
-          reconciliationGroupId: group.id,
+          sourceTransactionIds: [anchor.id, ...loaded.members.map((m) => m.transaction.id).filter((id) => id !== anchor.id)],
+          reconciliationGroupId: loaded.group.id,
           monthSplitId: null,
-          // The net is only meaningful in home currency when every member converted.
-          convertedValue: members.every((m) => m.convertedValue != null)
-            ? roundMoney(members.reduce((sum, m) => sum + Number(m.convertedValue), 0))
-            : null,
+          convertedValue,
           rateSource: 'auto',
-          flagged: members.some((m) => m.flaggedAt != null),
-          people: null,
+          flagged: loaded.members.some((m) => m.transaction.flaggedAt != null),
+          people: shares.length
+            ? {
+                names: shares.map((s) => names.get(s.contactId) ?? 'Someone'),
+                contactIds: shares.map((s) => s.contactId),
+                outstanding: roundMoney(shares.reduce((sum, s) => sum + shareOutstanding(s, paid.get(s.contactId) ?? 0), 0)),
+              }
+            : null,
         })
       }
 
@@ -252,16 +247,27 @@ export class ReportingQueryService {
         }
       }
 
-      // People: a split expense shows the user's share; a loan, or money
-      // from someone that only moved their balance, disappears.
+      // Transactions in no group pass through; one only partly in groups
+      // (an e-transfer paying for one dinner out of two) shows what's left.
+      const membershipsByTransaction = new Map<string, typeof touchedMemberships>()
+      for (const m of touchedMemberships) membershipsByTransaction.set(m.transactionId, [...(membershipsByTransaction.get(m.transactionId) ?? []), m])
       const ungroupedRows = windowRows
-        .filter((row) => !groupedTransactionIds.has(row.id) && !splitTransactionIds.has(row.id))
+        .filter((row) => !splitTransactionIds.has(row.id))
         .flatMap((row) => {
-          const display = toPlainDisplayRow(row, null, null, peopleView.infoByTransactionId.get(row.id) ?? null)
-          const delta = peopleView.deltaByTransactionId.get(row.id)
-          if (!delta) return [display]
-          const adjusted = withPeopleDelta(display, delta, row.exchangeRate != null ? Number(row.exchangeRate) : null)
-          return adjusted ? [adjusted] : []
+          const memberships = membershipsByTransaction.get(row.id)
+          if (!memberships) return [toPlainDisplayRow(row, null, null)]
+          const inGroups = memberships.reduce((sum, m) => sum + Math.round(memberAmount(m, row) * 100), 0) / 100
+          const left = roundMoney(Number(row.amount) - inGroups)
+          if (Math.abs(left) < 0.005) return []
+          const display = toPlainDisplayRow(row, memberships[0].groupId, null)
+          const amount = Number(row.amount)
+          return [
+            {
+              ...display,
+              amount: left,
+              convertedValue: display.convertedValue != null && amount !== 0 ? roundMoney((display.convertedValue * left) / amount) : null,
+            },
+          ]
         })
 
       return [...ungroupedRows, ...netRows, ...splitRows].sort((a, b) => (a.date < b.date ? 1 : -1))

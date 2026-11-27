@@ -1,11 +1,11 @@
-import type { Contact, PeopleSummary, PersonDetail, SettleUpCandidate, SettleUpInput, TransactionPeople, TransactionSplit, TransactionSplitInput } from 'shared-types'
+import type { Contact, PeopleSummary, PersonDetail, SettleUpCandidate, SettleUpInput } from 'shared-types'
 import { apiClient } from '../lib/apiClient'
 import { invalidateApi } from '../lib/queryClient'
 import { useApiQuery } from './useApiQuery'
 
 const NO_CONTACTS: Contact[] = []
 
-/** Everyone with activity and their balance (Home's People table). */
+/** Everyone with an open balance (Home's People card). */
 export function usePeople() {
   const { data, loading, error, refresh } = useApiQuery<PeopleSummary>('/people', { errorMessage: 'Failed to load people' })
   return { people: data ?? null, loading, error, refresh }
@@ -23,17 +23,9 @@ export function useContacts() {
   return { contacts: data ?? NO_CONTACTS, loading, error }
 }
 
-/** How one transaction is shared with people (split is null when it isn't). */
-export function useTransactionPeople(transactionId: string | null) {
-  const { data, loading, error } = useApiQuery<TransactionPeople>(transactionId ? `/people/splits/${transactionId}` : null, {
-    errorMessage: 'Failed to load who this is shared with',
-  })
-  return { details: data ?? null, loading, error }
-}
-
 const NO_CANDIDATES: SettleUpCandidate[] = []
 
-/** Transactions that could settle up with a person (null id: don't load yet). */
+/** Transactions that could be a person's payment (null id: don't load yet). */
 export function useSettleUpCandidates(contactId: string | null) {
   const { data, loading, error } = useApiQuery<SettleUpCandidate[]>(contactId ? `/people/${contactId}/settle-up/candidates` : null, {
     errorMessage: 'Failed to load transactions',
@@ -52,10 +44,10 @@ export const peopleApi = {
   createContact: (displayName: string) => mutate(apiClient.post<Contact>('/contacts', { displayName })),
   renameContact: (id: string, displayName: string) => mutate(apiClient.patch<Contact>(`/contacts/${id}`, { displayName })),
   deleteContact: (id: string) => mutate(apiClient.delete<void>(`/contacts/${id}`)),
-  setSplit: (transactionId: string, input: TransactionSplitInput) => mutate(apiClient.put<TransactionSplit>(`/people/splits/${transactionId}`, input)),
-  deleteSplit: (transactionId: string) => mutate(apiClient.delete<void>(`/people/splits/${transactionId}`)),
   settleUp: (contactId: string, input: SettleUpInput) => mutate(apiClient.post<void>(`/people/${contactId}/settle-up`, input)),
-  deleteEntry: (entryId: string) => mutate(apiClient.delete<void>(`/people/entries/${entryId}`)),
+  /** Lets go of what's still expected from (or owed to) them in one group. */
+  forgive: (contactId: string, groupId: string) => mutate(apiClient.post<void>(`/people/${contactId}/groups/${groupId}/forgive`, {})),
+  unforgive: (contactId: string, groupId: string) => mutate(apiClient.delete<void>(`/people/${contactId}/groups/${groupId}/forgive`)),
 }
 
 /** The server's message from an API error ("API 409 /path: {json}"), or a fallback. */

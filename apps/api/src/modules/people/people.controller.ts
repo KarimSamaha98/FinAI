@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, UseGuards } from '@nestjs/common'
-import { CreateContactInputSchema, SettleUpInputSchema, TransactionSplitInputSchema, UpdateContactInputSchema } from 'shared-types'
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, UseGuards } from '@nestjs/common'
+import { CreateContactInputSchema, SettleUpInputSchema, UpdateContactInputSchema } from 'shared-types'
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard.js'
 import { CurrentUserId } from '../auth/current-user-id.decorator.js'
 import { PeopleService } from './people.service.js'
@@ -35,31 +35,10 @@ export class ContactsController {
 export class PeopleController {
   constructor(@Inject(PeopleService) private readonly people: PeopleService) {}
 
-  /** Everyone with activity and their balance (Home's People table). */
+  /** Everyone with an open balance (Home's People card). */
   @Get()
   list(@CurrentUserId() userId: string) {
     return this.people.people(userId)
-  }
-
-  /** How a transaction is shared with people (null split when it isn't). */
-  @Get('splits/:transactionId')
-  split(@CurrentUserId() userId: string, @Param('transactionId') transactionId: string) {
-    return this.people.byTransaction(userId, transactionId)
-  }
-
-  @Put('splits/:transactionId')
-  setSplit(@CurrentUserId() userId: string, @Param('transactionId') transactionId: string, @Body() body: unknown) {
-    return this.people.setSplit(userId, transactionId, TransactionSplitInputSchema.parse(body))
-  }
-
-  @Delete('splits/:transactionId')
-  deleteSplit(@CurrentUserId() userId: string, @Param('transactionId') transactionId: string) {
-    return this.people.deleteSplit(userId, transactionId)
-  }
-
-  @Delete('entries/:entryId')
-  deleteEntry(@CurrentUserId() userId: string, @Param('entryId') entryId: string) {
-    return this.people.deleteEntry(userId, entryId)
   }
 
   @Get(':contactId')
@@ -67,7 +46,7 @@ export class PeopleController {
     return this.people.person(userId, contactId)
   }
 
-  /** Transactions that could settle up with this person ("Link a transaction"). */
+  /** Transactions that could be this person's payment ("Match a payment"). */
   @Get(':contactId/settle-up/candidates')
   settleUpCandidates(@CurrentUserId() userId: string, @Param('contactId') contactId: string) {
     return this.people.settleUpCandidates(userId, contactId)
@@ -76,5 +55,16 @@ export class PeopleController {
   @Post(':contactId/settle-up')
   settleUp(@CurrentUserId() userId: string, @Param('contactId') contactId: string, @Body() body: unknown) {
     return this.people.settleUp(userId, contactId, SettleUpInputSchema.parse(body))
+  }
+
+  /** Forgives what's still expected from (or owed to) this person in one group. */
+  @Post(':contactId/groups/:groupId/forgive')
+  forgive(@CurrentUserId() userId: string, @Param('contactId') contactId: string, @Param('groupId') groupId: string) {
+    return this.people.forgiveGroup(userId, contactId, groupId)
+  }
+
+  @Delete(':contactId/groups/:groupId/forgive')
+  unforgive(@CurrentUserId() userId: string, @Param('contactId') contactId: string, @Param('groupId') groupId: string) {
+    return this.people.unforgiveGroup(userId, contactId, groupId)
   }
 }

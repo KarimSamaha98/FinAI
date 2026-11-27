@@ -31,16 +31,17 @@ function names(people: string[]): string {
   return `${people.slice(0, 2).join(', ')} +${people.length - 2}`
 }
 
-/** The subline for a row shared with people, e.g. "With Sam and Priya". */
-function peopleMeta(people: DisplayRowPeople, amount: number): string {
-  const who = names(people.names)
-  if (people.kind === 'settle_up') return `Settled up with ${who}`
-  return amount < 0 ? `With ${who}` : `From ${who}`
+/** The subline for a group with people, e.g. "With Sam and Priya · $30.00 expected". */
+function peopleMeta(people: DisplayRowPeople, currencyCode: string): string {
+  const who = `With ${names(people.names)}`
+  if (people.outstanding > 0) return `${who} · ${formatCurrency(people.outstanding, currencyCode)} expected`
+  if (people.outstanding < 0) return `${who} · you owe ${formatCurrency(-people.outstanding, currencyCode)}`
+  return `${who} · settled`
 }
 
 /**
  * One ledger row. Plain rows pass through; month-split portions and
- * reconciliation nets carry a kind badge, a second metadata line, and the
+ * group nets carry a kind badge, a second metadata line, and the
  * category pill keeps its fixed slot on every kind. The account pill appears
  * only when more than one account is in view.
  */
@@ -64,22 +65,25 @@ export function TransactionRow({
   const categoryLabel = category?.name ?? 'Uncategorized'
 
   // The subline spells out what the status icons mean (touch has no hover).
-  const linkedCount = row.sourceTransactionIds.length
+  const groupedCount = row.sourceTransactionIds.length
+  const isGroupRemainder = row.kind === 'plain' && row.reconciliationGroupId !== null
   const meta = isSplitPortion
     ? split
       ? `Month ${monthIndexIn(row.date, split.startMonth)} of ${split.numMonths} · from ${formatMonthYear(split.startMonth)}`
       : 'Split across months'
     : isGroup
-      ? `Linked · ${linkedCount} ${linkedCount === 1 ? 'transaction' : 'transactions'}`
-      : row.people
-        ? peopleMeta(row.people, row.amount)
+      ? row.people
+        ? peopleMeta(row.people, row.currencyCode)
+        : `Grouped · ${groupedCount} ${groupedCount === 1 ? 'transaction' : 'transactions'}`
+      : isGroupRemainder
+        ? 'What’s left · the rest is in a group'
         : null
 
   // Split portions are virtual rows dated on the 1st of each covered month,
   // so they show a real date like any other row.
   const dateLabel = formatDate(row.date)
   const description = row.description || 'No description'
-  // A linked row's subline already says "Linked"; a split's doesn't.
+  // A group's subline already says what it is; a split's doesn't.
   const kindLabel = isSplitPortion ? 'Split' : null
   const ariaLabel = [row.flagged ? 'Needs attention' : null, dateLabel, description, accountName, categoryLabel, kindLabel, meta, formatCurrency(row.amount, row.currencyCode)]
     .filter(Boolean)
@@ -117,11 +121,10 @@ export function TransactionRow({
               )}
               {meta && (
                 <span className="txn-row-meta">
-                  {/* Linked / split: the icon leads the text that explains it. */}
-                  {isDerived && <span className="txn-row-meta-icon" aria-hidden="true">{isSplitPortion ? <SplitIcon /> : <LinkIcon />}</span>}
-                  {!isDerived && row.people && (
+                  {/* Group / split: the icon leads the text that explains it. */}
+                  {(isDerived || isGroupRemainder) && (
                     <span className="txn-row-meta-icon" aria-hidden="true">
-                      <PeopleIcon />
+                      {isSplitPortion ? <SplitIcon /> : row.people ? <PeopleIcon /> : <LinkIcon />}
                     </span>
                   )}
                   {meta}

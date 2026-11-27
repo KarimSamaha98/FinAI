@@ -5010,9 +5010,17 @@ dialog::backdrop {
   background: none;
 }
 
-/* An entry's effect: + they owe more, − they owe less / the user owes more. */
+/* Still expected: + they owe the user, − the user owes them. Settled ones are muted. */
 .person-row-amount.is-owed {
   color: var(--accent-text);
+}
+
+.person-row-amount.is-owe {
+  color: var(--outflow);
+}
+
+.person-row-amount.is-settled {
+  color: var(--text-muted);
 }
 
 .person-empty {
@@ -5082,6 +5090,305 @@ dialog::backdrop {
   text-align: right;
   font: var(--type-headline);
   font-variant-numeric: tabular-nums;
+}
+
+/* Groups: a person in the split, with what they've paid and what's expected */
+.split-person + .split-person,
+.split-row + .split-person {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.split-payments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0 0 0.5rem calc(2rem + var(--space-3));
+  list-style: none;
+}
+
+.split-payments:empty {
+  display: none;
+}
+
+.split-payment {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 1.75rem;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.split-payment > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split-payment .mono {
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* Expected payments read as not-yet-real: a dashed outline, like a placeholder. */
+.split-payment.is-expected {
+  padding: 0.15rem 0.5rem;
+  border: 1px dashed var(--text-muted);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.split-payment .text-button,
+.split-payment .icon-button {
+  flex: none;
+}
+
+.split-pay-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 0 var(--space-3);
+}
+
+.split-pay-picker > .search-input {
+  flex: none;
+}
+
+.split-pay-picker > .text-button {
+  align-self: flex-start;
+}
+
+/* Group wizard: the shortcut to pay someone back instead */
+.group-payback {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0.6rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--tint-soft);
+  color: var(--accent-text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-payback:hover {
+  filter: brightness(0.97);
+}
+
+.group-payback:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.group-payback > svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.group-payback-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.group-payback-title {
+  font-weight: 600;
+}
+
+.group-payback-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Groups: the user's own transactions in the wizard and the group sheet */
+.group-items {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--hit-min);
+  padding: 0.35rem 0;
+}
+
+.group-item + .group-item {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.group-item-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.group-item-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-item-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.group-item > .mono,
+.split-payment .mono,
+.allocation-row .mono {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* "Add a transaction" sits at its own width under the list. */
+.wizard-question > .btn {
+  flex: none;
+  align-self: flex-start;
+}
+
+/* The group sheet */
+.group-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.group-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.group-sheet-section > h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.group-people {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group-person + .group-person {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.group-person-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.5rem 0 0.3rem;
+}
+
+.group-person-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 500;
+  text-align: left;
+}
+
+.group-person-share {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  white-space: nowrap;
+}
+
+.group-person-share .mono {
+  color: var(--text);
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+}
+
+.group-sheet-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  box-shadow: inset 0 0.5px 0 var(--separator);
+  font: var(--type-headline);
+}
+
+.group-sheet-total .mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.group-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.group-sheet-confirm {
+  flex: 1 1 100%;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Paying someone back: how much of the payment goes to each group */
+.allocation-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.allocation-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.5rem 0;
+}
+
+.allocation-row + .allocation-row {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.allocation-row-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.allocation-row-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allocation-row-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
 }
 
 /* Settle up: pick the transaction that paid */

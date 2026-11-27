@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { PersonEntry } from 'shared-types'
-import { ChevronLeftIcon, PencilIcon, TrashIcon } from '../../components/icons'
+import type { PersonGroup } from 'shared-types'
+import { CheckIcon, ChevronLeftIcon, PencilIcon, TrashIcon } from '../../components/icons'
 import { Card } from '../../components/Card'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
@@ -23,24 +23,24 @@ interface PersonDetailProps {
   onBack: () => void
 }
 
-/** One person: the balance with them, and the transactions that moved it. The People page's right-hand panel. */
+/** One person: the balance with them, and every group they're in. The People page's right-hand panel. */
 export function PersonDetail({ contactId, onBack }: PersonDetailProps) {
   const { person, loading, error } = usePerson(contactId)
   const { hidden } = usePrivacy()
   const [settling, setSettling] = useState(false)
-  const [undoEntry, setUndoEntry] = useState<PersonEntry | null>(null)
+  const [openGroup, setOpenGroup] = useState<PersonGroup | null>(null)
   const [editing, setEditing] = useState<null | 'menu' | 'rename'>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const summary = person?.summary
   const name = summary?.contact.displayName ?? ''
 
-  async function undo(entry: PersonEntry) {
+  async function act(request: () => Promise<unknown>, failure: string) {
     setActionError(null)
     try {
-      await peopleApi.deleteEntry(entry.id)
+      await request()
     } catch (err) {
-      setActionError(apiErrorMessage(err, 'Couldn’t undo it'))
+      setActionError(apiErrorMessage(err, failure))
     }
   }
 
@@ -100,14 +100,20 @@ export function PersonDetail({ contactId, onBack }: PersonDetailProps) {
 
           {actionError && <Alert variant="error">{actionError}</Alert>}
 
-          {person.entries.length === 0 ? (
-            <p className="person-empty">Nothing with {name} yet. Open a transaction and choose “Split with people” or “Received from someone”.</p>
+          {person.groups.length === 0 ? (
+            <p className="person-empty">Nothing with {name} yet. Open a transaction and choose “Group” to share it with them.</p>
           ) : (
             <section className="person-section">
               <h2>Activity</h2>
               <Card className="person-list">
-                {person.entries.map((entry) => (
-                  <EntryRow key={entry.id} entry={entry} hidden={hidden} onOpen={entry.kind === 'writeoff' ? () => setUndoEntry(entry) : null} />
+                {person.groups.map((group) => (
+                  <GroupRow
+                    key={group.groupId}
+                    group={group}
+                    hidden={hidden}
+                    // Something to do: forgive what's still expected, or undo forgiving.
+                    onOpen={group.forgiven !== 0 || (group.share !== 0 && group.outstanding !== 0 && Math.sign(group.outstanding) === Math.sign(group.share)) ? () => setOpenGroup(group) : null}
+                  />
                 ))}
               </Card>
             </section>
@@ -115,21 +121,36 @@ export function PersonDetail({ contactId, onBack }: PersonDetailProps) {
         </>
       )}
 
-      {undoEntry && (
+      {openGroup && (
         <ActionMenu
           open
-          onClose={() => setUndoEntry(null)}
-          title={undoEntry.label}
-          summary={{ detail: formatDate(undoEntry.date), value: formatCurrency(Math.abs(undoEntry.amount), undoEntry.currencyCode) }}
+          onClose={() => setOpenGroup(null)}
+          title={openGroup.label}
+          summary={{ detail: `${formatDate(openGroup.date)} · ${statusText(openGroup, name)}`, value: formatCurrency(Math.abs(openGroup.share), openGroup.currencyCode) }}
           actions={[
-            {
-              label: 'Undo settle up',
-              detail: 'The balance comes back and the adjustment is removed',
-              icon: <TrashIcon />,
-              variant: 'danger',
-              confirm: { title: 'Undo this settle up?', message: `Your balance with ${name} will change back.`, confirmLabel: 'Undo' },
-              onClick: () => void undo(undoEntry),
-            },
+            ...(openGroup.outstanding !== 0 && openGroup.share !== 0 && Math.sign(openGroup.outstanding) === Math.sign(openGroup.share)
+              ? [
+                  {
+                    label: 'Forgive',
+                    detail: openGroup.share > 0 ? `Let go of the ${formatCurrency(openGroup.outstanding, openGroup.currencyCode)} still expected` : `Keep the ${formatCurrency(-openGroup.outstanding, openGroup.currencyCode)} you owe`,
+                    icon: <CheckIcon />,
+                    confirm: { title: 'Forgive it?', message: `Your balance with ${name} will change.`, confirmLabel: 'Forgive' },
+                    onClick: () => void act(() => peopleApi.forgive(contactId, openGroup.groupId), 'Couldn’t forgive it'),
+                  },
+                ]
+              : []),
+            ...(openGroup.forgiven !== 0
+              ? [
+                  {
+                    label: 'Undo forgive',
+                    detail: 'It’s expected again',
+                    icon: <TrashIcon />,
+                    variant: 'danger' as const,
+                    confirm: { title: 'Undo forgiving?', message: `Your balance with ${name} will change back.`, confirmLabel: 'Undo' },
+                    onClick: () => void act(() => peopleApi.unforgive(contactId, openGroup.groupId), 'Couldn’t undo it'),
+                  },
+                ]
+              : []),
           ]}
         />
       )}
@@ -140,7 +161,7 @@ export function PersonDetail({ contactId, onBack }: PersonDetailProps) {
           title={name}
           actions={[
             { label: 'Rename', detail: 'Change how their name shows everywhere', icon: <PencilIcon />, onClick: () => setEditing('rename') },
-            person.entries.length === 0
+            person.groups.length === 0
               ? {
                   label: 'Delete',
                   detail: `Remove ${name} from your people`,
@@ -151,7 +172,7 @@ export function PersonDetail({ contactId, onBack }: PersonDetailProps) {
                 }
               : {
                   label: 'Delete',
-                  detail: 'Only once they have no activity: remove them from their transactions and undo any settle up first',
+                  detail: 'Only once they’re in no group: take them out of each one first',
                   icon: <TrashIcon />,
                   variant: 'danger',
                   onClick: () => void remove(),
@@ -165,20 +186,33 @@ export function PersonDetail({ contactId, onBack }: PersonDetailProps) {
   )
 }
 
+/** Where a person's part in a group stands, in words. */
+function statusText(group: PersonGroup, name: string): string {
+  if (group.share === 0) return group.paid > 0 ? `${name} paid you` : `You paid ${name}`
+  if (group.outstanding === 0) return group.forgiven !== 0 ? 'Forgiven' : group.share > 0 ? 'Paid' : 'You paid'
+  if (Math.sign(group.outstanding) !== Math.sign(group.share)) return group.outstanding < 0 ? `You owe ${name} the extra` : `${name} owes you the rest`
+  return group.share > 0 ? 'Expected' : 'You owe it'
+}
+
 /**
- * One line per transaction: what, when, and how much it moved the balance
- * (+ they owe you more, − they owe you less / you owe them more).
+ * One line per group: what, when, where it stands, and what's still
+ * expected (+ they owe the user, − the user owes them); settled ones show
+ * their share.
  */
-function EntryRow({ entry, hidden, onOpen }: { entry: PersonEntry; hidden: boolean; onOpen: (() => void) | null }) {
+function GroupRow({ group, hidden, onOpen }: { group: PersonGroup; hidden: boolean; onOpen: (() => void) | null }) {
+  const open = group.outstanding !== 0
+  const shown = open ? group.outstanding : group.share
   const content = (
     <>
       <span className="person-row-main">
-        <span className="person-row-title">{entry.label}</span>
-        <span className="person-row-sub">{formatDate(entry.date)}</span>
+        <span className="person-row-title">{group.label}</span>
+        <span className="person-row-sub">
+          {formatDate(group.date)} · {statusText(group, 'They')}
+        </span>
       </span>
-      <span className={`mono person-row-amount ${entry.amount > 0 ? 'is-owed' : 'is-owe'}`}>
-        {entry.amount > 0 ? '+' : '−'}
-        {hidden ? '••••' : formatCurrency(Math.abs(entry.amount), entry.currencyCode)}
+      <span className={`mono person-row-amount ${open ? (shown > 0 ? 'is-owed' : 'is-owe') : 'is-settled'}`}>
+        {open ? (shown > 0 ? '+' : '−') : ''}
+        {hidden ? '••••' : formatCurrency(Math.abs(shown), group.currencyCode)}
       </span>
     </>
   )

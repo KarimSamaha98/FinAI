@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeSplit, shareEntryAmount } from 'shared-types'
+import { computeSplit, shareAmount } from 'shared-types'
 
 describe('computeSplit', () => {
   it('splits equally to the cent, leftover cents to the user', () => {
@@ -63,12 +63,12 @@ describe('computeSplit', () => {
   })
 })
 
-describe('shareEntryAmount', () => {
+describe('shareAmount', () => {
   it('an expense split means they owe the user (+)', () => {
-    expect(shareEntryAmount(-120, 60)).toBe(60)
+    expect(shareAmount(-120, 60)).toBe(60)
   })
 
   it('money in from them means they owe less (−)', () => {
-    expect(shareEntryAmount(60, 60)).toBe(-60)
+    expect(shareAmount(60, 60)).toBe(-60)
   })
 })

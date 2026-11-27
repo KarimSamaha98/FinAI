@@ -7,7 +7,7 @@ import type { Account, AccountSummary, CreateAccountInput, NetWorth, NetWorthAcc
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
-import { accounts, importProfiles, personEntries, profiles, transactions } from '../../db/schema.js'
+import { accounts, groupShares, importProfiles, profiles, transactions } from '../../db/schema.js'
 import { loadHomeCurrency } from '../../common/profile.js'
 import { mapPostgresError } from '../../common/postgres-error.js'
 import { ACCOUNT_CARDS_BUCKET, StorageService } from '../../storage/storage.module.js'
@@ -382,7 +382,7 @@ export class AccountsService {
       const [accountRows, txRows, entryRows] = await Promise.all([
         tx.select({ currencyCode: accounts.currencyCode }).from(accounts).where(eq(accounts.isArchived, false)),
         tx.select({ currencyCode: transactions.currencyCode }).from(transactions),
-        tx.selectDistinct({ currencyCode: personEntries.currencyCode }).from(personEntries),
+        tx.selectDistinct({ currencyCode: groupShares.currencyCode }).from(groupShares),
       ])
       const codes = new Set<string>([
         home,

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { CARD_COLOR_PALETTE, type DisplayRow, type MonthSplit, type Transaction, type TransactionView } from 'shared-types'
 import { SelectDropdown } from '../../components/SelectDropdown'
 import { SearchInput } from '../../components/SearchInput'
@@ -16,7 +15,7 @@ import { Modal } from '../../components/Modal'
 import { SkeletonRows } from '../../components/Skeleton'
 import { apiClient, isFxUnavailable } from '../../lib/apiClient'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
-import { CheckIcon, FlagIcon, LinkIcon, PencilIcon, PeopleIcon, SplitIcon, TrashIcon } from '../../components/icons'
+import { CheckIcon, FlagIcon, LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useTransactions } from '../../hooks/useTransactions'
@@ -26,16 +25,15 @@ import { CategorizationDeck, type CategorizedRow } from '../import/Categorizatio
 import { UncategorizedNotice } from './UncategorizedNotice'
 import { FlaggedNotice } from './FlaggedNotice'
 import { useFlaggedTransactions } from '../../hooks/useFlaggedTransactions'
-import { useReconciliationGroups } from '../../hooks/useReconciliationGroups'
+import { useGroups } from '../../hooks/useGroups'
 import { useMonthSplits } from '../../hooks/useMonthSplits'
 import { TransactionForm, type TransactionFormValues } from '../transactions/TransactionForm'
 import { AddTransactionWizard } from '../transactions/AddTransactionWizard'
 import { CsvWizardHost } from '../import/CsvWizardHost'
-import { ReconcilePicker } from '../reconciliation/ReconcilePicker'
-import { ReconciliationGroupModal } from '../reconciliation/ReconciliationGroupModal'
+import { GroupWizard, type GroupMainTransaction } from '../groups/GroupWizard'
+import { GroupModal } from '../groups/GroupModal'
 import { SplitModal } from '../month-split/SplitModal'
-import { SplitWizard } from '../people/SplitWizard'
-import { apiErrorMessage, peopleApi } from '../../hooks/usePeople'
+import { apiErrorMessage } from '../../hooks/usePeople'
 import { AccountCarousel } from './AccountCarousel'
 import { nextAccountSelection } from '../../lib/accountSelection'
 import { SelectionSummary } from './SelectionSummary'
@@ -125,24 +123,21 @@ export function AccountsScreen() {
   >(null)
   const closeWizard = () => setWizard(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [reconcileAnchor, setReconcileAnchor] = useState<Transaction | null>(null)
   const [splitTarget, setSplitTarget] = useState<Transaction | null>(null)
+  // The group open in its sheet, and the group wizard (a new group from a transaction, or editing one).
   const [viewingGroupId, setViewingGroupId] = useState<string | null>(null)
+  const [grouping, setGrouping] = useState<{ transaction: GroupMainTransaction } | { groupId: string } | null>(null)
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
-  // The transaction being tagged with people (split, loan, money received).
-  const [peopleSheet, setPeopleSheet] = useState<Transaction | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  const navigate = useNavigate()
 
   const { categories, activeCategories } = useCategories()
   const { accounts, loading: accountsLoading, error: accountsError, createAccount, uploadCardImage, refresh: refreshAccounts } = useAccounts()
   const accountIds = selectedIds
   const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null
-  // Deliberately NOT scoped to accountIds — this is the candidate pool for
-  // reconcile/split pickers and group-member lookups, which must be able to
-  // find a transaction in a *different* account than the one currently
-  // selected (e.g. reconciling a transfer between two accounts). Only the
-  // visible ledger (`rows`, below) is account-scoped.
+  // Deliberately NOT scoped to accountIds — rows' actions look their
+  // transactions up here, and a group's can be in a *different* account
+  // than the one currently selected (e.g. a transfer between two accounts).
+  // Only the visible ledger (`rows`, below) is account-scoped.
   const { transactions, loading, error, refresh: refreshTransactions, createTransaction, updateTransaction, deleteTransaction, setFlagged } = useTransactions(
     dateRange,
     categoryIds,
@@ -191,7 +186,7 @@ export function AccountsScreen() {
   )
   // Back from account settings returns to the same spot in the list, once it has loaded.
   useScrollRestoreWhenReady(!loading && !rowsLoading && !accountsLoading)
-  const { groups, createGroup, addMember, removeMember, deleteGroup } = useReconciliationGroups()
+  const { groups } = useGroups()
   const { splits, createSplit, updateSplit } = useMonthSplits()
 
   // Search + sort are presentation-only over the already-tenant-scoped rows.
@@ -221,28 +216,6 @@ export function AccountsScreen() {
     return transactions.find((t) => t.id === id)
   }
 
-  async function handleCreateGroup(label: string | null, transactionIds: string[]) {
-    await createGroup(label, transactionIds)
-    await refreshLedger()
-  }
-
-  async function handleAddMember(groupId: string, transactionId: string) {
-    await addMember(groupId, transactionId)
-    await refreshLedger()
-  }
-
-  async function handleRemoveMember(groupId: string, transactionId: string) {
-    await removeMember(groupId, transactionId)
-    await refreshLedger()
-    setViewingGroupId(null)
-  }
-
-  async function handleDeleteGroup(groupId: string) {
-    await deleteGroup(groupId)
-    await refreshLedger()
-    setViewingGroupId(null)
-  }
-
   async function handleCreateSplit(transactionId: string, startMonth: string, numMonths: number) {
     await createSplit(transactionId, startMonth, numMonths)
     await refreshLedger()
@@ -265,50 +238,8 @@ export function AccountsScreen() {
     await refreshAccounts()
   }
 
-  /**
-   * People actions for a plain row: tag it with people (an expense split or
-   * loan, or money someone sent), or work with the people it's tagged with.
-   */
-  function peopleActionsFor(row: DisplayRow, transaction: Transaction): ActionMenuItem[] {
-    const people = row.people
-    const openPeople: ActionMenuItem[] = (people?.contactIds ?? []).slice(0, 3).map((contactId, i) => ({
-      label: `Open ${people!.names[i]}`,
-      detail: 'See your balance with them',
-      icon: <PeopleIcon />,
-      onClick: () => navigate(`/people?selected=${contactId}`),
-    }))
-    if (people?.kind === 'settle_up') return openPeople
-    if (people) {
-      return [
-        { label: 'Edit people', detail: 'Change who’s in on it and how it’s shared', icon: <PeopleIcon />, onClick: () => setPeopleSheet(transaction) },
-        ...openPeople,
-        {
-          label: 'Remove people',
-          detail: 'It goes back to being only yours',
-          icon: <LinkIcon />,
-          confirm: { title: 'Remove the people?', message: 'Their balances will no longer include this transaction.', confirmLabel: 'Remove' },
-          onClick: () =>
-            void (async () => {
-              setActionError(null)
-              try {
-                await peopleApi.deleteSplit(transaction.id)
-              } catch (err) {
-                setActionError(apiErrorMessage(err, 'Couldn’t remove the people'))
-              }
-            })(),
-        },
-      ]
-    }
-    if (transaction.sourceType === 'adjustment' || transaction.amount === 0) return []
-    return [
-      transaction.amount < 0
-        ? { label: 'Split with people', detail: 'Others owe you their share, or all of it if you lent it', icon: <PeopleIcon />, onClick: () => setPeopleSheet(transaction) }
-        : { label: 'Received from someone', detail: 'It comes off what they owe you, or you now owe them', icon: <PeopleIcon />, onClick: () => setPeopleSheet(transaction) },
-    ]
-  }
-
   function actionsFor(row: DisplayRow): ActionMenuItem[] {
-    // Works from the row alone (every kind; a linked group flags all its
+    // Works from the row alone (every kind; a group flags all its
     // transactions), so it's always there, even for rows outside the
     // transactions loaded for the other actions.
     const flagAction: ActionMenuItem = row.flagged
@@ -321,14 +252,33 @@ export function AccountsScreen() {
       return [flagAction, { label: 'Edit split', detail: 'Change how it’s spread across months', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) }]
     }
 
+    // One action for everything that belongs together: other transactions
+    // (a refund, a card payment) and people who share it. A row already in a
+    // group (its net, or what's left of a transaction partly in one) opens it.
+    const groupId = row.reconciliationGroupId
+    const groupAction: ActionMenuItem | null = groupId
+      ? {
+          label: 'Open group',
+          detail: row.people ? 'What’s in it, who’s paid and what’s still expected' : 'See or change what’s in it',
+          icon: <LinkIcon />,
+          onClick: () => setViewingGroupId(groupId),
+        }
+      : null
     const anchorTransaction = findTransaction(row.sourceTransactionIds[0])
-    if (!anchorTransaction) return [flagAction]
+    if (!anchorTransaction) return groupAction ? [flagAction, groupAction] : [flagAction]
 
     const actions: ActionMenuItem[] = [flagAction]
-    // Settle-up adjustments have no account, so the form can't edit them.
-    const accountless = anchorTransaction.sourceType === 'adjustment'
-    if (row.kind === 'plain') actions.push(...peopleActionsFor(row, anchorTransaction))
-    if (row.kind === 'plain' && !accountless) {
+    if (groupAction) {
+      actions.push(groupAction)
+    } else if (anchorTransaction.amount !== 0) {
+      actions.push({
+        label: 'Group',
+        detail: 'With people who share it, or a refund or payment that nets out with it',
+        icon: <LinkIcon />,
+        onClick: () => setGrouping({ transaction: anchorTransaction }),
+      })
+    }
+    if (row.kind === 'plain') {
       actions.push({
         label: 'Edit transaction',
         detail: 'Change the amount, date, category or account',
@@ -336,24 +286,9 @@ export function AccountsScreen() {
         onClick: () => setEditingId(anchorTransaction.id),
       })
     }
-    if (row.kind === 'reconciliation_net' && row.reconciliationGroupId) {
-      const groupId = row.reconciliationGroupId
-      actions.push({
-        label: 'Manage linked transactions',
-        detail: 'See or change the transactions it’s linked with',
-        icon: <LinkIcon />,
-        onClick: () => setViewingGroupId(groupId),
-      })
-    }
-    // A transaction shared with people can't also be spread over months or linked (it would count twice).
-    if (!row.people && !accountless) {
+    // A grouped transaction can't also be spread over months (it would count twice).
+    if (!groupId) {
       actions.push({ label: 'Split across months', detail: 'Spread it across several months', icon: <SplitIcon />, onClick: () => setSplitTarget(anchorTransaction) })
-      actions.push({
-        label: 'Link transactions',
-        detail: 'Match it with a transfer or refund elsewhere',
-        icon: <LinkIcon />,
-        onClick: () => setReconcileAnchor(anchorTransaction),
-      })
     }
     if (row.kind === 'plain') {
       actions.push({
@@ -374,6 +309,7 @@ export function AccountsScreen() {
 
   const editingTransaction = editingId ? findTransaction(editingId) : undefined
   const viewingGroup = viewingGroupId ? groups.find((g) => g.id === viewingGroupId) : undefined
+  const editingGroup = grouping && 'groupId' in grouping ? groups.find((g) => g.id === grouping.groupId) : undefined
   const editingSplit = splitTarget ? (splits.find((s: MonthSplit) => s.transactionId === splitTarget.id) ?? null) : null
 
   // A failed exchange-rate fetch means balances can't be converted to home —
@@ -599,35 +535,20 @@ export function AccountsScreen() {
         />
       )}
 
-      {reconcileAnchor && (
-        <ReconcilePicker
-          open={!!reconcileAnchor}
-          onClose={() => setReconcileAnchor(null)}
-          anchor={reconcileAnchor}
-          existingGroup={groups.find((g) => g.memberTransactionIds.includes(reconcileAnchor.id)) ?? null}
-          allGroups={groups}
-          transactions={transactions}
-          categories={categories}
-          accounts={accounts}
-          onCreateGroup={handleCreateGroup}
-          onAddMember={handleAddMember}
-        />
-      )}
-
       {viewingGroup && (
-        <ReconciliationGroupModal
-          open={!!viewingGroup}
-          onClose={() => setViewingGroupId(null)}
+        <GroupModal
           group={viewingGroup}
-          transactions={transactions}
-          categories={categories}
           accounts={accounts}
-          onRemoveMember={handleRemoveMember}
-          onDeleteGroup={handleDeleteGroup}
+          onClose={() => setViewingGroupId(null)}
+          onEdit={() => {
+            setViewingGroupId(null)
+            setGrouping({ groupId: viewingGroup.id })
+          }}
         />
       )}
 
-      {peopleSheet && <SplitWizard transaction={peopleSheet} onClose={() => setPeopleSheet(null)} />}
+      {grouping && 'transaction' in grouping && <GroupWizard transaction={grouping.transaction} onClose={() => setGrouping(null)} />}
+      {editingGroup && <GroupWizard group={editingGroup} onClose={() => setGrouping(null)} />}
 
       {splitTarget && (
         <SplitModal

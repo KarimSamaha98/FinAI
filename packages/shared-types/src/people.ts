@@ -2,28 +2,17 @@ import { z } from "zod";
 import { CurrencyCodeSchema } from "./currency.js";
 
 /**
- * People: one running balance with each person the user shares money with.
+ * People: the user's balance with each person they share money with.
  *
- * The user tags transactions with people; each tag is an entry that moves the
- * person's balance. Nothing links a repayment to what it repays: the balance
- * is just the sum. Entry amounts are signed: positive = the person owes the
- * user more, negative = the user owes them more (or they paid some back).
- *
- * - share: a person's portion of a tagged transaction, = −(their portion of
- *   the transaction amount). A −120 dinner split with Sam at 60 → +60; Sam's
- *   +60 transfer tagged to Sam → −60. Lending is a split with the user's
- *   share at 0; borrowing is an incoming transfer tagged to the lender.
- *   Settling up with a transaction (an existing one, or a new one) is a share
- *   too: the whole transaction goes to the person.
- * - writeoff: settling up by forgiving what's left, booked as an
- *   account-less adjustment transaction of the same amount.
+ * People live in groups (see groups.ts). Each person in a group has a share,
+ * signed like a balance: positive = they owe the user, negative = the user
+ * owes them. Their payments for that group (transactions tagged with them)
+ * settle the share; what's left is an expected payment until it's paid or
+ * forgiven. A person's balance = Σ (share − forgiven) − Σ payments.
  */
 
 export const SplitModeSchema = z.enum(["equal", "amount", "percent"]);
 export type SplitMode = z.infer<typeof SplitModeSchema>;
-
-export const PersonEntryKindSchema = z.enum(["share", "writeoff"]);
-export type PersonEntryKind = z.infer<typeof PersonEntryKindSchema>;
 
 // ── Contacts ───────────────────────────────────────────────────────────────
 
@@ -68,100 +57,83 @@ export const PeopleSummarySchema = z.object({
 });
 export type PeopleSummary = z.infer<typeof PeopleSummarySchema>;
 
-export const PersonEntrySchema = z.object({
-  id: z.string().uuid(),
-  contactId: z.string().uuid(),
-  kind: PersonEntryKindSchema,
-  transactionId: z.string().uuid().nullable(),
-  /** Signed like the balance. */
-  amount: z.number(),
-  currencyCode: CurrencyCodeSchema,
+/** A payment from (or to) a person, as part of one group. */
+export const PersonPaymentSchema = z.object({
+  transactionId: z.string().uuid(),
   date: z.string().date(),
-  /** The transaction's description ("Settled up" for a write-off). */
-  label: z.string(),
+  description: z.string(),
+  /** The part of the transaction for this group, signed like the transaction. */
+  amount: z.number(),
 });
-export type PersonEntry = z.infer<typeof PersonEntrySchema>;
+export type PersonPayment = z.infer<typeof PersonPaymentSchema>;
+
+/** A person's part in one group: what they owe for it and how it was settled. */
+export const PersonGroupSchema = z.object({
+  groupId: z.string().uuid(),
+  /** The group's date (its main transaction's). */
+  date: z.string().date(),
+  label: z.string(),
+  currencyCode: CurrencyCodeSchema,
+  /** Their share, signed like a balance (+ they owe the user). */
+  share: z.number(),
+  /** Σ their payments, signed like the share (what they've paid off of it). */
+  paid: z.number(),
+  forgiven: z.number(),
+  forgivenOn: z.string().date().nullable(),
+  /** Still expected: share − forgiven − paid. */
+  outstanding: z.number(),
+  payments: z.array(PersonPaymentSchema),
+});
+export type PersonGroup = z.infer<typeof PersonGroupSchema>;
 
 export const PersonDetailSchema = z.object({
   summary: PersonSummarySchema,
   /** Newest first. */
-  entries: z.array(PersonEntrySchema),
+  groups: z.array(PersonGroupSchema),
 });
 export type PersonDetail = z.infer<typeof PersonDetailSchema>;
 
-// ── Splits (tagging a transaction with people) ─────────────────────────────
-
-export const SplitParticipantInputSchema = z.object({
-  contactId: z.string().uuid(),
-  /** amount mode: the amount · percent: the percentage · equal: ignored. */
-  value: z.number().min(0),
-});
-export type SplitParticipantInput = z.infer<typeof SplitParticipantInputSchema>;
-
-export const TransactionSplitInputSchema = z.object({
-  mode: SplitModeSchema,
-  /**
-   * Equal mode: 1 (include me) or 0 (all theirs). Amount and percent give the
-   * user whatever the others don't take.
-   */
-  myValue: z.number().min(0).default(1),
-  participants: z.array(SplitParticipantInputSchema).min(1).max(30),
-});
-export type TransactionSplitInput = z.infer<typeof TransactionSplitInputSchema>;
-
-export const TransactionSplitSchema = z.object({
-  id: z.string().uuid(),
-  transactionId: z.string().uuid(),
-  mode: SplitModeSchema,
-  myValue: z.number(),
-  /** The user's portion, as a magnitude. */
-  myShare: z.number(),
-  participants: z.array(
-    z.object({
-      contactId: z.string().uuid(),
-      value: z.number(),
-      /** Their portion, as a magnitude. */
-      amount: z.number(),
-    }),
-  ),
-});
-export type TransactionSplit = z.infer<typeof TransactionSplitSchema>;
-
-export const TransactionPeopleSchema = z.object({
-  transactionId: z.string().uuid(),
-  split: TransactionSplitSchema.nullable(),
-});
-export type TransactionPeople = z.infer<typeof TransactionPeopleSchema>;
-
 // ── Settle up ──────────────────────────────────────────────────────────────
 
+/** How much of a payment goes to each group the person owes in. */
+export const PaymentAllocationSchema = z.object({
+  groupId: z.string().uuid(),
+  amount: z.number().positive(),
+});
+export type PaymentAllocation = z.infer<typeof PaymentAllocationSchema>;
+
 /**
- * - forgive: write off what's left (every currency) as an account-less
- *   adjustment: spending when they owed the user, income when the user owed them.
- * - link: an existing transaction (their transfer in, or the user's payment
- *   out) goes entirely to the person.
- * - new: record a new transaction on an account for `amount`, and give it
- *   entirely to the person. Money in when they owe the user, out otherwise.
+ * - forgive: let go of everything still expected from (or owed to) them.
+ * - match: an existing transaction is their payment, divided between the
+ *   groups they owe in (`allocations`, magnitudes).
+ * - new: record that payment as a new transaction on an account, then match it.
  */
 export const SettleUpInputSchema = z.discriminatedUnion("method", [
   z.object({ method: z.literal("forgive") }),
-  z.object({ method: z.literal("link"), transactionId: z.string().uuid() }),
+  z.object({
+    method: z.literal("match"),
+    transactionId: z.string().uuid(),
+    allocations: z.array(PaymentAllocationSchema).min(1).max(100),
+  }),
   z.object({
     method: z.literal("new"),
     accountId: z.string().uuid(),
     amount: z.number().positive(),
     date: z.string().date(),
     description: z.string().trim().min(1).max(200),
+    allocations: z.array(PaymentAllocationSchema).min(1).max(100),
   }),
 ]);
 export type SettleUpInput = z.infer<typeof SettleUpInputSchema>;
 
-/** A transaction that could settle up with a person (right direction, not already linked to anything). */
+/** A transaction that could be a person's payment: the right direction, with some of it not in a group yet. */
 export const SettleUpCandidateSchema = z.object({
   id: z.string().uuid(),
   date: z.string().date(),
   description: z.string(),
   amount: z.number(),
+  /** What's not in a group yet, signed like amount. */
+  available: z.number(),
   currencyCode: CurrencyCodeSchema,
   accountName: z.string().nullable(),
 });
@@ -236,11 +208,11 @@ export function computeSplit(total: number, mode: SplitMode, participants: numbe
 }
 
 /**
- * The signed entry amount for a person's portion of a transaction: the
- * opposite sign of the transaction. An expense (−) split → they owe (+);
- * money in (+) from them → they owe less (−).
+ * A person's share of a group, signed like a balance: the opposite sign of
+ * the group's own money. An expense (−) split → they owe the user (+); money
+ * in (+) they lent → the user owes them (−).
  */
-export function shareEntryAmount(transactionAmount: number, portion: number): number {
+export function shareAmount(groupTotal: number, portion: number): number {
   const cents = toCents(Math.abs(portion));
-  return fromCents(transactionAmount < 0 ? cents : -cents);
+  return fromCents(groupTotal < 0 ? cents : -cents);
 }

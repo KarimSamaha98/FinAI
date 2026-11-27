@@ -140,8 +140,7 @@ export const transactions = pgTable('transactions', {
   description: text('description').notNull().default(''),
   categoryId: uuid('category_id').references(() => categories.id),
   accountId: uuid('account_id').references(() => accounts.id),
-  // 'adjustment' rows are created by "settle up" with a person and have no account.
-  sourceType: text('source_type', { enum: ['manual', 'import', 'adjustment'] }).notNull(),
+  sourceType: text('source_type', { enum: ['manual', 'import'] }).notNull(),
   importProfileId: uuid('import_profile_id').references(() => importProfiles.id),
   importRunId: uuid('import_run_id').references(() => importRuns.id),
   // Home-currency materialization (see exchange_rates migration): the rate
@@ -155,10 +154,20 @@ export const transactions = pgTable('transactions', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Groups (see supabase/migrations/*_groups_with_people.sql): transactions
+// that belong together, and the people who share them.
+export interface GroupSplitInputs {
+  me: number
+  participants: { contactId: string; value: number }[]
+}
+
 export const reconciliationGroups = pgTable('reconciliation_groups', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull(),
   label: text('label'),
+  // How the people's shares were worked out, so the split reopens as left.
+  splitMode: text('split_mode', { enum: ['equal', 'amount', 'percent'] }),
+  splitInputs: jsonb('split_inputs').$type<GroupSplitInputs>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -169,8 +178,11 @@ export const reconciliationGroupMembers = pgTable('reconciliation_group_members'
     .references(() => reconciliationGroups.id),
   transactionId: uuid('transaction_id')
     .notNull()
-    .unique()
     .references(() => transactions.id),
+  // Set when the transaction is a person's payment for this group.
+  contactId: uuid('contact_id').references(() => contacts.id),
+  // The part of the transaction in this group (same sign); null = all of it.
+  amount: numeric('amount', { precision: 14, scale: 2 }),
 })
 
 export const monthSplits = pgTable(
@@ -199,38 +211,22 @@ export const contacts = pgTable('contacts', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export interface TransactionSplitInputs {
-  me: number
-  participants: { contactId: string; value: number }[]
-}
-
-export const transactionSplits = pgTable('transaction_splits', {
+/** A person's share of a group, signed like a balance (positive = they owe the user). */
+export const groupShares = pgTable('group_shares', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull(),
-  transactionId: uuid('transaction_id')
+  groupId: uuid('group_id')
     .notNull()
-    .unique()
-    .references(() => transactions.id),
-  mode: text('mode', { enum: ['equal', 'amount', 'percent'] }).notNull(),
-  inputs: jsonb('inputs').$type<TransactionSplitInputs>().notNull(),
-  myShare: numeric('my_share', { precision: 14, scale: 2 }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-})
-
-export const personEntries = pgTable('person_entries', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull(),
+    .references(() => reconciliationGroups.id),
   contactId: uuid('contact_id')
     .notNull()
     .references(() => contacts.id),
-  kind: text('kind', { enum: ['share', 'writeoff'] }).notNull(),
-  transactionId: uuid('transaction_id').references(() => transactions.id),
-  splitId: uuid('split_id').references(() => transactionSplits.id),
   amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
   currencyCode: text('currency_code')
     .notNull()
     .references(() => currencies.code),
-  date: date('date').notNull(),
+  // What the user let go of (same sign as amount), and when.
+  forgiven: numeric('forgiven', { precision: 14, scale: 2 }).notNull().default('0'),
+  forgivenOn: date('forgiven_on'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

@@ -7,8 +7,7 @@ import { CurrencyCodeSchema } from "./currency.js";
  * positive = money in (income). Every input path converts into this form
  * at write time so charts/aggregates/reconciliation sums are plain SUM(amount).
  */
-// "adjustment" is created by "settle up" with a person and has no account (see people.ts).
-export const TransactionSourceTypeSchema = z.enum(["manual", "import", "adjustment"]);
+export const TransactionSourceTypeSchema = z.enum(["manual", "import"]);
 export type TransactionSourceType = z.infer<typeof TransactionSourceTypeSchema>;
 
 /** Whether a transaction's home-currency value was inferred or set by the user. */
@@ -108,15 +107,15 @@ export const DisplayRowKindSchema = z.enum(["plain", "reconciliation_net", "mont
 export type DisplayRowKind = z.infer<typeof DisplayRowKindSchema>;
 
 /**
- * How a row involves people, for the ledger's subline:
- * split — a transaction tagged with people (an expense split, a loan, a
- *   repayment received or paid); settle_up — the adjustment "settle up" booked.
+ * The people in a group row, for the ledger's subline ("With Sam and Alex ·
+ * Alex owes $30").
  */
 export const DisplayRowPeopleSchema = z.object({
-  kind: z.enum(["split", "settle_up"]),
   /** The people involved, by display name, and their contact ids (same order). */
   names: z.array(z.string()),
   contactIds: z.array(z.string().uuid()),
+  /** Still expected across them, in the row's currency: + they owe the user, − the user owes. */
+  outstanding: z.number(),
 });
 export type DisplayRowPeople = z.infer<typeof DisplayRowPeopleSchema>;
 
@@ -144,12 +143,12 @@ export const DisplayRowSchema = z.object({
   // month_split_portion = converted_value / num_months. Null when no rate.
   convertedValue: z.number().nullable(),
   rateSource: RateSourceSchema,
-  // "Needs attention": any underlying transaction is flagged (a linked
-  // group's member, a split portion's original).
+  // "Needs attention": any underlying transaction is flagged (a group's
+  // member, a split portion's original).
   flagged: z.boolean(),
-  // People involved (null when none). In the real view the amount is already
-  // net of their shares: a split expense shows the user's share, a loan or a
-  // repayment is hidden. In the nominal view the amount is untouched.
+  // The people in a group row (null when none). The group's amount is
+  // already net of their shares: a dinner split three ways shows the user's
+  // third. Only real-view group rows have people.
   people: DisplayRowPeopleSchema.nullable(),
 });
 export type DisplayRow = z.infer<typeof DisplayRowSchema>;

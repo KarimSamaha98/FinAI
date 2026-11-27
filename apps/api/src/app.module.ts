@@ -11,7 +11,7 @@ import { AccountsModule } from './modules/accounts/accounts.module.js'
 import { TransactionsModule } from './modules/transactions/transactions.module.js'
 import { ImportProfilesModule } from './modules/import-profiles/import-profiles.module.js'
 import { ImportRunsModule } from './modules/import-runs/import-runs.module.js'
-import { ReconciliationModule } from './modules/reconciliation/reconciliation.module.js'
+import { GroupsModule } from './modules/groups/groups.module.js'
 import { MonthSplitModule } from './modules/month-split/month-split.module.js'
 import { ReportingModule } from './modules/reporting/reporting.module.js'
 import { CurrenciesModule } from './modules/currencies/currencies.module.js'
@@ -34,7 +34,7 @@ import { PeopleModule } from './modules/people/people.module.js'
     TransactionsModule,
     ImportProfilesModule,
     ImportRunsModule,
-    ReconciliationModule,
+    GroupsModule,
     MonthSplitModule,
     ReportingModule,
     CurrenciesModule,
