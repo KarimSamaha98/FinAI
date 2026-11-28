@@ -1,6 +1,7 @@
 # Morning sweep: every open issue labelled `agent` that is not yet waiting for
-# review (`agent:review`) gets an agent run. Runs that hit the daily usage limit
-# fail and report on their issue; tomorrow's sweep continues them.
+# review (`agent:review`) and not being worked on the Pi (`interactive`) gets an
+# agent run. Runs that hit the daily usage limit fail and report on their issue;
+# tomorrow's sweep continues them (resuming their saved sessions).
 name: Claude morning sweep
 
 on:
@@ -27,7 +28,7 @@ jobs:
         run: |
           issues=$(gh issue list -R "${{ github.repository }}" --state open --label agent --limit 100 \
             --json number,labels --jq '
-              map(select([.labels[].name] | index("agent:review") | not))
+              map(select([.labels[].name] | (index("agent:review") or index("interactive")) | not))
               | sort_by(([.labels[].name] | index("priority:high") | not), .number)
               | map(.number)')
           echo "issues=$issues" >> "$GITHUB_OUTPUT"

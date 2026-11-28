@@ -1,0 +1,35 @@
+name: Save Claude session
+description: Saves the Claude Code session this run used to the Actions cache, keyed by branch.
+inputs:
+  branch:
+    description: Branch the session belongs to (e.g. agent/issue-12)
+    required: true
+  session_id:
+    description: The claude-code-action `session_id` output (may be empty if the run failed)
+    default: ""
+runs:
+  using: composite
+  steps:
+    - id: find
+      shell: bash
+      env:
+        BRANCH: ${{ inputs.branch }}
+        SID: ${{ inputs.session_id }}
+      run: |
+        f=""
+        [ -n "$SID" ] && f=$(find ~/.claude/projects -name "$SID.jsonl" 2>/dev/null | head -1)
+        if [ -z "$f" ]; then # no output (failed/cancelled run): take the newest transcript
+          f=$(find ~/.claude/projects -name '*.jsonl' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
+        fi
+        if [ -z "$f" ]; then
+          echo "No Claude session transcript found under ~/.claude/projects; nothing to save" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+        basename "$f" .jsonl > ~/.claude/projects/.session-id
+        echo "Saved Claude session $(cat ~/.claude/projects/.session-id)" | tee -a "$GITHUB_STEP_SUMMARY"
+        echo "key=claude-session-${BRANCH//\//-}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+    - if: steps.find.outputs.key
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.claude/projects
+        key: ${{ steps.find.outputs.key }}

@@ -12,6 +12,8 @@ FinAI: personal finance tracker. pnpm monorepo — `apps/web` (React 19 + Vite P
 - Single package: `pnpm --filter api|web|shared-types run <script>`.
 - **Demo data**: `pnpm seed:demo` (no-op if the demo user exists) / `pnpm seed:demo:reset` (delete + reseed, deterministic) / `pnpm reset:demo` (db reset + reseed) / `pnpm setup:dev` (full local bring-up) / `pnpm generate:csv -- --rows N` (writes a CIBC-style import-test CSV; `apps/api/src/seed/generate-import-csv.ts`) / `pnpm recompute:fx` (backfill home-currency values for existing transactions; `apps/api/src/seed/recompute-fx.ts`) / `pnpm sync:currencies` (load every provider-supported currency into the `currencies` table; `apps/api/src/seed/sync-currencies.ts` — run once after deploy). Seeder lives in `apps/api/src/seed/` (tsx, excluded from the prod build; needs Supabase running + `apps/api/.env`; refuses non-local backends unless `ALLOW_NON_LOCAL_SEED=true`). The demo user's Everyday Checking account has a `CIBC card export` import profile matching `generate:csv` output and real CIBC statements.
 
+- **Claude agents**: GitHub issues labelled `agent` are worked into PRs by `.github/workflows/claude-*.yml`; `interactive` runs a session on the Pi (`scripts/agents/`). See `docs/agents/README.md`. When working as one of these agents, keep `docs/plans/issue-N.md` current.
+
 ## Setup
 
 1. `pnpm install`

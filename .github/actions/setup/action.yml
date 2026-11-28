@@ -1,5 +1,9 @@
 name: Setup workspace
-description: Node + pnpm, install dependencies, build shared-types so the apps typecheck.
+description: Node + pnpm; optionally install dependencies and build shared-types so the apps typecheck.
+inputs:
+  install:
+    description: Install dependencies and build shared-types ("false" leaves that to the agent, for fast answers)
+    default: "true"
 runs:
   using: composite
   steps:
@@ -10,7 +14,6 @@ runs:
       with:
         node-version: 22
         cache: pnpm
-    - shell: bash
-      run: pnpm install --frozen-lockfile
-    - shell: bash
-      run: pnpm --filter shared-types run build
+    - if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile && pnpm --filter shared-types run build
