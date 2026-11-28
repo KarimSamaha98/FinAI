@@ -11,3 +11,6 @@ apps/web/dist/
 apps/api/dist/
 supabase/.branches/
 supabase/.temp/
+
+# Python bytecode (scripts/agents)
+__pycache__/
