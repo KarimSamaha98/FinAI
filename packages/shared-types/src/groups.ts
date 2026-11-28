@@ -18,7 +18,16 @@ import { SplitModeSchema } from "./people.js";
  * Net (real view) = Σ own members + Σ (share − forgiven). Payments don't move
  * it: they only settle shares. A −90 dinner shared with Sam and Alex at 30
  * each nets to −30, whether or not they've paid yet.
+ *
+ * A transfer (`kind: "transfer"`) is the other kind of group: money moving
+ * between the user's own accounts (to savings, paying a credit card). It holds
+ * whole transactions only, no people, at least one out and one in across two
+ * or more accounts, and its transactions can be in different currencies. Its
+ * net is in the home currency: what's left is an FX difference or a fee.
  */
+
+export const GroupKindSchema = z.enum(["shared", "transfer"]);
+export type GroupKind = z.infer<typeof GroupKindSchema>;
 
 export const GroupSplitSchema = z.object({
   mode: SplitModeSchema,
@@ -46,6 +55,8 @@ export const GroupMemberSchema = z.object({
   /** True when only part of the transaction is in this group. */
   allocated: z.boolean(),
   transactionAmount: z.number(),
+  /** The transaction's currency: the group's, except across a transfer's sides. */
+  currencyCode: CurrencyCodeSchema,
   date: z.string().date(),
   description: z.string(),
   accountId: z.string().uuid().nullable(),
@@ -69,16 +80,18 @@ export type GroupShare = z.infer<typeof GroupShareSchema>;
 
 export const GroupSchema = z.object({
   id: z.string().uuid(),
+  kind: GroupKindSchema,
   label: z.string().nullable(),
   /** The label, or the main transaction's description. */
   description: z.string(),
   currencyCode: CurrencyCodeSchema,
-  /** The main transaction's date. */
+  /** The main transaction's date (a transfer's: the money going out). */
   date: z.string().date(),
   /** The user's own transaction with the largest amount; its category and date stand for the group. */
   anchorTransactionId: z.string().uuid(),
   anchorCategoryId: z.string().uuid().nullable(),
-  net: z.number(),
+  /** In currencyCode. A transfer across currencies: the home-currency difference, in the anchor's currency (null without rates). */
+  net: z.number().nullable(),
   members: z.array(GroupMemberSchema),
   shares: z.array(GroupShareSchema),
   split: GroupSplitSchema.nullable(),
@@ -126,6 +139,21 @@ export const GroupCandidateSchema = z.object({
 });
 export type GroupCandidate = z.infer<typeof GroupCandidateSchema>;
 
+/** Matches transactions as a transfer between the user's own accounts. */
+export const SaveTransferInputSchema = z.object({
+  label: z.string().trim().max(200).nullable().default(null),
+  transactionIds: z.array(z.string().uuid()).min(2).max(10),
+});
+export type SaveTransferInput = z.input<typeof SaveTransferInputSchema>;
+export type SaveTransferData = z.output<typeof SaveTransferInputSchema>;
+
+/** A transaction that could be the other side of a transfer. */
+export const TransferCandidateSchema = GroupCandidateSchema.extend({
+  /** Same currency and amount, a few days apart: most likely the other side. */
+  likely: z.boolean(),
+});
+export type TransferCandidate = z.infer<typeof TransferCandidateSchema>;
+
 // ── Calculations shared by the web and the API ─────────────────────────────
 
 const toCents = (amount: number) => Math.round(amount * 100);
@@ -168,4 +196,27 @@ export function allocateInOrder(available: number, owed: number[]): number[] {
     left -= take;
     return fromCents(take);
   });
+}
+
+/** Days apart a transfer's two sides can be and still count as a likely match. */
+export const TRANSFER_LIKELY_DAYS = 7;
+
+/**
+ * How well `candidate` fits as the other side of a transfer from `source`
+ * (lower is better), or null when it can't be: same direction, same account,
+ * or nothing left of it. Likely matches (same currency and amount, within a
+ * week) rank first, then everything else by how close it is in date.
+ */
+export function transferFit(
+  source: { amount: number; currencyCode: string; accountId: string | null; date: string },
+  candidate: { amount: number; currencyCode: string; accountId: string | null; date: string },
+): { score: number; likely: boolean } | null {
+  if (source.amount === 0 || candidate.amount === 0) return null;
+  if (Math.sign(source.amount) === Math.sign(candidate.amount)) return null;
+  if (!source.accountId || !candidate.accountId || source.accountId === candidate.accountId) return null;
+  const days = Math.abs(Date.parse(source.date) - Date.parse(candidate.date)) / 86_400_000;
+  const sameCurrency = source.currencyCode === candidate.currencyCode;
+  const sameAmount = sameCurrency && toCents(Math.abs(source.amount)) === toCents(Math.abs(candidate.amount));
+  const likely = sameAmount && days <= TRANSFER_LIKELY_DAYS;
+  return { score: (likely ? 0 : 1000) + days, likely };
 }

@@ -86,7 +86,7 @@ export function GroupModal({ group, accounts, onEdit, onClose }: GroupModalProps
 
         <div className="group-sheet-total">
           <span>{group.shares.length > 0 ? 'Your part' : 'Comes to'}</span>
-          <span className="mono">{formatCurrency(group.net, currency)}</span>
+          <span className="mono">{formatCurrency(group.net ?? 0, currency)}</span>
         </div>
 
         {error && <Alert variant="error">{error}</Alert>}

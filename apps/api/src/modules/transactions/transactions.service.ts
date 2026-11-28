@@ -122,14 +122,19 @@ export class TransactionsService {
       if (!row) throw new NotFoundException('Transaction not found')
       // People's shares were worked out from this amount, and a part of it
       // may be in a group; changing it underneath them would leave balances
-      // wrong. A group's currency has to stay one.
+      // wrong. A group's currency has to stay one (a transfer's sides can differ).
       const amountChanges = input.amount !== undefined && Number(input.amount) !== Number(row.amount)
       const currencyChanges = input.currencyCode !== undefined && input.currencyCode !== row.currencyCode
       if (amountChanges || currencyChanges) {
         const memberships = await membershipsOf(tx, [id])
         const groups = await loadGroups(tx, memberships.map((m) => m.groupId))
-        if (currencyChanges && memberships.length > 0) {
+        // A transfer's sides can be in any currency; a shared group's can't.
+        if (currencyChanges && groups.some((g) => g.group.kind === 'shared')) {
           throw new ConflictException('This transaction is in a group. Take it out before changing its currency.')
+        }
+        const signFlips = amountChanges && Math.sign(Number(input.amount)) !== Math.sign(Number(row.amount))
+        if (signFlips && groups.some((g) => g.group.kind === 'transfer')) {
+          throw new ConflictException('This transaction is one side of a transfer. Unmatch it before changing money out to money in.')
         }
         if (memberships.some((m) => m.amount !== null || m.contactId !== null) || groups.some((g) => g.shares.length > 0)) {
           throw new ConflictException('This transaction is in a group with people. Take it out before changing its amount.')

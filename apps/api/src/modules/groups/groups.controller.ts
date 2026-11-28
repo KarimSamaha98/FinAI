@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Inject, Param, Post, Put, Query, UseGuards } from '@nestjs/common'
-import { SaveGroupInputSchema } from 'shared-types'
+import { SaveGroupInputSchema, SaveTransferInputSchema } from 'shared-types'
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard.js'
 import { CurrentUserId } from '../auth/current-user-id.decorator.js'
 import { GroupsService } from './groups.service.js'
@@ -18,6 +18,18 @@ export class GroupsController {
   @Get('candidates')
   candidates(@CurrentUserId() userId: string, @Query('currency') currencyCode?: string, @Query('group') groupId?: string) {
     return this.groups.candidates(userId, { currencyCode: currencyCode || undefined, groupId: groupId || undefined })
+  }
+
+  /** What could be the other side of a transfer with ?transaction=, likely ones first. */
+  @Get('transfer-candidates')
+  transferCandidates(@CurrentUserId() userId: string, @Query('transaction') transactionId: string) {
+    return this.groups.transferCandidates(userId, transactionId)
+  }
+
+  /** Matches transactions as a transfer between the user's accounts. Undo it with DELETE /groups/:id. */
+  @Post('transfers')
+  createTransfer(@CurrentUserId() userId: string, @Body() body: unknown) {
+    return this.groups.saveTransfer(userId, SaveTransferInputSchema.parse(body))
   }
 
   @Get(':id')

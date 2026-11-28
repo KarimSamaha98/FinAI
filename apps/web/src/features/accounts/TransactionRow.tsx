@@ -1,11 +1,11 @@
 import type { CSSProperties } from 'react'
 import { format, parseISO } from 'date-fns'
-import type { Account, Category, DisplayRow, DisplayRowPeople, MonthSplit } from 'shared-types'
+import type { Account, Category, DisplayRow, DisplayRowPeople, DisplayRowTransfer, MonthSplit, TransactionView } from 'shared-types'
 import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate, formatMonthYear } from '../../lib/formatDate'
 import { accountTypeIcon } from '../../lib/accountIcons'
 import { CategoryIcon } from '../../components/categoryIcons'
-import { AccountIcon, FlagIcon, LinkIcon, PeopleIcon, SplitIcon } from '../../components/icons'
+import { AccountIcon, FlagIcon, LinkIcon, PeopleIcon, SplitIcon, TransferIcon } from '../../components/icons'
 
 interface TransactionRowProps {
   row: DisplayRow
@@ -17,6 +17,10 @@ interface TransactionRowProps {
   showAccount?: boolean
   /** Omit for a display-only row (e.g. the CSV wizard's preview). */
   onClick?: () => void
+  /** The view the row came from: in nominal view a grouped transaction shows whole. */
+  view?: TransactionView
+  /** Groups that are transfers, to describe a grouped transaction in nominal view. */
+  transferGroupIds?: Set<string>
 }
 
 /** 1-based index of a portion's month within its split, e.g. Sep within Sep–Aug = 1. */
@@ -39,6 +43,16 @@ function peopleMeta(people: DisplayRowPeople, currencyCode: string): string {
   return `${who} · settled`
 }
 
+/** The subline for a transfer, e.g. "Transfer · Chequing → Visa · $500.00". */
+function transferMeta(transfer: DisplayRowTransfer, accounts: Account[]): string {
+  const name = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? 'another account'
+  const moved =
+    transfer.sentCurrencyCode === transfer.receivedCurrencyCode
+      ? formatCurrency(transfer.sent, transfer.sentCurrencyCode)
+      : `${formatCurrency(transfer.sent, transfer.sentCurrencyCode)} → ${formatCurrency(transfer.received, transfer.receivedCurrencyCode)}`
+  return `Transfer · ${name(transfer.fromAccountId)} → ${name(transfer.toAccountId)} · ${moved}`
+}
+
 /**
  * One ledger row. Plain rows pass through; month-split portions and
  * group nets carry a kind badge, a second metadata line, and the
@@ -52,6 +66,8 @@ export function TransactionRow({
   splitByTransactionId,
   showAccount = false,
   onClick,
+  view = 'real',
+  transferGroupIds,
 }: TransactionRowProps) {
   const isSplitPortion = row.kind === 'month_split_portion'
   const isGroup = row.kind === 'reconciliation_net'
@@ -66,17 +82,26 @@ export function TransactionRow({
 
   // The subline spells out what the status icons mean (touch has no hover).
   const groupedCount = row.sourceTransactionIds.length
-  const isGroupRemainder = row.kind === 'plain' && row.reconciliationGroupId !== null
+  // A plain row in a group: in real view, what's left of a transaction only
+  // partly in one; in nominal view, a grouped transaction shown whole.
+  const inGroup = row.kind === 'plain' && row.reconciliationGroupId !== null
+  const inTransfer = inGroup && view === 'nominal' && transferGroupIds?.has(row.reconciliationGroupId!) === true
   const meta = isSplitPortion
     ? split
       ? `Month ${monthIndexIn(row.date, split.startMonth)} of ${split.numMonths} · from ${formatMonthYear(split.startMonth)}`
       : 'Split across months'
     : isGroup
-      ? row.people
-        ? peopleMeta(row.people, row.currencyCode)
-        : `Grouped · ${groupedCount} ${groupedCount === 1 ? 'transaction' : 'transactions'}`
-      : isGroupRemainder
-        ? 'What’s left · the rest is in a group'
+      ? row.transfer
+        ? transferMeta(row.transfer, accounts)
+        : row.people
+          ? peopleMeta(row.people, row.currencyCode)
+          : `Grouped · ${groupedCount} ${groupedCount === 1 ? 'transaction' : 'transactions'}`
+      : inGroup
+        ? view === 'nominal'
+          ? inTransfer
+            ? 'Transfer · matched'
+            : 'In a group'
+          : 'What’s left · the rest is in a group'
         : null
 
   // Split portions are virtual rows dated on the 1st of each covered month,
@@ -122,9 +147,9 @@ export function TransactionRow({
               {meta && (
                 <span className="txn-row-meta">
                   {/* Group / split: the icon leads the text that explains it. */}
-                  {(isDerived || isGroupRemainder) && (
+                  {(isDerived || inGroup) && (
                     <span className="txn-row-meta-icon" aria-hidden="true">
-                      {isSplitPortion ? <SplitIcon /> : row.people ? <PeopleIcon /> : <LinkIcon />}
+                      {isSplitPortion ? <SplitIcon /> : row.transfer || inTransfer ? <TransferIcon /> : row.people ? <PeopleIcon /> : <LinkIcon />}
                     </span>
                   )}
                   {meta}

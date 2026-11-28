@@ -13,6 +13,8 @@ export interface PickableTransaction {
   available: number
   currencyCode: string
   accountName: string | null
+  /** Shown with a "Likely match" chip. */
+  likely?: boolean
 }
 
 interface TransactionPickerProps {
@@ -48,7 +50,10 @@ export function TransactionPicker({ items, loading, selectedId = null, onPick, e
                 onClick={() => onPick(c)}
               >
                 <span className="settle-candidate-main">
-                  <span className="settle-candidate-title">{c.description || 'Untitled'}</span>
+                  <span className="settle-candidate-title">
+                    {c.description || 'Untitled'}
+                    {c.likely && <span className="likely-chip">Likely match</span>}
+                  </span>
                   <span className="settle-candidate-sub">
                     {formatDate(c.date)}
                     {c.accountName && ` · ${c.accountName}`}

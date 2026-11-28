@@ -6,7 +6,7 @@ import type { Db } from '../../db/client.js'
 import { runInTenantContext } from '../../db/tenant-context.js'
 import { monthSplits, reconciliationGroupMembers, transactions } from '../../db/schema.js'
 import { roundMoney } from '../exchange-rates/conversion.js'
-import { anchorOf, contactNames, loadGroups, memberAmount, paidByContact, type LoadedMember } from '../groups/group-store.js'
+import { anchorOf, contactNames, loadGroups, memberAmount, paidByContact, transferNet, transferSides, type LoadedMember } from '../groups/group-store.js'
 
 type TransactionRow = typeof transactions.$inferSelect
 
@@ -31,6 +31,7 @@ function toPlainDisplayRow(
     rateSource: row.rateSource,
     flagged: row.flaggedAt != null,
     people: null,
+    transfer: null,
   }
 }
 
@@ -159,6 +160,29 @@ export class ReportingQueryService {
         if (filter.categoryIds?.length && (!anchor.categoryId || !filter.categoryIds.includes(anchor.categoryId))) continue
         if (filter.accountIds?.length && (!anchor.accountId || !filter.accountIds.includes(anchor.accountId))) continue
 
+        const base = {
+          kind: 'reconciliation_net' as const,
+          date: anchor.date,
+          currencyCode: anchor.currencyCode,
+          description: loaded.group.label || anchor.description,
+          categoryId: anchor.categoryId,
+          accountIds: [...new Set(loaded.members.map((m) => m.transaction.accountId).filter((id): id is string => id !== null))],
+          anchorAccountId: anchor.accountId,
+          sourceTransactionIds: [anchor.id, ...loaded.members.map((m) => m.transaction.id).filter((id) => id !== anchor.id)],
+          reconciliationGroupId: loaded.group.id,
+          monthSplitId: null,
+          rateSource: 'auto' as const,
+          flagged: loaded.members.some((m) => m.transaction.flaggedAt != null),
+        }
+
+        // A transfer only moved money between the user's accounts: what's
+        // left is an FX difference or a fee (usually nothing).
+        if (loaded.group.kind === 'transfer') {
+          const net = transferNet(loaded, anchor)
+          netRows.push({ ...base, amount: net.amount ?? 0, convertedValue: net.convertedValue, people: null, transfer: transferSides(loaded) })
+          continue
+        }
+
         const own = loaded.members.filter((m) => m.member.contactId === null)
         const shares = loaded.shares.map((s) => ({ contactId: s.contactId, amount: Number(s.amount), forgiven: Number(s.forgiven) }))
         const amount = groupNet(
@@ -178,20 +202,9 @@ export class ReportingQueryService {
             : null
 
         netRows.push({
-          kind: 'reconciliation_net',
-          date: anchor.date,
+          ...base,
           amount: roundMoney(amount),
-          currencyCode: anchor.currencyCode,
-          description: loaded.group.label || anchor.description,
-          categoryId: anchor.categoryId,
-          accountIds: [...new Set(loaded.members.map((m) => m.transaction.accountId).filter((id): id is string => id !== null))],
-          anchorAccountId: anchor.accountId,
-          sourceTransactionIds: [anchor.id, ...loaded.members.map((m) => m.transaction.id).filter((id) => id !== anchor.id)],
-          reconciliationGroupId: loaded.group.id,
-          monthSplitId: null,
           convertedValue,
-          rateSource: 'auto',
-          flagged: loaded.members.some((m) => m.transaction.flaggedAt != null),
           people: shares.length
             ? {
                 names: shares.map((s) => names.get(s.contactId) ?? 'Someone'),
@@ -199,6 +212,7 @@ export class ReportingQueryService {
                 outstanding: roundMoney(shares.reduce((sum, s) => sum + shareOutstanding(s, paid.get(s.contactId) ?? 0), 0)),
               }
             : null,
+          transfer: null,
         })
       }
 
@@ -243,6 +257,7 @@ export class ReportingQueryService {
             rateSource: original.rateSource,
             flagged: original.flaggedAt != null,
             people: null,
+            transfer: null,
           })
         }
       }

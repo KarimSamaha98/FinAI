@@ -168,7 +168,7 @@ async function main(): Promise<void> {
       }
 
       await tx.insert(reconciliationGroups).values(
-        dataset.reconciliationGroups.map((g) => ({ id: g.id, userId, label: g.label })),
+        dataset.reconciliationGroups.map((g) => ({ id: g.id, userId, label: g.label, kind: g.kind })),
       )
       const members = dataset.reconciliationGroups.flatMap((g) => g.transactionIds.map((transactionId) => ({ groupId: g.id, transactionId })))
       if (members.length > 0) await tx.insert(reconciliationGroupMembers).values(members)

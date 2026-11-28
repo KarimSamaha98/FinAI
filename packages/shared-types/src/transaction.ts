@@ -119,6 +119,21 @@ export const DisplayRowPeopleSchema = z.object({
 });
 export type DisplayRowPeople = z.infer<typeof DisplayRowPeopleSchema>;
 
+/**
+ * A transfer row's two sides, for the ledger's subline ("Chequing → Visa").
+ * With several transactions, the biggest out and the biggest in.
+ */
+export const DisplayRowTransferSchema = z.object({
+  fromAccountId: z.string().uuid().nullable(),
+  toAccountId: z.string().uuid().nullable(),
+  /** Magnitudes, each in its own currency. */
+  sent: z.number(),
+  sentCurrencyCode: CurrencyCodeSchema,
+  received: z.number(),
+  receivedCurrencyCode: CurrencyCodeSchema,
+});
+export type DisplayRowTransfer = z.infer<typeof DisplayRowTransferSchema>;
+
 export const DisplayRowSchema = z.object({
   kind: DisplayRowKindSchema,
   date: z.string().date(),
@@ -150,5 +165,9 @@ export const DisplayRowSchema = z.object({
   // already net of their shares: a dinner split three ways shows the user's
   // third. Only real-view group rows have people.
   people: DisplayRowPeopleSchema.nullable(),
+  // A transfer between the user's own accounts (real-view group rows only;
+  // null otherwise). Its amount is what's left: an FX difference or a fee,
+  // usually 0.
+  transfer: DisplayRowTransferSchema.nullable(),
 });
 export type DisplayRow = z.infer<typeof DisplayRowSchema>;

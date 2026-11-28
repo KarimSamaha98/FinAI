@@ -166,6 +166,8 @@ export const reconciliationGroups = pgTable('reconciliation_groups', {
   userId: uuid('user_id').notNull(),
   label: text('label'),
   // How the people's shares were worked out, so the split reopens as left.
+  /** shared: transactions that net out and the people who share them · transfer: money moving between the user's own accounts. */
+  kind: text('kind', { enum: ['shared', 'transfer'] }).notNull().default('shared'),
   splitMode: text('split_mode', { enum: ['equal', 'amount', 'percent'] }),
   splitInputs: jsonb('split_inputs').$type<GroupSplitInputs>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

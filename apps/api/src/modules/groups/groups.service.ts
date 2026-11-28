@@ -4,9 +4,12 @@ import {
   allocationProblem,
   computeSplit,
   shareAmount,
+  transferFit,
   type Group,
   type GroupCandidate,
   type SaveGroupData,
+  type SaveTransferData,
+  type TransferCandidate,
 } from 'shared-types'
 import { DB } from '../../db/db.module.js'
 import type { Db } from '../../db/client.js'
@@ -50,8 +53,9 @@ export class GroupsService {
   async save(userId: string, groupId: string | null, input: SaveGroupData): Promise<Group | null> {
     return runInTenantContext(this.db, userId, async (tx) => {
       if (groupId) {
-        const [existing] = await tx.select({ id: reconciliationGroups.id }).from(reconciliationGroups).where(eq(reconciliationGroups.id, groupId))
+        const [existing] = await tx.select({ kind: reconciliationGroups.kind }).from(reconciliationGroups).where(eq(reconciliationGroups.id, groupId))
         if (!existing) throw new NotFoundException('Group not found')
+        if (existing.kind === 'transfer') throw new BadRequestException('That’s a transfer between your accounts, not a group')
       }
 
       const transactionIds = input.members.map((m) => m.transactionId)
@@ -77,7 +81,7 @@ export class GroupsService {
         }
         const parts = [...elsewhere.filter((e) => e.transactionId === m.transactionId).map(partOf), m.amount]
         const problem = allocationProblem(Number(transaction.amount), parts)
-        if (problem) throw new ConflictException(`“${transaction.description || 'Untitled'}” is already in another group`)
+        if (problem) throw new ConflictException(`“${transaction.description || 'Untitled'}” is already in another group or a transfer`)
       }
 
       // Shares: from the split over the user's own money, or as given.
@@ -147,6 +151,87 @@ export class GroupsService {
         )
       }
       return this.read(tx, groupIdToWrite)
+    })
+  }
+
+  /**
+   * Matches transactions as a transfer between the user's own accounts: whole
+   * transactions, at least one out and one in, across two or more accounts,
+   * none of them already in a group or split across months. Currencies can
+   * differ.
+   */
+  async saveTransfer(userId: string, input: SaveTransferData): Promise<Group> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const ids = input.transactionIds
+      if (new Set(ids).size !== ids.length) throw new BadRequestException('A transaction can only be in a transfer once')
+      const rows = await tx.select().from(transactions).where(inArray(transactions.id, ids))
+      if (rows.length !== ids.length) throw new BadRequestException('One or more transactions were not found')
+      if (!rows.some((r) => Number(r.amount) < 0) || !rows.some((r) => Number(r.amount) > 0)) {
+        throw new BadRequestException('A transfer needs money going out of one account and into another')
+      }
+      if (rows.some((r) => !r.accountId) || new Set(rows.map((r) => r.accountId)).size < 2) {
+        throw new BadRequestException('A transfer has to be between two of your accounts')
+      }
+      const [split] = await tx.select({ id: monthSplits.id }).from(monthSplits).where(inArray(monthSplits.transactionId, ids)).limit(1)
+      if (split) throw new ConflictException('A transaction split across months can’t be a transfer. Remove that first.')
+      const taken = await membershipsOf(tx, ids)
+      if (taken.length) {
+        const row = rows.find((r) => r.id === taken[0].transactionId)!
+        throw new ConflictException(`“${row.description || 'Untitled'}” is already in a group or another transfer`)
+      }
+
+      const [created] = await tx
+        .insert(reconciliationGroups)
+        .values({ userId, kind: 'transfer', label: input.label || null })
+        .returning({ id: reconciliationGroups.id })
+      await tx.insert(reconciliationGroupMembers).values(ids.map((transactionId) => ({ groupId: created.id, transactionId })))
+      return (await this.read(tx, created.id))!
+    })
+  }
+
+  /**
+   * What could be the other side of a transfer with `transactionId`: money the
+   * other way, in another account, in any currency, not in a group or split
+   * across months. The likely ones (same currency and amount, a few days
+   * apart) first, then by how close they are.
+   */
+  async transferCandidates(userId: string, transactionId: string): Promise<TransferCandidate[]> {
+    return runInTenantContext(this.db, userId, async (tx) => {
+      const [source] = await tx.select().from(transactions).where(eq(transactions.id, transactionId))
+      if (!source) throw new NotFoundException('Transaction not found')
+      const sourceAmount = Number(source.amount)
+      const monthSplitRows = await tx.select({ id: monthSplits.transactionId }).from(monthSplits)
+      const grouped = await tx.selectDistinct({ id: reconciliationGroupMembers.transactionId }).from(reconciliationGroupMembers)
+      const excluded = [...monthSplitRows.map((r) => r.id), ...grouped.map((r) => r.id), source.id]
+      const rows = await tx
+        .select({ transaction: transactions, accountName: accounts.name })
+        .from(transactions)
+        .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+        .where(notInArray(transactions.id, excluded))
+        .orderBy(desc(transactions.date))
+        .limit(2000)
+      const sourceSide = { amount: sourceAmount, currencyCode: source.currencyCode, accountId: source.accountId, date: source.date }
+      return rows
+        .flatMap(({ transaction, accountName }) => {
+          const amount = Number(transaction.amount)
+          const fit = transferFit(sourceSide, { amount, currencyCode: transaction.currencyCode, accountId: transaction.accountId, date: transaction.date })
+          if (!fit) return []
+          const candidate: TransferCandidate = {
+            id: transaction.id,
+            date: transaction.date,
+            description: transaction.description,
+            amount,
+            available: amount,
+            currencyCode: transaction.currencyCode,
+            accountId: transaction.accountId,
+            accountName,
+            likely: fit.likely,
+          }
+          return [{ candidate, score: fit.score }]
+        })
+        .sort((a, b) => a.score - b.score)
+        .slice(0, 200)
+        .map((c) => c.candidate)
     })
   }
 

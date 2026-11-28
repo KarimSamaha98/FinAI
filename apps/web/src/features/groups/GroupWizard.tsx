@@ -79,7 +79,7 @@ const sumOf = (values: number[]) => values.reduce((sum, v) => sum + toCents(v), 
 
 /**
  * The one workflow for putting things together: a transaction with other
- * transactions (a refund, a card payment), with people who share it (each
+ * transactions (a refund), with people who share it (each
  * owes their part, paid already or still expected), or both at once. Money
  * coming in can instead pay back what someone owes. Editing a group opens
  * the same wizard.
@@ -380,7 +380,7 @@ function GroupFlow({ main, group, title, subtitle, steps, step, setStep, onPayBa
                 <PlusIcon /> Add a transaction
               </Button>
             )}
-            <p className="wizard-hint">A refund, a card payment, a transfer between your accounts: anything that nets out with it.</p>
+            <p className="wizard-hint">A refund, or anything else of yours that nets out with it. Money moving between your accounts goes in Match transfer.</p>
           </section>
           {error && <Alert variant="error">{error}</Alert>}
         </WizardStep>

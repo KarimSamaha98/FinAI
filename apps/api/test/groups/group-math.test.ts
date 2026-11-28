@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allocateInOrder, allocationProblem, groupNet, shareOutstanding } from 'shared-types'
+import { allocateInOrder, allocationProblem, groupNet, shareOutstanding, transferFit } from 'shared-types'
 
 describe('groupNet', () => {
   it('a dinner shared three ways nets to the user’s third, paid or not', () => {
@@ -77,5 +77,35 @@ describe('allocateInOrder', () => {
 
   it('works on magnitudes', () => {
     expect(allocateInOrder(-40, [-25, -25])).toEqual([25, 15])
+  })
+})
+
+describe('transferFit', () => {
+  const out = { amount: -500, currencyCode: 'CAD', accountId: 'chequing', date: '2026-11-10' }
+
+  it('the same amount into another account a few days later is a likely match', () => {
+    expect(transferFit(out, { amount: 500, currencyCode: 'CAD', accountId: 'savings', date: '2026-11-12' })).toEqual({ score: 2, likely: true })
+  })
+
+  it('can’t be the same direction or the same account', () => {
+    expect(transferFit(out, { amount: -500, currencyCode: 'CAD', accountId: 'savings', date: '2026-11-10' })).toBeNull()
+    expect(transferFit(out, { amount: 500, currencyCode: 'CAD', accountId: 'chequing', date: '2026-11-10' })).toBeNull()
+  })
+
+  it('another currency can match, but is never "likely"', () => {
+    const fit = transferFit(out, { amount: 367.5, currencyCode: 'USD', accountId: 'usd', date: '2026-11-10' })
+    expect(fit?.likely).toBe(false)
+  })
+
+  it('ranks likely matches first, then by how close in date', () => {
+    const score = (c: { amount: number; currencyCode: string; date: string }) => transferFit(out, { ...c, accountId: 'other' })!.score
+    const likely = score({ amount: 500, currencyCode: 'CAD', date: '2026-11-16' })
+    const otherCurrencySameDay = score({ amount: 360, currencyCode: 'USD', date: '2026-11-10' })
+    const differentAmountNextDay = score({ amount: 495, currencyCode: 'CAD', date: '2026-11-11' })
+    const sameAmountLate = score({ amount: 500, currencyCode: 'CAD', date: '2026-12-20' })
+    expect(likely).toBeLessThan(otherCurrencySameDay)
+    expect(otherCurrencySameDay).toBeLessThan(differentAmountNextDay)
+    expect(differentAmountNextDay).toBeLessThan(sameAmountLate)
+    expect(transferFit(out, { amount: 500, currencyCode: 'CAD', accountId: 'other', date: '2026-12-20' })!.likely).toBe(false)
   })
 })

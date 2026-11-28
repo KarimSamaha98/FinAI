@@ -1,5 +1,5 @@
 import { eq, inArray } from 'drizzle-orm'
-import { groupNet, shareOutstanding, type Group, type GroupMember, type GroupShare } from 'shared-types'
+import { groupNet, shareOutstanding, type DisplayRowTransfer, type Group, type GroupMember, type GroupShare } from 'shared-types'
 import type { Db } from '../../db/client.js'
 import { contacts, groupShares, reconciliationGroupMembers, reconciliationGroups, transactions } from '../../db/schema.js'
 
@@ -71,12 +71,16 @@ export async function membershipsOf(tx: Db, transactionIds: string[]): Promise<M
 }
 
 /**
- * The user's own transaction with the largest amount: its date, category and
- * description stand for the group. Null when the group has none (it is then
- * pruned).
+ * The user's own transaction with the largest amount (a transfer's: the
+ * biggest money going out): its date, category and description stand for the
+ * group. Null when the group has none (it is then pruned).
  */
 export function anchorOf(loaded: LoadedGroup): LoadedMember | null {
-  const own = loaded.members.filter((m) => m.member.contactId === null)
+  let own = loaded.members.filter((m) => m.member.contactId === null)
+  if (loaded.group.kind === 'transfer') {
+    const out = own.filter((m) => Number(m.transaction.amount) < 0)
+    if (out.length) own = out
+  }
   if (own.length === 0) return null
   return own.reduce((biggest, m) =>
     Math.abs(memberAmount(m.member, m.transaction)) > Math.abs(memberAmount(biggest.member, biggest.transaction)) ? m : biggest,
@@ -93,6 +97,48 @@ export function paidByContact(loaded: LoadedGroup): Map<string, number> {
   return new Map([...cents].map(([id, c]) => [id, c / 100]))
 }
 
+const round = (value: number) => Math.round(value * 100) / 100
+
+/**
+ * What's left of a transfer once its sides cancel out (an FX difference or a
+ * fee), in the anchor's currency and in the home currency. Same currency: the
+ * plain sum, valued at the anchor's rate (so a transfer that nets to 0 stays
+ * 0 even when the two days' rates differ). Across currencies: the sum of the
+ * sides' home-currency values, and that in the anchor's currency. Null
+ * without the rates to work it out.
+ */
+export function transferNet(loaded: LoadedGroup, anchor: TransactionRow): { amount: number | null; convertedValue: number | null } {
+  const sides = loaded.members.map((m) => m.transaction)
+  const rate = anchor.exchangeRate != null ? Number(anchor.exchangeRate) : null
+  if (sides.every((t) => t.currencyCode === anchor.currencyCode)) {
+    const amount = sides.reduce((sum, t) => sum + Math.round(Number(t.amount) * 100), 0) / 100
+    return { amount, convertedValue: rate != null ? round(amount * rate) : null }
+  }
+  if (sides.some((t) => t.convertedValue == null)) return { amount: null, convertedValue: null }
+  const convertedValue = round(sides.reduce((sum, t) => sum + Number(t.convertedValue), 0))
+  return { amount: rate ? round(convertedValue / rate) : null, convertedValue }
+}
+
+/** A transfer's two sides for the ledger: the biggest money out and the biggest money in. */
+export function transferSides(loaded: LoadedGroup): DisplayRowTransfer | null {
+  const biggest = (sign: number) =>
+    loaded.members
+      .map((m) => m.transaction)
+      .filter((t) => Math.sign(Number(t.amount)) === sign)
+      .sort((a, b) => Math.abs(Number(b.amount)) - Math.abs(Number(a.amount)))[0]
+  const from = biggest(-1)
+  const to = biggest(1)
+  if (!from || !to) return null
+  return {
+    fromAccountId: from.accountId,
+    toAccountId: to.accountId,
+    sent: Math.abs(Number(from.amount)),
+    sentCurrencyCode: from.currencyCode,
+    received: Number(to.amount),
+    receivedCurrencyCode: to.currencyCode,
+  }
+}
+
 /** A loaded group as the API returns it. Null for a group with none of the user's own money (never kept). */
 export function toGroup(loaded: LoadedGroup, nameById: Map<string, string>): Group | null {
   const anchor = anchorOf(loaded)
@@ -105,6 +151,7 @@ export function toGroup(loaded: LoadedGroup, nameById: Map<string, string>): Gro
       amount: memberAmount(member, transaction),
       allocated: member.amount != null,
       transactionAmount: Number(transaction.amount),
+      currencyCode: transaction.currencyCode,
       date: transaction.date,
       description: transaction.description,
       accountId: transaction.accountId,
@@ -130,13 +177,14 @@ export function toGroup(loaded: LoadedGroup, nameById: Map<string, string>): Gro
   const own = loaded.members.filter((m) => m.member.contactId === null).map((m) => memberAmount(m.member, m.transaction))
   return {
     id: loaded.group.id,
+    kind: loaded.group.kind,
     label: loaded.group.label,
     description: loaded.group.label || anchor.transaction.description,
     currencyCode: anchor.transaction.currencyCode,
     date: anchor.transaction.date,
     anchorTransactionId: anchor.transaction.id,
     anchorCategoryId: anchor.transaction.categoryId,
-    net: groupNet(own, loaded.shares.map((s) => ({ amount: Number(s.amount), forgiven: Number(s.forgiven) }))),
+    net: loaded.group.kind === 'transfer' ? transferNet(loaded, anchor.transaction).amount : groupNet(own, loaded.shares.map((s) => ({ amount: Number(s.amount), forgiven: Number(s.forgiven) }))),
     members,
     shares,
     split:

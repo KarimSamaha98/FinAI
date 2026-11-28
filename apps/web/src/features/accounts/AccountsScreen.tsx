@@ -15,7 +15,7 @@ import { Modal } from '../../components/Modal'
 import { SkeletonRows } from '../../components/Skeleton'
 import { apiClient, isFxUnavailable } from '../../lib/apiClient'
 import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
-import { CheckIcon, FlagIcon, LinkIcon, PencilIcon, SplitIcon, TrashIcon } from '../../components/icons'
+import { CheckIcon, FlagIcon, LinkIcon, PencilIcon, SplitIcon, TransferIcon, TrashIcon } from '../../components/icons'
 import { useCategories } from '../../hooks/useCategories'
 import { useAccounts } from '../../hooks/useAccounts'
 import { useTransactions } from '../../hooks/useTransactions'
@@ -32,6 +32,8 @@ import { AddTransactionWizard } from '../transactions/AddTransactionWizard'
 import { CsvWizardHost } from '../import/CsvWizardHost'
 import { GroupWizard, type GroupMainTransaction } from '../groups/GroupWizard'
 import { GroupModal } from '../groups/GroupModal'
+import { TransferModal } from '../groups/TransferModal'
+import { TransferWizard } from '../groups/TransferWizard'
 import { SplitModal } from '../month-split/SplitModal'
 import { apiErrorMessage } from '../../hooks/usePeople'
 import { AccountCarousel } from './AccountCarousel'
@@ -127,6 +129,7 @@ export function AccountsScreen() {
   // The group open in its sheet, and the group wizard (a new group from a transaction, or editing one).
   const [viewingGroupId, setViewingGroupId] = useState<string | null>(null)
   const [grouping, setGrouping] = useState<{ transaction: GroupMainTransaction } | { groupId: string } | null>(null)
+  const [transferring, setTransferring] = useState<Transaction | null>(null)
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -187,6 +190,7 @@ export function AccountsScreen() {
   // Back from account settings returns to the same spot in the list, once it has loaded.
   useScrollRestoreWhenReady(!loading && !rowsLoading && !accountsLoading)
   const { groups } = useGroups()
+  const transferGroupIds = useMemo(() => new Set(groups.filter((g) => g.kind === 'transfer').map((g) => g.id)), [groups])
   const { splits, createSplit, updateSplit } = useMonthSplits()
 
   // Search + sort are presentation-only over the already-tenant-scoped rows.
@@ -252,31 +256,42 @@ export function AccountsScreen() {
       return [flagAction, { label: 'Edit split', detail: 'Change how it’s spread across months', icon: <SplitIcon />, onClick: () => setSplitTarget(transaction) }]
     }
 
-    // One action for everything that belongs together: other transactions
-    // (a refund, a card payment) and people who share it. A row already in a
-    // group (its net, or what's left of a transaction partly in one) opens it.
+    // Two ways to tie transactions together: a group (people who share it,
+    // a refund that nets out with it) and a transfer (money moving between
+    // the user's own accounts). A row already in one opens it.
     const groupId = row.reconciliationGroupId
-    const groupAction: ActionMenuItem | null = groupId
-      ? {
-          label: 'Open group',
-          detail: row.people ? 'What’s in it, who’s paid and what’s still expected' : 'See or change what’s in it',
-          icon: <LinkIcon />,
-          onClick: () => setViewingGroupId(groupId),
-        }
-      : null
+    const isTransfer = groupId !== null && (row.transfer !== null || groups.find((g) => g.id === groupId)?.kind === 'transfer')
+    const openAction: ActionMenuItem | null = !groupId
+      ? null
+      : isTransfer
+        ? { label: 'Open transfer', detail: 'See both sides, or unmatch it', icon: <TransferIcon />, onClick: () => setViewingGroupId(groupId) }
+        : {
+            label: 'Open group',
+            detail: row.people ? 'What’s in it, who’s paid and what’s still expected' : 'See or change what’s in it',
+            icon: <LinkIcon />,
+            onClick: () => setViewingGroupId(groupId),
+          }
     const anchorTransaction = findTransaction(row.sourceTransactionIds[0])
-    if (!anchorTransaction) return groupAction ? [flagAction, groupAction] : [flagAction]
+    if (!anchorTransaction) return openAction ? [flagAction, openAction] : [flagAction]
 
     const actions: ActionMenuItem[] = [flagAction]
-    if (groupAction) {
-      actions.push(groupAction)
+    if (openAction) {
+      actions.push(openAction)
     } else if (anchorTransaction.amount !== 0) {
       actions.push({
         label: 'Group',
-        detail: 'With people who share it, or a refund or payment that nets out with it',
+        detail: 'With people who share it, or a refund that nets out with it',
         icon: <LinkIcon />,
         onClick: () => setGrouping({ transaction: anchorTransaction }),
       })
+      if (anchorTransaction.accountId && accounts.length > 1) {
+        actions.push({
+          label: 'Match transfer',
+          detail: anchorTransaction.amount < 0 ? 'Money moved to another of your accounts, or a card payment' : 'Money moved in from another of your accounts',
+          icon: <TransferIcon />,
+          onClick: () => setTransferring(anchorTransaction),
+        })
+      }
     }
     if (row.kind === 'plain') {
       actions.push({
@@ -431,6 +446,8 @@ export function AccountsScreen() {
               accounts={accounts}
               splitByTransactionId={splitByTransactionId}
               showAccount={showAccountPerRow}
+              view={view}
+              transferGroupIds={transferGroupIds}
               onClick={() => setActionRow(row)}
             />
           ))}
@@ -535,7 +552,8 @@ export function AccountsScreen() {
         />
       )}
 
-      {viewingGroup && (
+      {viewingGroup?.kind === 'transfer' && <TransferModal group={viewingGroup} accounts={accounts} onClose={() => setViewingGroupId(null)} />}
+      {viewingGroup && viewingGroup.kind !== 'transfer' && (
         <GroupModal
           group={viewingGroup}
           accounts={accounts}
@@ -549,6 +567,7 @@ export function AccountsScreen() {
 
       {grouping && 'transaction' in grouping && <GroupWizard transaction={grouping.transaction} onClose={() => setGrouping(null)} />}
       {editingGroup && <GroupWizard group={editingGroup} onClose={() => setGrouping(null)} />}
+      {transferring && <TransferWizard transaction={transferring} accounts={accounts} onClose={() => setTransferring(null)} />}
 
       {splitTarget && (
         <SplitModal

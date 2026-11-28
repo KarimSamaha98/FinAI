@@ -188,6 +188,16 @@ export function LinkIcon() {
   )
 }
 
+/** Two opposing arrows: money moving between the user's own accounts. */
+export function TransferIcon() {
+  return (
+    <Icon>
+      <path d="M4 8h14l-3.5-3.5" />
+      <path d="M20 16H6l3.5 3.5" />
+    </Icon>
+  )
+}
+
 /** A flag on a pole: "needs attention" (flag a transaction to act on later). */
 export function FlagIcon() {
   return (
