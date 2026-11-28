@@ -8,12 +8,15 @@ import { formatCurrency } from '../../lib/formatCurrency'
 import { formatDate } from '../../lib/formatDate'
 import { groupsApi } from '../../hooks/useGroups'
 import { apiErrorMessage, peopleApi } from '../../hooks/usePeople'
-import { PersonInitials } from '../people/PersonInitials'
+import { PersonCard } from './PersonCard'
+import { personStatusText } from './personStatus'
 
 interface GroupModalProps {
   group: Group
   accounts: Account[]
   onEdit: () => void
+  /** Pick the transaction that paid this person's share (opens the group's wizard on it). */
+  onMarkPaid: (contactId: string) => void
   onClose: () => void
 }
 
@@ -23,7 +26,7 @@ interface GroupModalProps {
  * comes to. Changes go through Edit (the same wizard that made it); only
  * forgiving a person's part is done here.
  */
-export function GroupModal({ group, accounts, onEdit, onClose }: GroupModalProps) {
+export function GroupModal({ group, accounts, onEdit, onMarkPaid, onClose }: GroupModalProps) {
   const navigate = useNavigate()
   const [confirmUngroup, setConfirmUngroup] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -68,14 +71,15 @@ export function GroupModal({ group, accounts, onEdit, onClose }: GroupModalProps
         {group.shares.length > 0 && (
           <section className="group-sheet-section">
             <h3>People</h3>
-            <ul className="group-people">
+            <ul className="person-cards">
               {group.shares.map((share) => (
-                <ShareRow
+                <ShareCard
                   key={share.contactId}
                   share={share}
                   group={group}
                   busy={busy}
                   onOpen={() => navigate(`/people?selected=${share.contactId}`)}
+                  onMarkPaid={() => onMarkPaid(share.contactId)}
                   onForgive={() => void run(() => peopleApi.forgive(share.contactId, group.id), 'Couldn’t forgive it')}
                   onUnforgive={() => void run(() => peopleApi.unforgive(share.contactId, group.id), 'Couldn’t undo it')}
                 />
@@ -118,61 +122,65 @@ export function GroupModal({ group, accounts, onEdit, onClose }: GroupModalProps
   )
 }
 
-interface ShareRowProps {
+interface ShareCardProps {
   share: GroupShare
   group: Group
   busy: boolean
   onOpen: () => void
+  onMarkPaid: () => void
   onForgive: () => void
   onUnforgive: () => void
 }
 
-/** A person in the group: their share, what they paid (and with what), what's forgiven and what's still expected. */
-function ShareRow({ share, group, busy, onOpen, onForgive, onUnforgive }: ShareRowProps) {
+/** A person in the group as a card: what they paid (and with what), what's forgiven, and dashed while a payment is still expected. */
+function ShareCard({ share, group, busy, onOpen, onMarkPaid, onForgive, onUnforgive }: ShareCardProps) {
   const currency = group.currencyCode
   const payments = group.members.filter((m) => m.contactId === share.contactId)
   const theyOwe = share.amount > 0
+  const expected = share.outstanding !== 0
+  const canSettle = expected && Math.sign(share.outstanding) === Math.sign(share.amount)
   return (
-    <li className="group-person">
-      <div className="group-person-head">
-        <PersonInitials name={share.contactName} />
-        <button type="button" className="group-person-name text-button" onClick={onOpen}>
-          {share.contactName}
-        </button>
-        <span className="group-person-share">
-          {theyOwe ? 'Their share' : 'You owe them'} <span className="mono">{formatCurrency(Math.abs(share.amount), currency)}</span>
-        </span>
-      </div>
-      <ul className="split-payments">
-        {payments.map((p) => (
-          <li key={p.transactionId} className="split-payment is-paid">
-            <span>
-              Paid · {p.description || 'Untitled'} · {formatDate(p.date)}
-            </span>
-            <span className="mono">{formatCurrency(Math.abs(p.amount), currency)}</span>
-          </li>
-        ))}
-        {share.forgiven !== 0 && (
-          <li className="split-payment">
-            <span>Forgiven{share.forgivenOn ? ` · ${formatDate(share.forgivenOn)}` : ''}</span>
-            <span className="mono">{formatCurrency(Math.abs(share.forgiven), currency)}</span>
-            <button type="button" className="text-button" disabled={busy} onClick={onUnforgive}>
-              Undo
+    <PersonCard
+      name={share.contactName}
+      status={personStatusText(share.amount, share.paid, share.forgiven, share.outstanding, currency)}
+      amount={Math.abs(share.amount)}
+      currencyCode={currency}
+      expected={expected}
+      onOpen={onOpen}
+      actions={
+        canSettle ? (
+          <>
+            <Button variant="secondary" disabled={busy} onClick={onMarkPaid}>
+              {theyOwe ? 'Mark as paid' : 'Mark as paid back'}
+            </Button>
+            <button type="button" className="text-button" disabled={busy} onClick={onForgive}>
+              Forgive
             </button>
-          </li>
-        )}
-        {share.outstanding !== 0 && (
-          <li className="split-payment is-expected">
-            <span>{share.outstanding > 0 ? 'Expected from them' : 'You’ll pay them'}</span>
-            <span className="mono">{formatCurrency(Math.abs(share.outstanding), currency)}</span>
-            {Math.sign(share.outstanding) === Math.sign(share.amount) && (
-              <button type="button" className="text-button" disabled={busy} onClick={onForgive}>
-                Forgive
+          </>
+        ) : undefined
+      }
+    >
+      {(payments.length > 0 || share.forgiven !== 0) && (
+        <>
+          {payments.map((p) => (
+            <li key={p.transactionId} className="person-card-line">
+              <span>
+                Paid · {p.description || 'Untitled'} · {formatDate(p.date)}
+              </span>
+              <span className="mono">{formatCurrency(Math.abs(p.amount), currency)}</span>
+            </li>
+          ))}
+          {share.forgiven !== 0 && (
+            <li className="person-card-line">
+              <span>Forgiven{share.forgivenOn ? ` · ${formatDate(share.forgivenOn)}` : ''}</span>
+              <span className="mono">{formatCurrency(Math.abs(share.forgiven), currency)}</span>
+              <button type="button" className="text-button" disabled={busy} onClick={onUnforgive}>
+                Undo
               </button>
-            )}
-          </li>
-        )}
-      </ul>
-    </li>
+            </li>
+          )}
+        </>
+      )}
+    </PersonCard>
   )
 }

@@ -14,6 +14,8 @@ import { ContactPicker } from '../people/ContactPicker'
 import { PersonInitials } from '../people/PersonInitials'
 import { TransactionPicker, type PickableTransaction } from './TransactionPicker'
 import { PaymentAllocation } from './PaymentAllocation'
+import { PersonCard } from './PersonCard'
+import { personStatusText } from './personStatus'
 
 /** The transaction the Group action was used on. */
 export interface GroupMainTransaction {
@@ -29,6 +31,8 @@ interface GroupWizardProps {
   transaction?: GroupMainTransaction
   /** Or an existing group is edited. */
   group?: Group
+  /** Editing: open straight on picking this person's payment (Mark as paid on the group sheet). */
+  payFor?: string
   onClose: () => void
 }
 
@@ -84,7 +88,7 @@ const sumOf = (values: number[]) => values.reduce((sum, v) => sum + toCents(v), 
  * coming in can instead pay back what someone owes. Editing a group opens
  * the same wizard.
  */
-export function GroupWizard({ transaction, group, onClose }: GroupWizardProps) {
+export function GroupWizard({ transaction, group, payFor, onClose }: GroupWizardProps) {
   const { people } = usePeople()
   const main: GroupMainTransaction = group
     ? (() => {
@@ -94,11 +98,19 @@ export function GroupWizard({ transaction, group, onClose }: GroupWizardProps) {
     : transaction!
   // A new group from a payment some people's balances could take: offer to pay them back.
   const canPayBack = !group && (people?.people ?? []).some((p) => p.balances.some((b) => b.currencyCode === main.currencyCode && Math.sign(b.amount) === Math.sign(main.amount)))
-  return <GroupWizardSteps main={main} group={group ?? null} canPayBack={canPayBack} onClose={onClose} />
+  return <GroupWizardSteps main={main} group={group ?? null} canPayBack={canPayBack} payFor={payFor ?? null} onClose={onClose} />
 }
 
-function GroupWizardSteps({ main, group, canPayBack, onClose }: { main: GroupMainTransaction; group: Group | null; canPayBack: boolean; onClose: () => void }) {
-  const [step, setStep] = useState<Step>('with')
+interface GroupWizardStepsProps {
+  main: GroupMainTransaction
+  group: Group | null
+  canPayBack: boolean
+  payFor: string | null
+  onClose: () => void
+}
+
+function GroupWizardSteps({ main, group, canPayBack, payFor, onClose }: GroupWizardStepsProps) {
+  const [step, setStep] = useState<Step>(payFor ? 'split' : 'with')
   const title = group ? 'Edit group' : 'Group'
   const subtitle = `${main.description || 'Untitled'} · ${formatCurrency(main.amount, main.currencyCode)}`
 
@@ -127,6 +139,7 @@ function GroupWizardSteps({ main, group, canPayBack, onClose }: { main: GroupMai
       step={step}
       setStep={setStep}
       onPayBack={canPayBack ? () => setStep('payback') : null}
+      payFor={payFor}
       onClose={onClose}
     />
   )
@@ -198,6 +211,8 @@ function PayBackStep({ main, onBack, onDone }: { main: GroupMainTransaction; onB
 interface GroupFlowProps {
   /** Offered when this money could pay back what someone owes (or is owed). */
   onPayBack: (() => void) | null
+  /** Start on picking this person's payment. */
+  payFor: string | null
   main: GroupMainTransaction
   group: Group | null
   title: string
@@ -208,7 +223,7 @@ interface GroupFlowProps {
   onClose: () => void
 }
 
-function GroupFlow({ main, group, title, subtitle, steps, step, setStep, onPayBack, onClose }: GroupFlowProps) {
+function GroupFlow({ main, group, title, subtitle, steps, step, setStep, onPayBack, payFor, onClose }: GroupFlowProps) {
   const { contacts } = useContacts()
   const { candidates, loading: candidatesLoading } = useGroupCandidates(main.currencyCode, group?.id ?? null)
   const currency = main.currencyCode
@@ -238,7 +253,8 @@ function GroupFlow({ main, group, title, subtitle, steps, step, setStep, onPayBa
   const [mode, setMode] = useState<SplitMode>(group ? (group.split?.mode ?? 'amount') : 'equal')
   const [includeMe, setIncludeMe] = useState(group?.split ? group.split.myValue > 0 : main.amount < 0)
   const [adding, setAdding] = useState(false)
-  const [payingFor, setPayingFor] = useState<string | null>(null)
+  /** Picking the transaction that paid this person's share: its own screen. */
+  const [payingFor, setPayingFor] = useState<string | null>(payFor)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -330,7 +346,7 @@ function GroupFlow({ main, group, title, subtitle, steps, step, setStep, onPayBa
     : { label: group && nothingAdded ? 'Ungroup' : 'Save', disabled: !group && nothingAdded, loading: saving }
 
   return (
-    <WizardModal open title={title} subtitle={subtitle} steps={steps} currentStep={step} stepKey={step} dirty={dirty} onClose={onClose}>
+    <WizardModal open title={title} subtitle={subtitle} steps={steps} currentStep={step} stepKey={payingFor && step === 'split' ? 'pay' : step} dirty={dirty} onClose={onClose}>
       {step === 'with' && (
         <WizardStep onSubmit={() => (people.length ? setStep('split') : void save())} footer={{ primary: withPrimary }}>
           {onPayBack && (
@@ -386,7 +402,38 @@ function GroupFlow({ main, group, title, subtitle, steps, step, setStep, onPayBa
         </WizardStep>
       )}
 
-      {step === 'split' && result && (
+      {step === 'split' && result && payingFor && (() => {
+        const i = people.findIndex((p) => p.contactId === payingFor)
+        const p = people[i]
+        if (!p) return null
+        const share = shareAmount(ownTotal, result.shares[i] ?? 0)
+        const outstanding = shareOutstanding({ amount: share, forgiven: Math.abs(p.forgiven) <= Math.abs(share) ? p.forgiven : 0 }, sumOf(p.payments.map((x) => x.amount)))
+        // A payment has happened: nothing dated in the future. Exactly what's
+        // still expected is the likely one, so it comes first.
+        const payable = pickable
+          .filter((c) => Math.sign(c.available) === Math.sign(share) && c.date <= today)
+          .map((c) => ({ ...c, likely: toCents(Math.abs(c.available)) === toCents(Math.abs(outstanding)) }))
+          .sort((a, b) => Number(b.likely) - Number(a.likely))
+        const name = nameOf(p.contactId)
+        return (
+          <WizardStep footer={{ back: { label: 'Cancel', onClick: () => setPayingFor(null) } }}>
+            <section className="wizard-question">
+              <h2>{share > 0 ? `Which transaction is ${name}’s payment?` : `Which transaction paid ${name}?`}</h2>
+              <p className="wizard-hint">
+                {formatCurrency(Math.abs(outstanding), currency)} still expected. {share > 0 ? 'Money you received' : 'Money you sent'}, up to today; only what’s needed is used.
+              </p>
+              <TransactionPicker
+                items={payable}
+                loading={candidatesLoading}
+                onPick={(item) => addPayment(p.contactId, share, item)}
+                emptyText={share > 0 ? 'No money received to pick from.' : 'No payments to pick from.'}
+              />
+            </section>
+          </WizardStep>
+        )
+      })()}
+
+      {step === 'split' && result && !payingFor && (
         <WizardStep
           onSubmit={() => void save()}
           footer={{ back: { label: 'Back', onClick: () => setStep('with') }, primary: { label: 'Save', disabled: !!result.problem, loading: saving } }}
@@ -394,36 +441,43 @@ function GroupFlow({ main, group, title, subtitle, steps, step, setStep, onPayBa
           <section className="wizard-question">
             <h2>{ownTotal < 0 ? 'How is it split?' : 'Whose money is it?'}</h2>
             <SegmentedControl value={mode} options={MODE_OPTIONS} onChange={changeMode} ariaLabel="How to split" />
-            <ul className="split-rows">
-              <li className="split-row">
-                <span className="person-initials is-me" aria-hidden="true">
-                  You
-                </span>
-                <span className="split-row-name">You</span>
-                {mode === 'equal' && (
-                  <label className="split-row-include">
-                    <input type="checkbox" checked={includeMe} onChange={(e) => change(setIncludeMe)(e.target.checked)} />
-                    Include me
-                  </label>
-                )}
-                <span className="split-row-amount mono">{formatCurrency(result.myShare, currency)}</span>
-              </li>
+            <ul className="person-cards">
+              <PersonCard
+                name="You"
+                isMe
+                status="Your share"
+                amount={result.myShare}
+                currencyCode={currency}
+                control={
+                  mode === 'equal' ? (
+                    <label className="split-row-include">
+                      <input type="checkbox" checked={includeMe} onChange={(e) => change(setIncludeMe)(e.target.checked)} />
+                      Include me
+                    </label>
+                  ) : undefined
+                }
+              />
               {people.map((p, i) => {
                 const share = shareAmount(ownTotal, result.shares[i] ?? 0)
                 const paid = sumOf(p.payments.map((x) => x.amount))
-                const outstanding = shareOutstanding({ amount: share, forgiven: Math.abs(p.forgiven) <= Math.abs(share) ? p.forgiven : 0 }, paid)
-                // A payment has happened: nothing dated in the future.
-                const payable = pickable.filter((c) => Math.sign(c.available) === Math.sign(share) && c.date <= today)
+                const forgiven = Math.abs(p.forgiven) <= Math.abs(share) ? p.forgiven : 0
+                const outstanding = shareOutstanding({ amount: share, forgiven }, paid)
+                const name = nameOf(p.contactId)
+                const expected = outstanding !== 0 && !result.problem
                 return (
-                  <li key={p.contactId} className="split-person">
-                    <div className="split-row">
-                      <PersonInitials name={nameOf(p.contactId)} />
-                      <span className="split-row-name">{nameOf(p.contactId)}</span>
-                      {mode !== 'equal' && (
+                  <PersonCard
+                    key={p.contactId}
+                    name={name}
+                    status={result.problem ? (share > 0 ? 'Their share' : 'You owe them') : personStatusText(share, paid, forgiven, outstanding, currency)}
+                    amount={result.shares[i] ?? 0}
+                    currencyCode={currency}
+                    expected={expected}
+                    control={
+                      mode !== 'equal' ? (
                         <input
                           className="split-row-input"
                           inputMode="decimal"
-                          aria-label={`${nameOf(p.contactId)} ${mode === 'amount' ? 'amount' : 'percent'}`}
+                          aria-label={`${name} ${mode === 'amount' ? 'amount' : 'percent'}`}
                           value={p.value}
                           onChange={(e) => {
                             const value = e.target.value
@@ -431,60 +485,45 @@ function GroupFlow({ main, group, title, subtitle, steps, step, setStep, onPayBa
                             setDirty(true)
                           }}
                         />
-                      )}
-                      <span className="split-row-amount mono">{formatCurrency(result.shares[i] ?? 0, currency)}</span>
-                    </div>
-                    <ul className="split-payments">
-                      {p.payments.map((x) => (
-                        <li key={x.transactionId} className="split-payment is-paid">
-                          <span>
-                            Paid · {x.description || 'Untitled'} · {formatDate(x.date)}
-                          </span>
-                          <span className="mono">{formatCurrency(Math.abs(x.amount), currency)}</span>
-                          <button
-                            type="button"
-                            className="icon-button icon-button--small"
-                            aria-label={`Remove ${x.description || 'Untitled'} from ${nameOf(p.contactId)}`}
-                            onClick={change(() =>
-                              setPeople((list) => list.map((d) => (d.contactId === p.contactId ? { ...d, payments: d.payments.filter((y) => y.transactionId !== x.transactionId) } : d))),
-                            )}
-                          >
-                            <CloseIcon />
-                          </button>
-                        </li>
-                      ))}
-                      {p.forgiven !== 0 && Math.abs(p.forgiven) <= Math.abs(share) && (
-                        <li className="split-payment">
-                          <span>Forgiven</span>
-                          <span className="mono">{formatCurrency(Math.abs(p.forgiven), currency)}</span>
-                        </li>
-                      )}
-                      {outstanding !== 0 && !result.problem && (
-                        <li className="split-payment is-expected">
-                          <span>{share > 0 ? 'Expected from them' : 'You’ll pay them'}</span>
-                          <span className="mono">{formatCurrency(Math.abs(outstanding), currency)}</span>
-                          {Math.sign(outstanding) === Math.sign(share) && payingFor !== p.contactId && (
-                            <button type="button" className="text-button" onClick={() => setPayingFor(p.contactId)}>
-                              {share > 0 ? 'They paid' : 'You paid'}
+                      ) : undefined
+                    }
+                    actions={
+                      expected && Math.sign(outstanding) === Math.sign(share) ? (
+                        <Button variant="secondary" onClick={() => setPayingFor(p.contactId)}>
+                          {share > 0 ? 'Mark as paid' : 'Mark as paid back'}
+                        </Button>
+                      ) : undefined
+                    }
+                  >
+                    {(p.payments.length > 0 || forgiven !== 0) && (
+                      <>
+                        {p.payments.map((x) => (
+                          <li key={x.transactionId} className="person-card-line">
+                            <span>
+                              Paid · {x.description || 'Untitled'} · {formatDate(x.date)}
+                            </span>
+                            <span className="mono">{formatCurrency(Math.abs(x.amount), currency)}</span>
+                            <button
+                              type="button"
+                              className="icon-button icon-button--small"
+                              aria-label={`Remove ${x.description || 'Untitled'} from ${name}`}
+                              onClick={change(() =>
+                                setPeople((list) => list.map((d) => (d.contactId === p.contactId ? { ...d, payments: d.payments.filter((y) => y.transactionId !== x.transactionId) } : d))),
+                              )}
+                            >
+                              <CloseIcon />
                             </button>
-                          )}
-                        </li>
-                      )}
-                    </ul>
-                    {payingFor === p.contactId && (
-                      <div className="split-pay-picker">
-                        <TransactionPicker
-                          items={payable}
-                          loading={candidatesLoading}
-                          onPick={(item) => addPayment(p.contactId, share, item)}
-                          emptyText={share > 0 ? 'No money received to pick from.' : 'No payments to pick from.'}
-                        />
-                        <button type="button" className="text-button" onClick={() => setPayingFor(null)}>
-                          Cancel
-                        </button>
-                      </div>
+                          </li>
+                        ))}
+                        {forgiven !== 0 && (
+                          <li className="person-card-line">
+                            <span>Forgiven</span>
+                            <span className="mono">{formatCurrency(Math.abs(forgiven), currency)}</span>
+                          </li>
+                        )}
+                      </>
                     )}
-                  </li>
+                  </PersonCard>
                 )
               })}
             </ul>

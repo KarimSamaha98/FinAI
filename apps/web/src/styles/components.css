@@ -5092,75 +5092,6 @@ dialog::backdrop {
   font-variant-numeric: tabular-nums;
 }
 
-/* Groups: a person in the split, with what they've paid and what's expected */
-.split-person + .split-person,
-.split-row + .split-person {
-  box-shadow: inset 0 0.5px 0 var(--separator);
-}
-
-.split-payments {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin: 0;
-  padding: 0 0 0.5rem calc(2rem + var(--space-3));
-  list-style: none;
-}
-
-.split-payments:empty {
-  display: none;
-}
-
-.split-payment {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 1.75rem;
-  color: var(--text-muted);
-  font: var(--type-footnote);
-}
-
-.split-payment > span:first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.split-payment .mono {
-  font-variant-numeric: tabular-nums;
-}
-
-
-/* Expected payments read as not-yet-real: a dashed outline, like a placeholder. */
-.split-payment.is-expected {
-  padding: 0.15rem 0.5rem;
-  border: 1px dashed var(--text-muted);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-}
-
-.split-payment .text-button,
-.split-payment .icon-button {
-  flex: none;
-}
-
-.split-pay-picker {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: 0 0 var(--space-3);
-}
-
-.split-pay-picker > .search-input {
-  flex: none;
-}
-
-.split-pay-picker > .text-button {
-  align-self: flex-start;
-}
-
 /* Group wizard: the shortcut to pay someone back instead */
 .group-payback {
   display: flex;
@@ -5250,7 +5181,6 @@ dialog::backdrop {
 }
 
 .group-item > .mono,
-.split-payment .mono,
 .allocation-row .mono {
   flex: none;
   white-space: nowrap;
@@ -5282,47 +5212,6 @@ dialog::backdrop {
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-}
-
-.group-people {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.group-person + .group-person {
-  box-shadow: inset 0 0.5px 0 var(--separator);
-}
-
-.group-person-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0.5rem 0 0.3rem;
-}
-
-.group-person-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0;
-  color: var(--text);
-  font: var(--type-body);
-  font-weight: 500;
-  text-align: left;
-}
-
-.group-person-share {
-  color: var(--text-muted);
-  font: var(--type-footnote);
-  white-space: nowrap;
-}
-
-.group-person-share .mono {
-  color: var(--text);
-  font: var(--type-headline);
-  font-variant-numeric: tabular-nums;
 }
 
 .group-sheet-total {
@@ -5615,4 +5504,123 @@ dialog::backdrop {
     justify-self: start;
     margin-left: var(--space-2);
   }
+}
+
+/* ── Person cards: a person's part of a group, drawn like a transaction ──
+   Solid once settled; dashed while a payment is still expected. */
+
+.person-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--fill-quaternary);
+}
+
+.person-card.is-expected {
+  border: 1.5px dashed var(--label-tertiary);
+  background: transparent;
+}
+
+.person-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.person-card-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.person-card-name {
+  padding: 0;
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 600;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-card-status {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.person-card.is-expected .person-card-status {
+  color: var(--accent);
+}
+
+.person-card-amount {
+  flex: none;
+  min-width: 4.5rem;
+  text-align: right;
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.person-card-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0 0 0 calc(2rem + var(--space-3));
+  list-style: none;
+}
+
+.person-card-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 1.75rem;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.person-card-line > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-card-line .mono {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.person-card-line .text-button,
+.person-card-line .icon-button {
+  flex: none;
+}
+
+.person-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-left: calc(2rem + var(--space-3));
+}
+
+.person-card-actions .btn {
+  min-height: 2rem;
+  padding: 0.3rem 0.9rem;
+  font: var(--type-subhead, var(--type-footnote));
+  font-weight: 600;
 }

@@ -128,7 +128,7 @@ export function AccountsScreen() {
   const [splitTarget, setSplitTarget] = useState<Transaction | null>(null)
   // The group open in its sheet, and the group wizard (a new group from a transaction, or editing one).
   const [viewingGroupId, setViewingGroupId] = useState<string | null>(null)
-  const [grouping, setGrouping] = useState<{ transaction: GroupMainTransaction } | { groupId: string } | null>(null)
+  const [grouping, setGrouping] = useState<{ transaction: GroupMainTransaction } | { groupId: string; payFor?: string } | null>(null)
   const [transferring, setTransferring] = useState<Transaction | null>(null)
   const [actionRow, setActionRow] = useState<DisplayRow | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -562,11 +562,15 @@ export function AccountsScreen() {
             setViewingGroupId(null)
             setGrouping({ groupId: viewingGroup.id })
           }}
+          onMarkPaid={(contactId) => {
+            setViewingGroupId(null)
+            setGrouping({ groupId: viewingGroup.id, payFor: contactId })
+          }}
         />
       )}
 
       {grouping && 'transaction' in grouping && <GroupWizard transaction={grouping.transaction} onClose={() => setGrouping(null)} />}
-      {editingGroup && <GroupWizard group={editingGroup} onClose={() => setGrouping(null)} />}
+      {editingGroup && <GroupWizard group={editingGroup} payFor={grouping && 'payFor' in grouping ? grouping.payFor : undefined} onClose={() => setGrouping(null)} />}
       {transferring && <TransferWizard transaction={transferring} accounts={accounts} onClose={() => setTransferring(null)} />}
 
       {splitTarget && (
