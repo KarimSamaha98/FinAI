@@ -52,6 +52,8 @@ function topTxnRow(item: TopTransaction, kind: 'expense' | 'income'): DisplayRow
     convertedValue: null,
     rateSource: 'auto',
     flagged: false,
+    people: null,
+    transfer: null,
   }
 }
 

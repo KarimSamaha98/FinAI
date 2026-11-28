@@ -8,6 +8,7 @@ import { AccountSettingsPage } from '../features/accounts/AccountSettingsPage'
 import { ChartsPage } from '../features/charts/ChartsPage'
 import { InsightTransactionsPage } from '../features/charts/InsightTransactionsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
+import { PeoplePage, PersonRedirect } from '../features/people/PeoplePage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -28,6 +29,9 @@ export const router = createBrowserRouter([
           // An Insights breakdown's "Show all": a sub-page with the same URL params.
           { path: 'insights/transactions', element: <InsightTransactionsPage /> },
           { path: 'settings', element: <SettingsPage /> },
+          // Everyone added, and one person's balance and activity (?selected=id).
+          { path: 'people', element: <PeoplePage /> },
+          { path: 'people/:contactId', element: <PersonRedirect /> },
         ],
       },
     ],

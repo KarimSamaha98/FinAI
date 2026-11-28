@@ -43,7 +43,7 @@ function compareByField(
     case 'description':
       return a.description.localeCompare(b.description, undefined, { sensitivity: 'base' })
     case 'account': {
-      // A reconciliation net row can span accounts; its first (anchor) account
+      // A group net row can span accounts; its first (anchor) account
       // represents it — mirroring TransactionRow and the anchor-based filtering.
       const nameA = accountNameById.get(a.accountIds[0] ?? '') ?? ''
       const nameB = accountNameById.get(b.accountIds[0] ?? '') ?? ''

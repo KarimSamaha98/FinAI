@@ -3,7 +3,7 @@ import { NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 're
 import { supabase } from '../lib/supabaseClient'
 import { Button } from '../components/Button'
 import { Avatar } from '../components/Avatar'
-import { CloseIcon, HomeIcon, InsightsIcon, LogoutIcon, MenuIcon, SettingsIcon, TransactionIcon } from '../components/icons'
+import { CloseIcon, HomeIcon, InsightsIcon, LogoutIcon, MenuIcon, PeopleIcon, SettingsIcon, TransactionIcon } from '../components/icons'
 import { useProfile } from '../hooks/useProfile'
 import { DrawerProvider } from '../context/DrawerContext'
 import { PrivacyProvider } from '../context/PrivacyContext'
@@ -11,6 +11,7 @@ import { PrivacyProvider } from '../context/PrivacyContext'
 const NAV_LINKS = [
   { to: '/', label: 'Home', icon: HomeIcon },
   { to: '/accounts', label: 'Transaction', icon: TransactionIcon },
+  { to: '/people', label: 'People', icon: PeopleIcon },
   { to: '/insights', label: 'Insights', icon: InsightsIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]

@@ -106,6 +106,34 @@ export type TransactionListQuery = z.infer<typeof TransactionListQuerySchema>;
 export const DisplayRowKindSchema = z.enum(["plain", "reconciliation_net", "month_split_portion"]);
 export type DisplayRowKind = z.infer<typeof DisplayRowKindSchema>;
 
+/**
+ * The people in a group row, for the ledger's subline ("With Sam and Alex ·
+ * Alex owes $30").
+ */
+export const DisplayRowPeopleSchema = z.object({
+  /** The people involved, by display name, and their contact ids (same order). */
+  names: z.array(z.string()),
+  contactIds: z.array(z.string().uuid()),
+  /** Still expected across them, in the row's currency: + they owe the user, − the user owes. */
+  outstanding: z.number(),
+});
+export type DisplayRowPeople = z.infer<typeof DisplayRowPeopleSchema>;
+
+/**
+ * A transfer row's two sides, for the ledger's subline ("Chequing → Visa").
+ * With several transactions, the biggest out and the biggest in.
+ */
+export const DisplayRowTransferSchema = z.object({
+  fromAccountId: z.string().uuid().nullable(),
+  toAccountId: z.string().uuid().nullable(),
+  /** Magnitudes, each in its own currency. */
+  sent: z.number(),
+  sentCurrencyCode: CurrencyCodeSchema,
+  received: z.number(),
+  receivedCurrencyCode: CurrencyCodeSchema,
+});
+export type DisplayRowTransfer = z.infer<typeof DisplayRowTransferSchema>;
+
 export const DisplayRowSchema = z.object({
   kind: DisplayRowKindSchema,
   date: z.string().date(),
@@ -130,8 +158,16 @@ export const DisplayRowSchema = z.object({
   // month_split_portion = converted_value / num_months. Null when no rate.
   convertedValue: z.number().nullable(),
   rateSource: RateSourceSchema,
-  // "Needs attention": any underlying transaction is flagged (a linked
-  // group's member, a split portion's original).
+  // "Needs attention": any underlying transaction is flagged (a group's
+  // member, a split portion's original).
   flagged: z.boolean(),
+  // The people in a group row (null when none). The group's amount is
+  // already net of their shares: a dinner split three ways shows the user's
+  // third. Only real-view group rows have people.
+  people: DisplayRowPeopleSchema.nullable(),
+  // A transfer between the user's own accounts (real-view group rows only;
+  // null otherwise). Its amount is what's left: an FX difference or a fee,
+  // usually 0.
+  transfer: DisplayRowTransferSchema.nullable(),
 });
 export type DisplayRow = z.infer<typeof DisplayRowSchema>;

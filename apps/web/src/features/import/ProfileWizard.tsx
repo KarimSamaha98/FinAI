@@ -246,6 +246,8 @@ export function ProfileWizard({ accountId, account, accountCurrency, defaultName
       convertedValue: null,
       rateSource: 'auto',
       flagged: false,
+      people: null,
+      transfer: null,
     }
   }
   const previewTransactions = dataRows

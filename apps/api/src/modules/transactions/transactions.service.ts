@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common'
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lte } from 'drizzle-orm'
 import type { CategorizeTransactionsInput, CreateTransactionInput, FlagTransactionsInput, Transaction, UpdateTransactionInput } from 'shared-types'
 import { DB } from '../../db/db.module.js'
@@ -10,6 +10,7 @@ import { mapPostgresError } from '../../common/postgres-error.js'
 import type { ListTransactionsFilter } from '../reporting/reporting-query.service.js'
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service.js'
 import { type TransactionConversion } from '../exchange-rates/conversion.js'
+import { groupIdsOf, loadGroups, membershipsOf, pruneGroups } from '../groups/group-store.js'
 
 type TransactionRow = typeof transactions.$inferSelect
 
@@ -119,6 +120,26 @@ export class TransactionsService {
     const current = await runInTenantContext(this.db, userId, async (tx) => {
       const [row] = await tx.select().from(transactions).where(eq(transactions.id, id))
       if (!row) throw new NotFoundException('Transaction not found')
+      // People's shares were worked out from this amount, and a part of it
+      // may be in a group; changing it underneath them would leave balances
+      // wrong. A group's currency has to stay one (a transfer's sides can differ).
+      const amountChanges = input.amount !== undefined && Number(input.amount) !== Number(row.amount)
+      const currencyChanges = input.currencyCode !== undefined && input.currencyCode !== row.currencyCode
+      if (amountChanges || currencyChanges) {
+        const memberships = await membershipsOf(tx, [id])
+        const groups = await loadGroups(tx, memberships.map((m) => m.groupId))
+        // A transfer's sides can be in any currency; a shared group's can't.
+        if (currencyChanges && groups.some((g) => g.group.kind === 'shared')) {
+          throw new ConflictException('This transaction is in a group. Take it out before changing its currency.')
+        }
+        const signFlips = amountChanges && Math.sign(Number(input.amount)) !== Math.sign(Number(row.amount))
+        if (signFlips && groups.some((g) => g.group.kind === 'transfer')) {
+          throw new ConflictException('This transaction is one side of a transfer. Unmatch it before changing money out to money in.')
+        }
+        if (memberships.some((m) => m.amount !== null || m.contactId !== null) || groups.some((g) => g.shares.length > 0)) {
+          throw new ConflictException('This transaction is in a group with people. Take it out before changing its amount.')
+        }
+      }
       return { row, homeCurrencyCode: await loadHomeCurrency(tx, userId) }
     })
 
@@ -206,10 +227,14 @@ export class TransactionsService {
 
   async delete(userId: string, id: string): Promise<void> {
     return runInTenantContext(this.db, userId, async (tx) => {
+      // Its group memberships go with it (cascade); a group left without the
+      // user's own money, or with fewer than two things in it, goes too.
+      const groupIds = await groupIdsOf(tx, [id])
       const [row] = await tx.delete(transactions).where(eq(transactions.id, id)).returning()
       if (!row) {
         throw new NotFoundException('Transaction not found')
       }
+      await pruneGroups(tx, groupIds)
     })
   }
 

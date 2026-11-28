@@ -89,6 +89,15 @@ export function MenuIcon() {
   )
 }
 
+export function PlusIcon() {
+  return (
+    <Icon>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </Icon>
+  )
+}
+
 export function CloseIcon() {
   return (
     <Icon width="22" height="22">
@@ -175,6 +184,16 @@ export function LinkIcon() {
     <Icon>
       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </Icon>
+  )
+}
+
+/** Two opposing arrows: money moving between the user's own accounts. */
+export function TransferIcon() {
+  return (
+    <Icon>
+      <path d="M4 8h14l-3.5-3.5" />
+      <path d="M20 16H6l3.5 3.5" />
     </Icon>
   )
 }
@@ -328,6 +347,18 @@ export function EyeOffIcon() {
       <path d="M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.4 9.4 0 0 0 5.4-1.6" />
       <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
       <path d="m3 3 18 18" />
+    </Icon>
+  )
+}
+
+/** Two people: IOUs (money owed between the user and others). */
+export function PeopleIcon() {
+  return (
+    <Icon>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
+      <circle cx="16.5" cy="9" r="2.6" />
+      <path d="M15.5 14.2a4.6 4.6 0 0 1 5 5.3" />
     </Icon>
   )
 }

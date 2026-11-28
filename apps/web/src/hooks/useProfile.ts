@@ -13,8 +13,8 @@ export function useProfile() {
     const before = data?.homeCurrencyCode
     const profile = await apiClient.patch<Profile>(PATH, input)
     queryClient.setQueryData([API_KEY, PATH], profile)
-    // A new home currency recomputes every converted amount.
-    if (profile.homeCurrencyCode !== before) await invalidateApi()
+    // A new home currency recomputes every converted amount; the people setting changes net worth.
+    if (profile.homeCurrencyCode !== before || input.countIousInNetWorth !== undefined) await invalidateApi()
   }
 
   async function uploadAvatar(file: File) {

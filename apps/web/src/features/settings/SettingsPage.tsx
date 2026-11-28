@@ -90,6 +90,22 @@ export function SettingsPage() {
         </Card>
       )}
 
+      {profile && (
+        <Card style={{ marginTop: 'var(--space-4)' }}>
+          <label className="people-sheet-check">
+            <input
+              type="checkbox"
+              checked={profile.countIousInNetWorth}
+              onChange={(e) => updateProfile({ countIousInNetWorth: e.target.checked })}
+            />
+            <span>
+              Count money owed in net worth
+              <span className="people-sheet-hint">What people owe you adds to your net worth, and what you owe them is taken off.</span>
+            </span>
+          </label>
+        </Card>
+      )}
+
       <CategoriesSection />
     </main>
   )

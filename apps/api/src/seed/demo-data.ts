@@ -72,6 +72,7 @@ export interface DemoTransaction {
 export interface DemoReconciliationGroup {
   id: string
   label: string | null
+  kind: 'shared' | 'transfer'
   transactionIds: string[]
 }
 
@@ -291,7 +292,12 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   // ── Reconciliation groups ──────────────────────────────────────────────
   const byDescription = (description: string, monthsAgo: number): DemoTransaction[] =>
     transactions.filter((t) => t.description === description && t.date >= iso(startOfMonth(subMonths(reference, monthsAgo))) && t.date < iso(startOfMonth(subMonths(reference, monthsAgo - 1))))
-  const group = (label: string | null, members: DemoTransaction[]): DemoReconciliationGroup => ({ id: randomUUID(), label, transactionIds: members.map((t) => t.id) })
+  const group = (label: string | null, members: DemoTransaction[], kind: DemoReconciliationGroup['kind'] = 'shared'): DemoReconciliationGroup => ({
+    id: randomUUID(),
+    label,
+    kind,
+    transactionIds: members.map((t) => t.id),
+  })
 
   const reconciliationGroups: DemoReconciliationGroup[] = []
   // Shared dinner, net zero (paid 120, three friends repaid 40 each)
@@ -305,11 +311,11 @@ export function buildDemoDataset(reference = new Date()): DemoDataset {
   // Credit-card payment pair (cross-account)
   const cardPaymentOut = add(checking, dayInMonth(2, 22), -200, 'Visa Payment', 'Transfers')
   const cardPaymentIn = add(visa, dayInMonth(2, 22), 200, 'Visa Payment', 'Transfers')
-  reconciliationGroups.push(group('Credit card payment', [cardPaymentOut, cardPaymentIn]))
+  reconciliationGroups.push(group('Credit card payment', [cardPaymentOut, cardPaymentIn], 'transfer'))
   // The two most recent savings + brokerage transfer pairs
   for (const monthsAgo of [1, 0]) {
-    reconciliationGroups.push(group(`Savings Transfer — ${monthLabel(monthsAgo)}`, byDescription('Savings Transfer', monthsAgo)))
-    reconciliationGroups.push(group(`Brokerage Transfer — ${monthLabel(monthsAgo)}`, byDescription('Brokerage Transfer', monthsAgo)))
+    reconciliationGroups.push(group(`Savings Transfer — ${monthLabel(monthsAgo)}`, byDescription('Savings Transfer', monthsAgo), 'transfer'))
+    reconciliationGroups.push(group(`Brokerage Transfer — ${monthLabel(monthsAgo)}`, byDescription('Brokerage Transfer', monthsAgo), 'transfer'))
   }
 
   // ── One import profile, on the checking account ────────────────────────

@@ -40,6 +40,7 @@ export class UsersService {
       homeCurrencyCode: row.homeCurrencyCode,
       countryCode: row.countryCode,
       avatarUrl: row.avatarPath ? await this.storage.avatarUrl(row.avatarPath) : null,
+      countIousInNetWorth: row.countIousInNetWorth,
       createdAt: row.createdAt.toISOString(),
     }
   }

@@ -78,7 +78,7 @@ export class MonthSplitService {
       .where(inArray(reconciliationGroupMembers.transactionId, [transactionId]))
       .limit(1)
     if (existing) {
-      throw new ConflictException('Transaction is part of a reconciliation group and cannot be month-split')
+      throw new ConflictException('This transaction is in a group, so it can’t be split across months. Take it out of the group first.')
     }
   }
 }

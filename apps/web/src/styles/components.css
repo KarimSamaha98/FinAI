@@ -749,6 +749,11 @@
   min-width: 0;
 }
 
+/* In a wizard's column it's one row high, not a 16rem flex basis. */
+.wizard-question > .search-input {
+  flex: none;
+}
+
 /* In the filter bar it takes the whole first row; the filter chips follow. */
 .filter-bar > .search-input {
   flex-basis: 100%;
@@ -4585,4 +4590,1037 @@ dialog::backdrop {
   .skeleton {
     animation: none;
   }
+}
+
+/* ── People: balances, splits ───────────────────────────────────────────── */
+/* Money owed between the user and other people. Balances are neutral (label
+   colour): they're neither income nor spending, so the status chip, not the
+   amount's colour, says who owes whom. */
+
+.person-initials {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  background: hsl(var(--person-hue, 152) 45% 42%);
+  color: #ffffff;
+  font: var(--type-caption-1);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.person-initials.is-lg {
+  width: 3.5rem;
+  height: 3.5rem;
+  font: var(--type-headline);
+}
+
+.person-initials.is-me {
+  background: var(--accent);
+  font-size: 0.65rem;
+}
+
+.person-initials.is-add {
+  background: var(--tint-soft);
+  color: var(--accent-text);
+  font: var(--type-headline);
+}
+
+/* Who owes whom: tint for money coming to the user. */
+.person-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-full);
+  font: var(--type-caption-1);
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--fill-tertiary);
+  color: var(--text-muted);
+}
+
+.person-status.is-owed {
+  background: var(--tint-soft);
+  color: var(--accent-text);
+}
+
+.person-status.is-owe {
+  background: color-mix(in srgb, var(--outflow) 14%, transparent);
+  color: var(--outflow);
+}
+
+/* Home: People table */
+.people-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.people-card h2 {
+  font: var(--type-footnote);
+  font-weight: 600;
+  margin: 0;
+  padding-left: 0.25rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.people-card-empty {
+  margin: 0;
+  padding: 0 0.25rem;
+  color: var(--text-muted);
+  font: var(--type-subhead);
+  max-width: 40rem;
+}
+
+.people-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.people-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--hit-min);
+  padding: 0.55rem 0.5rem;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  text-decoration: none;
+  transition: background var(--transition);
+}
+
+.people-row + .people-row {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.people-row:hover {
+  background: var(--fill-quaternary);
+}
+
+.people-row-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font: var(--type-body);
+  font-weight: 500;
+}
+
+.people-row-amount {
+  min-width: 5.5rem;
+  text-align: right;
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  /* Status moves under the amount so the name keeps its room. */
+  .people-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'avatar name amount' 'avatar name status';
+    row-gap: 0.15rem;
+  }
+  .people-row > .person-initials {
+    grid-area: avatar;
+  }
+  .people-row-name {
+    grid-area: name;
+  }
+  .people-row-amount {
+    grid-area: amount;
+    min-width: 0;
+  }
+  .people-row > .person-status {
+    grid-area: status;
+    justify-self: end;
+  }
+}
+
+/* Home hero: the balance with people the total counts */
+.home-hero-people {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Person page */
+/* People page: the list of everyone beside the selected person (stacked and taking turns on a phone). */
+.people-page-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.people-page {
+  display: grid;
+  grid-template-columns: minmax(15rem, 20rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.people-list {
+  padding: var(--space-1);
+}
+
+.people-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.people-list li + li {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.people-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.people-list-row:hover {
+  background: var(--fill-quaternary);
+}
+
+.people-list-row.is-selected {
+  background: var(--tint-soft);
+}
+
+.people-list-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.people-list-name {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-list-status {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.people-list-status.is-owed {
+  color: var(--accent-text);
+}
+
+.people-list-status.is-owe {
+  color: var(--outflow);
+}
+
+.people-list-amount {
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.people-page-placeholder {
+  padding: var(--space-5) 0;
+}
+
+.person-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.person-detail-back {
+  display: none;
+  align-self: flex-start;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.person-detail-back svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.rename-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.person-hero-name {
+  margin: 0;
+  font: var(--type-title-3);
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .people-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* One person at a time: their "‹ People" back link stands in for the page title. */
+  .people-page-wrap.has-selection > h1,
+  .people-page.has-selection .people-list,
+  .people-page-placeholder {
+    display: none;
+  }
+
+  .person-detail-back {
+    display: inline-flex;
+  }
+}
+
+.person-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-5);
+}
+
+.person-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.person-hero-amount {
+  font: var(--type-large-title);
+  font-size: 2.25rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.person-hero-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.person-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.person-section h2 {
+  font: var(--type-footnote);
+  font-weight: 600;
+  margin: 0;
+  padding-left: 0.25rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.person-list {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1);
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--hit-min);
+  padding: 0.6rem 0.65rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.person-row + .person-row {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.person-row:hover {
+  background: var(--fill-quaternary);
+}
+
+.person-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.person-row-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.person-row-title {
+  font: var(--type-body);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-row-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.person-row-amount {
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.person-row.is-static {
+  cursor: default;
+}
+
+.person-row.is-static:hover {
+  background: none;
+}
+
+/* Still expected: + they owe the user, − the user owes them. Settled ones are muted. */
+.person-row-amount.is-owed {
+  color: var(--accent-text);
+}
+
+.person-row-amount.is-owe {
+  color: var(--outflow);
+}
+
+.person-row-amount.is-settled {
+  color: var(--text-muted);
+}
+
+.person-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* Settings: the "count money owed in net worth" switch */
+.people-sheet-hint {
+  display: block;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.people-sheet-check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font: var(--type-body);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.people-sheet-check > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+/* Split rows: person · their value · their share */
+.split-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.55rem 0;
+}
+
+.split-row + .split-row {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.split-row-name {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  font: var(--type-body);
+  font-weight: 500;
+}
+
+.split-row-input {
+  width: 5.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-row-amount {
+  min-width: 5.5rem;
+  text-align: right;
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Group wizard: the shortcut to pay someone back instead */
+.group-payback {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0.6rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--tint-soft);
+  color: var(--accent-text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-payback:hover {
+  filter: brightness(0.97);
+}
+
+.group-payback:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.group-payback > svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.group-payback-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.group-payback-title {
+  font-weight: 600;
+}
+
+.group-payback-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Groups: the user's own transactions in the wizard and the group sheet */
+.group-items {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--hit-min);
+  padding: 0.35rem 0;
+}
+
+.group-item + .group-item {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.group-item-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.group-item-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-item-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.group-item > .mono,
+.allocation-row .mono {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* "Add a transaction" sits at its own width under the list. */
+.wizard-question > .btn {
+  flex: none;
+  align-self: flex-start;
+}
+
+/* The group sheet */
+.group-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.group-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.group-sheet-section > h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.group-sheet-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  box-shadow: inset 0 0.5px 0 var(--separator);
+  font: var(--type-headline);
+}
+
+.group-sheet-total .mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.group-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.group-sheet-confirm {
+  flex: 1 1 100%;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Paying someone back: how much of the payment goes to each group */
+.allocation-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.allocation-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.5rem 0;
+}
+
+.allocation-row + .allocation-row {
+  box-shadow: inset 0 0.5px 0 var(--separator);
+}
+
+.allocation-row-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.allocation-row-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allocation-row-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Settle up: pick the transaction that paid */
+.settle-candidates {
+  display: flex;
+  flex-direction: column;
+  max-height: 22rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.settle-candidate {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settle-candidate:hover {
+  background: var(--fill-quaternary);
+}
+
+.settle-candidate.is-selected {
+  background: var(--tint-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.settle-candidate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.settle-candidate-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settle-candidate-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settle-candidate-sub {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+/* Contact picker */
+.contact-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.contact-picker-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contact-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.contact-picker-row:hover,
+.contact-picker-row.is-selected {
+  background: var(--fill-quaternary);
+}
+
+.contact-picker-row.is-add {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.contact-picker-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.contact-picker-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-picker-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1.5px var(--separator-opaque);
+  color: var(--on-tint);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.contact-picker-check.is-on {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.contact-picker-empty {
+  padding: 0.4rem 0.5rem;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.split-row-include {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+  white-space: nowrap;
+}
+
+/* ── Transfers ─────────────────────────────────────────────────────────── */
+
+.likely-chip {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--tint-soft);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  vertical-align: 0.1em;
+  white-space: nowrap;
+}
+
+.transfer-summary {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--fill-quaternary);
+}
+
+.transfer-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.transfer-side .mono {
+  white-space: nowrap;
+}
+
+.transfer-side-label {
+  font-weight: 600;
+}
+
+.transfer-side-sub {
+  color: var(--label-secondary);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-arrow {
+  color: var(--label-secondary);
+  font-size: 1.2rem;
+}
+
+.transfer-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--label-secondary);
+  font-size: 0.85rem;
+}
+
+.transfer-change {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 480px) {
+  .transfer-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .transfer-arrow {
+    transform: rotate(90deg);
+    justify-self: start;
+    margin-left: var(--space-2);
+  }
+}
+
+/* ── Person cards: a person's part of a group, drawn like a transaction ──
+   Solid once settled; dashed while a payment is still expected. */
+
+.person-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--fill-quaternary);
+}
+
+.person-card.is-expected {
+  border: 1.5px dashed var(--label-tertiary);
+  background: transparent;
+}
+
+.person-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.person-card-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.person-card-name {
+  padding: 0;
+  color: var(--text);
+  font: var(--type-body);
+  font-weight: 600;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-card-status {
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.person-card.is-expected .person-card-status {
+  color: var(--accent);
+}
+
+.person-card-amount {
+  flex: none;
+  min-width: 4.5rem;
+  text-align: right;
+  font: var(--type-headline);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.person-card-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0 0 0 calc(2rem + var(--space-3));
+  list-style: none;
+}
+
+.person-card-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 1.75rem;
+  color: var(--text-muted);
+  font: var(--type-footnote);
+}
+
+.person-card-line > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-card-line .mono {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.person-card-line .text-button,
+.person-card-line .icon-button {
+  flex: none;
+}
+
+.person-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-left: calc(2rem + var(--space-3));
+}
+
+.person-card-actions .btn {
+  min-height: 2rem;
+  padding: 0.3rem 0.9rem;
+  font: var(--type-subhead, var(--type-footnote));
+  font-weight: 600;
 }

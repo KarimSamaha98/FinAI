@@ -32,6 +32,8 @@ export const profiles = pgTable('profiles', {
     .references(() => currencies.code),
   countryCode: text('country_code'),
   avatarPath: text('avatar_path'),
+  // Whether balances with people (owed to me / I owe) count in net worth.
+  countIousInNetWorth: boolean('count_ious_in_net_worth').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -152,10 +154,22 @@ export const transactions = pgTable('transactions', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Groups (see supabase/migrations/*_groups_with_people.sql): transactions
+// that belong together, and the people who share them.
+export interface GroupSplitInputs {
+  me: number
+  participants: { contactId: string; value: number }[]
+}
+
 export const reconciliationGroups = pgTable('reconciliation_groups', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull(),
   label: text('label'),
+  // How the people's shares were worked out, so the split reopens as left.
+  /** shared: transactions that net out and the people who share them · transfer: money moving between the user's own accounts. */
+  kind: text('kind', { enum: ['shared', 'transfer'] }).notNull().default('shared'),
+  splitMode: text('split_mode', { enum: ['equal', 'amount', 'percent'] }),
+  splitInputs: jsonb('split_inputs').$type<GroupSplitInputs>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -166,8 +180,11 @@ export const reconciliationGroupMembers = pgTable('reconciliation_group_members'
     .references(() => reconciliationGroups.id),
   transactionId: uuid('transaction_id')
     .notNull()
-    .unique()
     .references(() => transactions.id),
+  // Set when the transaction is a person's payment for this group.
+  contactId: uuid('contact_id').references(() => contacts.id),
+  // The part of the transaction in this group (same sign); null = all of it.
+  amount: numeric('amount', { precision: 14, scale: 2 }),
 })
 
 export const monthSplits = pgTable(
@@ -185,3 +202,33 @@ export const monthSplits = pgTable(
 )
 
 
+
+// ── People (see supabase/migrations/*_people.sql) ────────────────────────────
+
+export const contacts = pgTable('contacts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  displayName: text('display_name').notNull(),
+  linkedUserId: uuid('linked_user_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** A person's share of a group, signed like a balance (positive = they owe the user). */
+export const groupShares = pgTable('group_shares', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  groupId: uuid('group_id')
+    .notNull()
+    .references(() => reconciliationGroups.id),
+  contactId: uuid('contact_id')
+    .notNull()
+    .references(() => contacts.id),
+  amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text('currency_code')
+    .notNull()
+    .references(() => currencies.code),
+  // What the user let go of (same sign as amount), and when.
+  forgiven: numeric('forgiven', { precision: 14, scale: 2 }).notNull().default('0'),
+  forgivenOn: date('forgiven_on'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
