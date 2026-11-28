@@ -1,0 +1,52 @@
+# Morning sweep: every open issue labelled `agent` that is not yet waiting for
+# review (`agent:review`) gets an agent run. Runs that hit the daily usage limit
+# fail and report on their issue; tomorrow's sweep continues them.
+name: Claude morning sweep
+
+on:
+  schedule:
+    - cron: "0 11 * * *" # 06:00 Toronto (EST); 07:00 during EDT
+  workflow_dispatch:
+    inputs:
+      max_parallel:
+        description: Agents running at once
+        default: "3"
+
+jobs:
+  queue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    outputs:
+      issues: ${{ steps.list.outputs.issues }}
+    steps:
+      - id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # priority:high first, then oldest first.
+        run: |
+          issues=$(gh issue list -R "${{ github.repository }}" --state open --label agent --limit 100 \
+            --json number,labels --jq '
+              map(select([.labels[].name] | index("agent:review") | not))
+              | sort_by(([.labels[].name] | index("priority:high") | not), .number)
+              | map(.number)')
+          echo "issues=$issues" >> "$GITHUB_OUTPUT"
+          echo "Queued: $issues" >> "$GITHUB_STEP_SUMMARY"
+
+  work:
+    needs: queue
+    if: needs.queue.outputs.issues != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(inputs.max_parallel || '3') }}
+      matrix:
+        issue: ${{ fromJSON(needs.queue.outputs.issues) }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    uses: ./.github/workflows/claude-agent.yml
+    with:
+      issue_number: ${{ matrix.issue }}
+    secrets: inherit

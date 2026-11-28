@@ -1,0 +1,56 @@
+# PR review assistant: the owner mentions @claude on a pull request.
+#   - A question gets a short answer in a comment; no code changes.
+#   - A change request updates the plan (and the issue if scope changed), then
+#     implements it on the PR branch, re-runs checks and refreshes the PR body.
+name: Claude PR assistant
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  assist:
+    if: >-
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        github.event.comment.user.login == github.repository_owner &&
+        contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' &&
+        github.event.comment.user.login == github.repository_owner &&
+        contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' &&
+        github.event.review.user.login == github.repository_owner &&
+        contains(github.event.review.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      # One job per PR at a time; a new request waits for the current one.
+      group: claude-pr-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          include_comments_by_actor: ${{ github.repository_owner }},github-actions[bot],claude[bot]
+          claude_args: |
+            --permission-mode acceptEdits
+            --allowedTools "Read,Edit,Write,Glob,Grep,TodoWrite,Bash(pnpm:*),Bash(git:*),Bash(gh issue:*),Bash(gh pr:*),Bash(gh api:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(grep:*),Bash(find:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*),Bash(node:*),Bash(date:*),Bash(wc:*),Bash(sed:*),Bash(diff:*)"
+            --append-system-prompt "You are the owner's PR review assistant. Read AGENTS.md first and follow its invariants. Decide whether the comment is a QUESTION or a CHANGE REQUEST. QUESTION: answer directly and concisely (lead with the answer, cite file:line, no code changes, no commits). CHANGE REQUEST: (1) if the PR has a plan at docs/plans/issue-<n>.md, add a dated Revisions entry describing the requested change and update the steps; if the change alters the issue's scope, edit the linked issue body with gh issue edit and say what changed; (2) implement it on the PR branch in focused commits and push; (3) run pnpm typecheck && pnpm lint && pnpm test and fix failures you caused; (4) update the PR body (it follows .github/claude/pr-template.md) so every section reflects the new state; (5) reply with what changed and the commits. If a request is ambiguous, make the most reasonable interpretation, state it, and proceed."
