@@ -1,44 +1,57 @@
 # Claude agents
 
-GitHub issues are the task queue. Claude agents work them into pull requests and the owner reviews them.
+GitHub issues are the task queue. Claude agents running **on the Pi** work them into pull requests, and the owner reviews them. Every agent is a background Claude Code session with Remote Control on, so you can join any of them at any time: open the link on claude.ai/code or in the Claude app, or run `claude attach finai-issue-N` on the Pi.
+
+The runner is `scripts/agents/agentd.py`, run every minute by cron. Nothing runs on GitHub's machines; GitHub is only where tasks, PRs and comments live.
 
 | Label | Meaning |
 |---|---|
-| `agent` | A cloud agent should work this issue (only the owner can add labels, so this is the approval) |
-| `priority:high` | Picked first by the morning sweep |
-| `interactive` | Worked in a live session on the Pi instead; cloud agents leave it alone |
-| `agent:review` | Agent finished; the PR is waiting for review |
+| `agent` | Queue this issue. The agent plans, opens a draft PR and implements without waiting. |
+| `interactive` | Queue it too, but the agent stops after the plan and waits for your OK |
+| `priority:high` | Starts before other queued issues |
+| `agent:blocked` | Set by the agent when it needs you; your next message clears it |
+| `agent:review` | Set by the agent when the PR is ready for review |
 
-## Flows
+Only the owner can add labels, so labelling an issue is what approves it.
 
-**Issue → PR** (`.github/workflows/claude-agent.yml`). Add `agent` to an issue. The agent writes `docs/plans/issue-N.md` and opens a **draft PR right away**, so you can read the plan while it implements. Each step is pushed and ticked off in the PR's Status checklist. When done it runs `pnpm typecheck && pnpm lint && pnpm test`, writes the description from `.github/claude/pr-template.md`, marks the PR ready and labels the issue `agent:review`.
-To steer it, comment `@claude …` on the issue: the run restarts and acts on your comment first.
+## Flow
 
-**Questions and changes on a PR** (`.github/workflows/claude-pr.yml`). Comment `@claude …` on the PR. Questions are answered with no install and no code changes. Change requests update the plan (and the issue if the scope changed), get implemented, re-checked and pushed, and the PR description is refreshed.
-For several line comments, use **Start a review** and put `@claude` in the review summary when you submit: one run handles the whole review.
+1. **Label an issue** `agent` or `interactive`. When a slot is free (`AGENT_MAX_PARALLEL`, default 2), the Pi creates a worktree in `~/agents/worktrees/issue-N` on branch `agent/issue-N`, installs dependencies, and starts session `finai-issue-N`. The issue gets a **status comment**, edited in place, with the session link and the attach command.
+2. **Plan, visible early.** The agent writes `docs/plans/issue-N.md` and opens a **draft PR** right away (description from `docs/agents/pr-template.md`), then works step by step: it pushes each step and ticks it off in the PR's Status checklist.
+3. **Hand-over.** It runs `pnpm typecheck && pnpm lint && pnpm test`, rewrites the PR description, marks the PR ready, labels the issue `agent:review`, and waits.
+4. **Questions and changes.** You can talk to the session directly, or comment `@claude …` on the issue or the PR. For several line comments, use **Start a review** and put `@claude` in the summary. The runner forwards your comments to that issue's session: it stops the session and resumes the same conversation with your comments as the next message. The agent that wrote the code answers questions on GitHub, or makes the change: it updates the plan (and the issue if the scope changed), pushes, re-checks and refreshes the PR. `@claude` on a PR that isn't from an agent starts a session for that PR's branch.
 
-**Morning sweep** (`.github/workflows/claude-morning.yml`). At 06:00 Toronto time (EST) it works every open `agent` issue without `agent:review` or `interactive`, `priority:high` first, 3 at a time. You can also run it from the Actions tab with a different concurrency. A run that hits the usage limit comments on its issue; the next sweep continues it.
+To open the code with one click, use the PR description's **Code in browser** link (github.dev), or open the worktree on the Pi (VS Code Remote-SSH: `~/agents/worktrees/issue-N`).
 
-**Interactive on the Pi** (`scripts/agents/`). Add `interactive` to an issue. Within a minute the Pi starts a background Claude session in `~/agents/worktrees/issue-N` (same `agent/issue-N` branch) with Remote Control on, and comments a link on the issue. Open it on claude.ai/code or the Claude app, or run `claude attach finai-issue-N` on the Pi. The session posts its plan and waits for you before implementing.
-To hand the issue back, remove `interactive`; cloud agents continue from the branch and plan. Adding the label again resumes the Pi conversation. When finished: `~/agents/FinAI/scripts/agents/cleanup.sh N`.
+## Running out of usage, nudges, idle sessions
 
-## Continuity
+- Agents use the Claude subscription logged in on the Pi, the **same usage as your own Claude Code**. To keep daytime usage for yourself, set `AGENT_START_HOURS` (e.g. `0-8` starts new tasks only overnight), or set `AGENT_MODEL=sonnet` to stretch usage.
+- A session that sits idle for `AGENT_NUDGE_AFTER_MIN` (30) while its task is unfinished gets nudged to continue. This is how work picks back up after a usage limit resets. A session that is waiting for you should set `agent:blocked` instead.
+- Sessions in review are stopped after 90 idle minutes, and blocked ones after 8 hours, to free memory. Their conversation is kept: your next `@claude` comment resumes it.
+- When an issue or PR is closed, its session is removed and its worktree deleted, unless it has uncommitted or unpushed work.
 
-Every cloud run on a branch resumes the previous Claude session for that branch, saved in the GitHub Actions cache (`claude-session-<branch>-…`): steering comments, PR requests and the morning sweep all continue the same conversation as the agent that wrote the code. If no session is saved (cache entries expire after 7 days unused), a run starts fresh from the branch, the plan and the PR, which is why agents keep `docs/plans/issue-N.md` current.
-Pi sessions and cloud sessions don't share conversations; they share the branch and the plan file.
+## Commands (on the Pi)
+
+```
+~/agents/FinAI/scripts/agents/agentd.py status          # tasks, session state, idle time, links
+~/agents/FinAI/scripts/agents/agentd.py cleanup issue-N  # stop + remove a task's session and worktree
+claude agents                                           # all background sessions
+claude attach finai-issue-N                             # join one in the terminal
+tail -f ~/agents/agentd.log
+```
+Settings: `~/agents/config` (applied on the next tick).
 
 ## Safety
 
-The repo is public, so:
-- Only the owner can start work: the `agent`/`interactive` labels, and `@claude` comments only from the owner. Comments by anyone else are never acted on.
-- Agents use the workflow `GITHUB_TOKEN`, so their comments and PRs can't trigger further runs.
-- No self-hosted runner: the Pi polls GitHub (`watch.sh`) instead of executing jobs GitHub sends it.
-- Sessions are kept in the Actions cache, not as artifacts (artifacts on public repos are downloadable).
+The agents run on your Pi with your GitHub and Claude credentials, so:
+- Only the owner's words are instructions. Labels need triage access. Forwarded comments are filtered to the owner. Agents read issues through an author filter and treat all other text as data.
+- The Pi only polls GitHub; nothing on GitHub can make it run code.
+- Permission mode `auto`: routine edits, git/gh/pnpm run freely, and risky actions are checked by Claude Code's safety classifier. Join the session to approve anything it won't do on its own.
+- Keeping the repository **private** removes strangers' issues and comments from what agents might read at all.
 
 ## Setup
 
-Done once:
-- Repo secret `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`): agents use the Claude subscription's usage.
-- Settings → Actions → "Allow GitHub Actions to create and approve pull requests" enabled.
-- Labels above created.
-- Pi: `scripts/agents/install.sh` (clone in `~/agents/FinAI`, cron entry), then `cd ~/agents && claude` once to trust the folder. Log: `~/agents/watch.log`.
+Once, on the Pi:
+1. `gh` logged in with repo access; Claude Code logged in (`claude`).
+2. `scripts/agents/install.sh`: clones the repo to `~/agents/FinAI` (kept on `main`), writes `~/agents/config`, and adds the cron entry.
+3. `cd ~/agents && claude` once, and accept the trust prompt.

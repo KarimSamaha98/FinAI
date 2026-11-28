@@ -1,6 +1,6 @@
 <!--
-Template the Claude agents follow for PR descriptions. Replace every <...>.
-Keep the "Status" checklist up to date while working (gh pr edit --body-file).
+Template the Claude agents (scripts/agents/agentd.py) follow for PR descriptions. Replace every <...>.
+Keep the "Status" checklist up to date while working.
 -->
 Closes #<issue>
 
